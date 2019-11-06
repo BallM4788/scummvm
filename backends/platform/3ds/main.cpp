@@ -26,7 +26,7 @@
 
 int main(int argc, char *argv[]) {
 	// Initialize basic libctru stuff
-	gfxInitDefault();
+	gfxInit(GSP_RGB565_OES, GSP_RGB565_OES, false);
 	cfguInit();
 	romfsInit();
 	osSetSpeedupEnable(true);

@@ -31,27 +31,27 @@
 // Used to transfer the final rendered display to the framebuffer
 #define DISPLAY_TRANSFER_FLAGS                                                 \
 	(GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) |                     \
-	 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) |  \
-	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) |                            \
+	 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGB565) |  \
+	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB565) |                            \
 	 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 
 namespace _3DS {
 
 void OSystem_3DS::initGraphics() {
 	_pfGame = Graphics::PixelFormat::createFormatCLUT8();
-	_pfGameTexture = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
+	_pfGameTexture = Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0);
 
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
 	// Initialize the render targets
 	_renderTargetTop =
-	    C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	    C3D_RenderTargetCreate(240, 400, GPU_RB_RGB565, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x0000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
 
 	_renderTargetBottom =
-	    C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, GPU_RB_DEPTH24_STENCIL8);
+	    C3D_RenderTargetCreate(240, 320, GPU_RB_RGB565, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetBottom, C3D_CLEAR_ALL, 0x00000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
@@ -217,8 +217,8 @@ void OSystem_3DS::updateSize() {
 
 Common::List<Graphics::PixelFormat> OSystem_3DS::getSupportedFormats() const {
 	Common::List<Graphics::PixelFormat> list;
-	list.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0)); // GPU_RGBA8
 	list.push_back(Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0)); // GPU_RGB565
+	list.push_back(Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0)); // GPU_RGBA8
 // 		list.push_back(Graphics::PixelFormat(3, 0, 0, 0, 8, 0, 8, 16, 0)); // GPU_RGB8
 	list.push_back(Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0)); // RGB555 (needed for FMTOWNS?)
 	list.push_back(Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0)); // GPU_RGBA5551
@@ -640,12 +640,12 @@ void OSystem_3DS::setCursorPalette(const byte *colors, uint start, uint num) {
 namespace {
 template<typename SrcColor>
 void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, const SrcColor keyColor) {
-	assert(dst->format.bytesPerPixel == 4);
+	assert(dst->format.bytesPerPixel == 2);
 	assert((dst->w >= src->w) && (dst->h >= src->h));
 
 	for (uint y = 0; y < src->h; ++y) {
 		SrcColor *srcPtr = (SrcColor *)src->getBasePtr(0, y);
-		uint32 *dstPtr = (uint32 *)dst->getBasePtr(0, y);
+		uint16 *dstPtr = (uint16 *)dst->getBasePtr(0, y);
 
 		for (uint x = 0; x < src->w; ++x) {
 			const SrcColor color = *srcPtr++;
