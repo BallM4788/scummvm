@@ -49,6 +49,64 @@ enum InputMode {
 	MODE_DRAG,
 };
 
+// Graphics transaction states
+enum TransactionState {
+	kTransactionNone = 0,
+	kTransactionActive = 1,
+	kTransactionRollback = 2
+};
+
+// Details for a graphics transaction
+struct TransactionDetails {
+	bool formatChanged;
+
+	TransactionDetails() {
+		formatChanged = false;
+	}
+};
+
+typedef struct GfxMode3DS {
+	Graphics::PixelFormat svmPF;
+	GSPGPU_FramebufferFormats screenFormat;
+	GPU_COLORBUF bufferFormat;
+	GPU_TEXCOLOR textureFormat;
+	uint32 displayTransferFlags;
+	uint32 textureTransferFlags;
+} GfxMode3DS;
+
+enum GraphicsModeID {
+	RGBA8,
+	RGB565,
+	RGB8,
+	RGB555,
+	RGB5A1,
+	CLUT8
+};
+
+// Screen configuration states
+struct GfxState {
+	bool setup;
+	GraphicsModeID gfxModeID;
+	GfxMode3DS *gfxMode;
+	MagnifyMode magMode;
+	Graphics::PixelFormat gamePF;
+
+/*	Graphics::PixelFormat svmPF;
+	GSPGPU_FramebufferFormats screenFormat;
+	GPU_COLORBUF bufferFormat;
+	GPU_TEXCOLOR textureFormat;
+	uint32 displayTransferFlags;
+	uint32 textureTransferFlags;*/
+
+	GfxState() {
+		setup = false;
+		gfxModeID = CLUT8;
+		magMode = MODE_MAGOFF;
+		gamePF = Graphics::PixelFormat::createFormatCLUT8();
+		// format set to 0 values by Graphics::PixelFormat constructor
+	}
+};
+
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager {
 public:
 	OSystem_3DS();
@@ -86,11 +144,13 @@ public:
 	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
 
 	// Graphics
-	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
+	inline Graphics::PixelFormat getScreenFormat() const { return _gfxState.gamePF; }
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
 	virtual int getScreenChangeID() const { return _screenChangeId; };
+	GraphicsModeID chooseMode(Graphics::PixelFormat *format);
+	bool setGraphicsMode(GraphicsModeID modeID);
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
@@ -137,12 +197,17 @@ public:
 	void updateMagnify();
 	void updateConfig();
 	void updateSize();
+
 	void setMagnifyMode(MagnifyMode mode);
-	MagnifyMode getMagnifyMode(){ return _magnifyMode; }
+	MagnifyMode getMagnifyMode(){ return _gfxState.magMode; }
 
 private:
-	void initGraphics();
-	void destroyGraphics();
+	void init3DSGraphics();
+	void destroy3DSGraphics();
+// NEW FUNCTIONS
+	bool loadGfx();
+	void unloadGfx();
+// END NEW
 	void initAudio();
 	void destroyAudio();
 	void initEvents();
@@ -164,15 +229,18 @@ private:
 	Thread audioThread;
 
 	// Graphics
-	Graphics::PixelFormat _pfGame;
-	Graphics::PixelFormat _pfGameTexture;
+	GfxState _gfxState, _oldGfxState;
+	GraphicsModeID _graphicsModeID;
+	TransactionState _transactionState;
+	TransactionDetails _transactionDetails;
+
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
 
-	Graphics::Surface _gameScreen;
-	Sprite _gameTopTexture;
-	Sprite _gameBottomTexture;
+	Graphics::Surface _gameBuffer;
+	Sprite _gameTextureTop;
+	Sprite _gameTextureBottom;
 	Sprite _overlay;
 	Sprite _activityIcon;
 	Sprite _osdMessage;
@@ -214,18 +282,19 @@ private:
 	Common::Queue<Common::Event> _eventQueue;
 
 	// Cursor
-	Graphics::Surface _cursor;
+	Graphics::Surface _cursorBuffer;
 	Sprite _cursorTexture;
+	Common::Rect _cursorSpace;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;
-	float _cursorX, _cursorY;
+	float _cursorXScreen, _cursorYScreen;
+	float _cursorXOverlay, _cursorYOverlay;
 	float _cursorDeltaX, _cursorDeltaY;
 	int _cursorHotspotX, _cursorHotspotY;
 	uint32 _cursorKeyColor;
 
 	// Magnify
-	MagnifyMode _magnifyMode;
 	u16 _magX, _magY;
 	u16 _magWidth, _magHeight;
 	u16 _magCenterX, _magCenterY;

@@ -29,21 +29,20 @@
 #include <3ds.h>
 #include <citro3d.h>
 
-#define TEXTURE_TRANSFER_FLAGS \
-	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_RAW_COPY(0) | \
-	GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) | \
-	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
+namespace _3DS {
 
 typedef struct {
 	float position[3];
 	float texcoord[2];
 } vertex;
 
+struct GfxMode3DS;
+
 class Sprite : public Graphics::Surface {
 public:
 	Sprite();
 	~Sprite();
-	void create(uint16 width, uint16 height, const Graphics::PixelFormat &format);
+	void create(uint16 width, uint16 height, GfxMode3DS *mode);
 	void free();
 	void convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette = 0);
 	void transfer();
@@ -58,23 +57,28 @@ public:
 	float getScaleY() const { return scaleY; }
 	int getPosX() const { return posX; }
 	int getPosY() const { return posY; }
+	int getPosLastX() const { return posLastX; }
+	int getPosLastY() const { return posLastY; }
 	C3D_Mtx* getMatrix();
 
 	uint16 actualWidth;
 	uint16 actualHeight;
 
 private:
+	uint32 textureTransferFlags;
 	bool dirtyPixels;
 	bool dirtyMatrix;
 	C3D_Mtx modelview;
 	C3D_Tex texture;
 	vertex* vertices;
-	int posX;
-	int posY;
+	int posX, posLastX;
+	int posY, posLastY;
 	uint16 offsetX;
 	uint16 offsetY;
 	float scaleX;
 	float scaleY;
 };
+
+} // namespace _3DS
 
 #endif

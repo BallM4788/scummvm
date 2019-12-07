@@ -34,6 +34,7 @@
 #include "common/scummsys.h"
 #include "common/config-manager.h"
 #include "common/str.h"
+#include "gui/gui-manager.h"
 #include "config.h"
 
 #include "backends/fs/posix-drives/posix-drives-fs-factory.h"
@@ -62,8 +63,10 @@ OSystem_3DS::OSystem_3DS():
 	_cursorPaletteEnabled(false),
 	_cursorVisible(false),
 	_cursorScalable(false),
-	_cursorX(0),
-	_cursorY(0),
+	_cursorXScreen(0),
+	_cursorYScreen(0),
+	_cursorXOverlay(0),
+	_cursorYOverlay(0),
 	_cursorHotspotX(0),
 	_cursorHotspotY(0),
 	_gameTopX(0),
@@ -78,7 +81,6 @@ OSystem_3DS::OSystem_3DS():
 	_magHeight(240),
 	_overlayVisible(false),
 	_screenChangeId(0),
-	_magnifyMode(MODE_MAGOFF),
 	exiting(false),
 	sleeping(false)
 {
@@ -96,7 +98,7 @@ OSystem_3DS::~OSystem_3DS() {
 	exiting = true;
 	destroyEvents();
 	destroyAudio();
-	destroyGraphics();
+	destroy3DSGraphics();
 
 	delete _timerManager;
 	_timerManager = 0;
@@ -118,16 +120,16 @@ void OSystem_3DS::initBackend() {
 	_timerManager = new DefaultTimerManager();
 	_savefileManager = new DefaultSaveFileManager("sdmc:/3ds/scummvm/saves/");
 
-	initGraphics();
+	init3DSGraphics();
 	initAudio();
 	initEvents();
 	EventsBaseBackend::initBackend();
 }
 
 void OSystem_3DS::updateConfig() {
-	if (_gameScreen.getPixels()) {
+	if (_gameBuffer.getPixels()) {
 		updateSize();
-		warpMouse(_cursorX, _cursorY);
+		(!g_gui.isActive()) ? warpMouse(_cursorXScreen, _cursorYScreen) : warpMouse(_cursorXOverlay, _cursorYOverlay);
 	}
 }
 
