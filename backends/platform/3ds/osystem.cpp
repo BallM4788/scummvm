@@ -44,6 +44,7 @@
 namespace _3DS {
 
 OSystem_3DS::OSystem_3DS():
+	_pixelFormat(0),
 	_focusDirty(true),
 	_focusRect(Common::Rect(1, 1)),
 	_focusPosX(0),

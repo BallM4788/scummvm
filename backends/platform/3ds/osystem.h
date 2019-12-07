@@ -143,6 +143,8 @@ public:
 private:
 	void initGraphics();
 	void destroyGraphics();
+	bool loadGfx();
+	void unloadGfx();
 	void initAudio();
 	void destroyAudio();
 	void initEvents();
@@ -164,8 +166,10 @@ private:
 	Thread audioThread;
 
 	// Graphics
-	Graphics::PixelFormat _pfGame;
-	Graphics::PixelFormat _pfGameTexture;
+	int _pixelFormat;
+	int _transactionMode;
+	Graphics::PixelFormat _pfGame, _oldPfGame;
+//	Graphics::PixelFormat _pfGameTexture;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];

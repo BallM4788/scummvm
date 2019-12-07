@@ -29,11 +29,6 @@
 #include <3ds.h>
 #include <citro3d.h>
 
-#define TEXTURE_TRANSFER_FLAGS \
-	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_RAW_COPY(0) | \
-	GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) | \
-	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-
 typedef struct {
 	float position[3];
 	float texcoord[2];
@@ -64,6 +59,7 @@ public:
 	uint16 actualHeight;
 
 private:
+	int pixelFormat;
 	bool dirtyPixels;
 	bool dirtyMatrix;
 	C3D_Mtx modelview;

@@ -24,8 +24,23 @@
 #include "common/algorithm.h"
 #include "common/util.h"
 
+#define TEXTURE_TRANSFER_FLAGS_RGBA8							\
+	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |				\
+	 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) |	\
+	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) |				\
+	 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
+
+#define TEXTURE_TRANSFER_FLAGS_RGB565							\
+	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |				\
+	 GX_TRANSFER_RAW_COPY(0) |  GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGB565) |	\
+	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB565) |				\
+	 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
+
+int textureTransferFlags[2] = { TEXTURE_TRANSFER_FLAGS_RGBA8, TEXTURE_TRANSFER_FLAGS_RGB565 };
+
 Sprite::Sprite()
-	: dirtyPixels(true)
+	: pixelFormat(0)
+	, dirtyPixels(true)
 	, dirtyMatrix(true)
 	, actualWidth(0)
 	, actualHeight(0)
@@ -55,10 +70,11 @@ void Sprite::create(uint16 width, uint16 height, const Graphics::PixelFormat &f)
 	h = MAX<uint16>(Common::nextHigher2(height), 64u);
 	pitch = w * format.bytesPerPixel;
 	dirtyPixels = true;
+	pixelFormat = (format.bytesPerPixel != 2) ? 0 : 1;
 
 	if (width && height) {
 		pixels = linearAlloc(h * pitch);
-		C3D_TexInit(&texture, w, h, GPU_RGBA8);
+		C3D_TexInit(&texture, w, h, ((pixelFormat < 1) ? GPU_RGBA8 : GPU_RGB565));
 		C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);
 		assert(pixels && texture.data);
 		clear();
@@ -94,7 +110,8 @@ void Sprite::transfer() {
 	if (pixels && dirtyPixels) {
 		dirtyPixels = false;
 		GSPGPU_FlushDataCache(pixels, w * h * format.bytesPerPixel);
-		C3D_SyncDisplayTransfer((u32*)pixels, GX_BUFFER_DIM(w, h), (u32*)texture.data, GX_BUFFER_DIM(w, h), TEXTURE_TRANSFER_FLAGS);
+		C3D_SyncDisplayTransfer((u32*)pixels, GX_BUFFER_DIM(w, h), (u32*)texture.data,
+						GX_BUFFER_DIM(w, h), textureTransferFlags[pixelFormat]);
 	}
 }
 
