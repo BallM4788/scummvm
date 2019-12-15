@@ -27,6 +27,7 @@
 
 #include "backends/mutex/mutex.h"
 #include "backends/base-backend.h"
+//#include "graphics/transparent_surface.h"
 #include "graphics/palette.h"
 #include "base/main.h"
 #include "audio/mixer_intern.h"
@@ -219,6 +220,8 @@ private:
 
 	// Cursor
 	Graphics::Surface _cursor;
+//	Graphics::TransparentSurface _cursor;
+	Common::Rect _cursorSpace;
 	Sprite _cursorTexture;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
@@ -227,6 +230,9 @@ private:
 	float _cursorDeltaX, _cursorDeltaY;
 	int _cursorHotspotX, _cursorHotspotY;
 	uint32 _cursorKeyColor;
+//	byte _cursorKeyR;
+//	byte _cursorKeyG;
+//	byte _cursorKeyB;
 
 	// Magnify
 	MagnifyMode _magnifyMode;

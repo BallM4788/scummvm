@@ -53,6 +53,10 @@ public:
 	float getScaleY() const { return scaleY; }
 	int getPosX() const { return posX; }
 	int getPosY() const { return posY; }
+// added
+	int getPosLastX() const { return posLastX; }
+	int getPosLastY() const { return posLastY; }
+// end added
 	C3D_Mtx* getMatrix();
 
 	uint16 actualWidth;
@@ -65,8 +69,8 @@ private:
 	C3D_Mtx modelview;
 	C3D_Tex texture;
 	vertex* vertices;
-	int posX;
-	int posY;
+	int posX, posLastX;
+	int posY, posLastY;
 	uint16 offsetX;
 	uint16 offsetY;
 	float scaleX;

@@ -46,6 +46,10 @@ Sprite::Sprite()
 	, actualHeight(0)
 	, posX(0)
 	, posY(0)
+// added
+	, posLastX(0)
+	, posLastY(0)
+// end added
 	, offsetX(0)
 	, offsetY(0)
 	, scaleX(1.f)
@@ -139,6 +143,10 @@ void Sprite::setScale (float x, float y) {
 
 void Sprite::setPosition(int x, int y) {
 	if (x != posX || y != posY) {
+// added
+		posLastX = posX;
+		posLastY = posY;
+// end added
 		posX = x;
 		posY = y;
 		dirtyMatrix = true;

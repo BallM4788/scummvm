@@ -382,6 +382,10 @@ void OSystem_3DS::updateScreen() {
 // 	updateFocus();
 	updateMagnify();
 
+	if (_screenConfig.format.bytesPerPixel == 2) {
+		flushCursor();
+	}
+
 	if (_osdMessage.getPixels() && _osdMessageEndTime <= getMillis(true)) {
 		_osdMessage.free();
 	}
@@ -698,6 +702,15 @@ void OSystem_3DS::warpMouse(int x, int y) {
 	}
 
 	_cursorTexture.setPosition(x + offsetx, y + offsety);
+	if ( (_cursorTexture.getPosLastX() != _cursorTexture.getPosX()) |
+			(_cursorTexture.getPosLastY() != _cursorTexture.getPosY()) ) {
+		_cursorSpace = Common::Rect( _cursorTexture.getPosX(), _cursorTexture.getPosY(),
+						_cursorTexture.getPosX() + _cursorTexture.actualWidth,
+						_cursorTexture.getPosY() + _cursorTexture.actualHeight );
+		if (_screenConfig.format.bytesPerPixel == 2) {
+			flushCursor();
+		}
+	}
 }
 
 void OSystem_3DS::setCursorDelta(float deltaX, float deltaY) {
@@ -714,19 +727,22 @@ void OSystem_3DS::setMouseCursor(const void *buf, uint w, uint h,
 	_cursorHotspotY = hotspotY;
 	_cursorKeyColor = keycolor;
 	_pfCursor = !format ? Graphics::PixelFormat::createFormatCLUT8() : *format;
+//	_pfCursor.colorToRGB(_cursorKeyColor, _cursorKeyR, _cursorKeyG, _cursorKeyB);
 
 	if (w != _cursor.w || h != _cursor.h || _cursor.format != _pfCursor) {
 		_cursor.create(w, h, _pfCursor);
 		_cursorTexture.create(w, h, _screenConfig.format);
+		_cursorSpace = Common::Rect(_cursorTexture.getPosX(), _cursorTexture.getPosY(),
+						_cursorTexture.getPosX() + w, _cursorTexture.getPosY() + h);
 	}
 
 	if ( w != 0 && h != 0 ) {
 		_cursor.copyRectToSurface(buf, w * _pfCursor.bytesPerPixel, 0, 0, w, h);
 	}
 
-	flushCursor();
-
 	warpMouse(_cursorX, _cursorY);
+
+	flushCursor();
 }
 
 void OSystem_3DS::setCursorPalette(const byte *colors, uint start, uint num) {
@@ -738,18 +754,25 @@ void OSystem_3DS::setCursorPalette(const byte *colors, uint start, uint num) {
 
 namespace {
 template<typename SrcColor>
-void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, const SrcColor keyColor) {
+void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, Sprite *bg, const SrcColor keyColor, Common::Rect rect) {
 	assert((dst->format.bytesPerPixel == 4) | (dst->format.bytesPerPixel == 2));
 	assert((dst->w >= src->w) && (dst->h >= src->h));
 
+	Graphics::Surface screenSub;
+	uint16 *subPtr = NULL;
 	uint32 *dstPtr32 = NULL;
 	uint16 *dstPtr16 = NULL;
+
+	if (dst->format.bytesPerPixel == 2) {
+		screenSub = bg->getSubArea(rect);
+	}
 	for (uint y = 0; y < src->h; ++y) {
 		SrcColor *srcPtr = (SrcColor *)src->getBasePtr(0, y);
 		if (dst->format.bytesPerPixel != 2) {
 			dstPtr32 = (uint32 *)dst->getBasePtr(0, y);
 		} else {
 			dstPtr16 = (uint16 *)dst->getBasePtr(0, y);
+			subPtr = (uint16 *)screenSub.getBasePtr(0, y);
 		}
 
 		for (uint x = 0; x < src->w; ++x) {
@@ -759,7 +782,7 @@ void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, const SrcColo
 				if (dst->format.bytesPerPixel != 2) {
 					*dstPtr32 = 0;
 				} else {
-					*dstPtr16 = 0;
+					*dstPtr16 = *subPtr;
 				}
 			}
 
@@ -767,6 +790,7 @@ void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, const SrcColo
 				dstPtr32++;
 			} else {
 				dstPtr16++;
+				subPtr++;
 			}
 		}
 	}
@@ -775,19 +799,25 @@ void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, const SrcColo
 
 void OSystem_3DS::flushCursor() {
 	if (_cursor.getPixels()) {
-		Graphics::Surface *converted = _cursor.convertTo(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
-		_cursorTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
-		_cursorTexture.markDirty();
-		converted->free();
-		delete converted;
+//		if (_screenConfig.format.bytesPerPixel == 2) {
+//			_cursor.convertToInPlace(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
+//			_cursor.applyColorKey(_cursorKeyR, _cursorKeyG, _cursorKeyB, false);
+//		} else {
+			Graphics::Surface *converted = _cursor.convertTo(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
+			_cursorTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
+			converted->free();
+			delete converted;
 
-		if (_pfCursor.bytesPerPixel == 1) {
-			applyKeyColor<byte>(&_cursor, &_cursorTexture, _cursorKeyColor);
-		} else if (_pfCursor.bytesPerPixel == 2) {
-			applyKeyColor<uint16>(&_cursor, &_cursorTexture, _cursorKeyColor);
-		} else if (_pfCursor.bytesPerPixel == 4) {
-			applyKeyColor<uint32>(&_cursor, &_cursorTexture, _cursorKeyColor);
-		}
+//			_cursorTexture.copyRectToSurface(_gameTopTexture, 0, 0, _cursorSpace);
+			if (_pfCursor.bytesPerPixel == 1) {
+				applyKeyColor<byte>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+			} else if (_pfCursor.bytesPerPixel == 2) {
+				applyKeyColor<uint16>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+			} else if (_pfCursor.bytesPerPixel == 4) {
+				applyKeyColor<uint32>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+			}
+			_cursorTexture.markDirty();
+//		}
 	}
 }
 
