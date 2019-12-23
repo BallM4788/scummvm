@@ -126,7 +126,7 @@ void OSystem_3DS::initBackend() {
 }
 
 void OSystem_3DS::updateConfig() {
-	if (_gameScreen.getPixels()) {
+	if (_gameBuffer.getPixels()) {
 		updateSize();
 		warpMouse(_cursorX, _cursorY);
 	}

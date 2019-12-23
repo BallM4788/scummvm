@@ -175,7 +175,7 @@ private:
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
 
-	Graphics::Surface _gameScreen;
+	Graphics::Surface _gameBuffer;
 	Sprite _gameTopTexture;
 	Sprite _gameBottomTexture;
 	Sprite _overlay;
@@ -223,6 +223,7 @@ private:
 //	Graphics::TransparentSurface _cursor;
 	Common::Rect _cursorSpace;
 	Sprite _cursorTexture;
+	Common::Rect _cursorSpace;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;

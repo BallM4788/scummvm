@@ -135,9 +135,11 @@ bool OSystem_3DS::loadGfx() {
 }
 
 void OSystem_3DS::unloadGfx() {
-	_gameScreen.free();
+	_gameBuffer.free();
 	_gameTopTexture.free();
 	_gameBottomTexture.free();
+	_cursor.free();
+	_cursorTexture.free();
 	_overlay.free();
 	_activityIcon.free();
 
@@ -213,7 +215,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 
 	_gameTopTexture.create(width, height, _screenConfig.format);
 	_overlay.create(400, 320, _screenConfig.format);
-	_gameScreen.create(width, height, _pfGame);
+	_gameBuffer.create(width, height, _pfGame);
 
 	_focusDirty = true;
 	_focusRect = Common::Rect(_gameWidth, _gameHeight);
@@ -337,7 +339,7 @@ void OSystem_3DS::setPalette(const byte *colors, uint start, uint num) {
 	memcpy(_palette + 3 * start, colors, 3 * num);
 
 	// Manually update all color that were changed
-	if (_gameScreen.format.bytesPerPixel == 1) {
+	if (_gameBuffer.format.bytesPerPixel == 1) {
 		flushGameScreen();
 	}
 }
@@ -349,8 +351,8 @@ void OSystem_3DS::grabPalette(byte *colors, uint start, uint num) const {
 void OSystem_3DS::copyRectToScreen(const void *buf, int pitch, int x,
                                            int y, int w, int h) {
 	Common::Rect rect(x, y, x+w, y+h);
-	_gameScreen.copyRectToSurface(buf, pitch, x, y, w, h);
-	Graphics::Surface subSurface = _gameScreen.getSubArea(rect);
+	_gameBuffer.copyRectToSurface(buf, pitch, x, y, w, h);
+	Graphics::Surface subSurface = _gameBuffer.getSubArea(rect);
 
 	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_screenConfig.format, _palette);
 	_gameTopTexture.copyRectToSurface(*convertedSubSurface, x, y, Common::Rect(w, h));
@@ -361,7 +363,7 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch, int x,
 }
 
 void OSystem_3DS::flushGameScreen() {
-	Graphics::Surface *converted = _gameScreen.convertTo(_screenConfig.format, _palette);
+	Graphics::Surface *converted = _gameBuffer.convertTo(_screenConfig.format, _palette);
 	_gameTopTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 	_gameTopTexture.markDirty();
 	converted->free();
@@ -369,7 +371,7 @@ void OSystem_3DS::flushGameScreen() {
 }
 
 Graphics::Surface *OSystem_3DS::lockScreen() {
-	return &_gameScreen;
+	return &_gameBuffer;
 }
 void OSystem_3DS::unlockScreen() {
 	flushGameScreen();
@@ -704,9 +706,11 @@ void OSystem_3DS::warpMouse(int x, int y) {
 	_cursorTexture.setPosition(x + offsetx, y + offsety);
 	if ( (_cursorTexture.getPosLastX() != _cursorTexture.getPosX()) |
 			(_cursorTexture.getPosLastY() != _cursorTexture.getPosY()) ) {
-		_cursorSpace = Common::Rect( _cursorTexture.getPosX(), _cursorTexture.getPosY(),
-						_cursorTexture.getPosX() + _cursorTexture.actualWidth,
-						_cursorTexture.getPosY() + _cursorTexture.actualHeight );
+		int cursorLeft = x;
+		int cursorTop = y;
+		int cursorRight = cursorLeft + _cursorTexture.actualWidth;
+		int cursorBottom = cursorTop + _cursorTexture.actualHeight;
+		_cursorSpace = Common::Rect(cursorLeft, cursorTop, cursorRight, cursorBottom);
 		if (_screenConfig.format.bytesPerPixel == 2) {
 			flushCursor();
 		}
@@ -760,36 +764,31 @@ void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, Sprite *bg, c
 
 	Graphics::Surface screenSub;
 	uint16 *subPtr = NULL;
-	uint32 *dstPtr32 = NULL;
-	uint16 *dstPtr16 = NULL;
+//	uint32 *dstPtr32 = NULL;
+//	uint16 *dstPtr16 = NULL;
 
 	if (dst->format.bytesPerPixel == 2) {
 		screenSub = bg->getSubArea(rect);
 	}
 	for (uint y = 0; y < src->h; ++y) {
-		SrcColor *srcPtr = (SrcColor *)src->getBasePtr(0, y);
-		if (dst->format.bytesPerPixel != 2) {
-			dstPtr32 = (uint32 *)dst->getBasePtr(0, y);
-		} else {
-			dstPtr16 = (uint16 *)dst->getBasePtr(0, y);
+		const SrcColor *srcPtr = (const SrcColor *)src->getBasePtr(0, y);
+		byte *dstPtr = (byte *)dst->getBasePtr(0, y);
+		if (dst->format.bytesPerPixel == 2) {
 			subPtr = (uint16 *)screenSub.getBasePtr(0, y);
 		}
 
-		for (uint x = 0; x < src->w; ++x) {
-			const SrcColor color = *srcPtr++;
-
-			if (color == keyColor) {
+		for (uint x = 0; x < src->w; ++x,
+				srcPtr++,
+				dstPtr += dst->format.bytesPerPixel) {
+			if (*srcPtr == keyColor) {
 				if (dst->format.bytesPerPixel != 2) {
-					*dstPtr32 = 0;
+					*(uint32 *)dstPtr = 0;
 				} else {
-					*dstPtr16 = *subPtr;
+					*(uint16 *)dstPtr = *subPtr;
 				}
 			}
 
-			if (dst->format.bytesPerPixel != 2) {
-				dstPtr32++;
-			} else {
-				dstPtr16++;
+			if (dst->format.bytesPerPixel == 2) {
 				subPtr++;
 			}
 		}
