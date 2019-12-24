@@ -169,15 +169,15 @@ private:
 	// Graphics
 	int _pixelFormat;
 	int _transactionMode;
-	Graphics::PixelFormat _pfGame, _oldPfGame;
+	Graphics::PixelFormat _pfGame, _pfGameOld;
 //	Graphics::PixelFormat _pfGameTexture;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
 
 	Graphics::Surface _gameBuffer;
-	Sprite _gameTopTexture;
-	Sprite _gameBottomTexture;
+	Sprite _gameTextureTop;
+	Sprite _gameTextureBottom;
 	Sprite _overlay;
 	Sprite _activityIcon;
 	Sprite _osdMessage;
@@ -219,8 +219,8 @@ private:
 	Common::Queue<Common::Event> _eventQueue;
 
 	// Cursor
-	Graphics::Surface _cursor;
-//	Graphics::TransparentSurface _cursor;
+	Graphics::Surface _cursorBuffer;
+//	Graphics::TransparentSurface _cursorBuffer;
 	Common::Rect _cursorSpace;
 	Sprite _cursorTexture;
 	Common::Rect _cursorSpace;

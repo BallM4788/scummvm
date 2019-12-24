@@ -136,9 +136,9 @@ bool OSystem_3DS::loadGfx() {
 
 void OSystem_3DS::unloadGfx() {
 	_gameBuffer.free();
-	_gameTopTexture.free();
-	_gameBottomTexture.free();
-	_cursor.free();
+	_gameTextureTop.free();
+	_gameTextureBottom.free();
+	_cursorBuffer.free();
 	_cursorTexture.free();
 	_overlay.free();
 	_activityIcon.free();
@@ -185,7 +185,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 	_magCenterX = _magWidth / 2;
 	_magCenterY = _magHeight / 2;
 
-	_oldPfGame = _pfGame;
+	_pfGameOld = _pfGame;
 	if (!format) {
 		if (_pfGame != Graphics::PixelFormat::createFormatCLUT8()) {
 			_pfGame = Graphics::PixelFormat::createFormatCLUT8();
@@ -197,7 +197,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 
 	assert(_pfGame.bytesPerPixel > 0);
 
-	if ((_pfGame.bytesPerPixel != _screenConfig.format.bytesPerPixel) && (_pfGame != _oldPfGame)) {
+	if ((_pfGame.bytesPerPixel != _screenConfig.format.bytesPerPixel) && (_pfGame != _pfGameOld)) {
 		if ((_pfGame.bytesPerPixel != 1) | (_screenConfig.format.bytesPerPixel != 4)) {
 			assert(_transactionMode == kTransactionActive);
 			_pixelFormat = (_pfGame.bytesPerPixel !=2) ? 0 : 1;
@@ -213,7 +213,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 		_screenChangeId++;
 	}
 
-	_gameTopTexture.create(width, height, _screenConfig.format);
+	_gameTextureTop.create(width, height, _screenConfig.format);
 	_overlay.create(400, 320, _screenConfig.format);
 	_gameBuffer.create(width, height, _pfGame);
 
@@ -226,44 +226,44 @@ void OSystem_3DS::initSize(uint width, uint height,
 void OSystem_3DS::updateSize() {
 	if (config.stretchToFit) {
 		_gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;
-		_gameTopTexture.setScale(400.f / _gameWidth, 240.f / _gameHeight);
-		_gameBottomTexture.setScale(320.f / _gameWidth, 240.f / _gameHeight);
+		_gameTextureTop.setScale(400.f / _gameWidth, 240.f / _gameHeight);
+		_gameTextureBottom.setScale(320.f / _gameWidth, 240.f / _gameHeight);
 	} else {
 		float ratio = static_cast<float>(_gameWidth) / _gameHeight;
 
 		if (ratio > 400.f / 240.f) {
 			float r = 400.f / _gameWidth;
-			_gameTopTexture.setScale(r, r);
+			_gameTextureTop.setScale(r, r);
 			_gameTopX = 0;
 			_gameTopY = (240.f / r - _gameHeight) / 2.f;
 		} else {
 			float r = 240.f / _gameHeight;
-			_gameTopTexture.setScale(r, r);
+			_gameTextureTop.setScale(r, r);
 			_gameTopY = 0;
 			_gameTopX = (400.f / r - _gameWidth) / 2.f;
 		}
 		if (ratio > 320.f / 240.f) {
 			float r = 320.f / _gameWidth;
-			_gameBottomTexture.setScale(r, r);
+			_gameTextureBottom.setScale(r, r);
 			_gameBottomX = 0;
 			_gameBottomY = (240.f / r - _gameHeight) / 2.f;
 		} else {
 			float r = 240.f / _gameHeight;
-			_gameBottomTexture.setScale(r, r);
+			_gameTextureBottom.setScale(r, r);
 			_gameBottomY = 0;
 			_gameBottomX = (320.f / r - _gameWidth) / 2.f;
 		}
 	}
-	_gameTopTexture.setPosition(_gameTopX, _gameTopY);
-	_gameBottomTexture.setPosition(_gameBottomX, _gameBottomY);
-	_gameTopTexture.setOffset(0, 0);
-	_gameBottomTexture.setOffset(0, 0);
+	_gameTextureTop.setPosition(_gameTopX, _gameTopY);
+	_gameTextureBottom.setPosition(_gameBottomX, _gameBottomY);
+	_gameTextureTop.setOffset(0, 0);
+	_gameTextureBottom.setOffset(0, 0);
 	if (_overlayVisible)
 		_cursorTexture.setScale(1.f, 1.f);
 	else if (config.screen == kScreenTop)
-		_cursorTexture.setScale(_gameTopTexture.getScaleX(), _gameTopTexture.getScaleY());
+		_cursorTexture.setScale(_gameTextureTop.getScaleX(), _gameTextureTop.getScaleY());
 	else
-		_cursorTexture.setScale(_gameBottomTexture.getScaleX(), _gameBottomTexture.getScaleY());
+		_cursorTexture.setScale(_gameTextureBottom.getScaleX(), _gameTextureBottom.getScaleY());
 }
 
 Common::List<Graphics::PixelFormat> OSystem_3DS::getSupportedFormats() const {
@@ -297,7 +297,7 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 			errors |= OSystem::kTransactionFormatNotSupported;
 
 			_screenConfig.format = _oldScreenConfig.format;
-			_pfGame = _oldPfGame;
+			_pfGame = _pfGameOld;
 		}
 
 		_oldScreenConfig.setup = false;
@@ -328,9 +328,9 @@ float OSystem_3DS::getScaleRatio() const {
 	if (_overlayVisible) {
 		return 1.0;
 	} else if (config.screen == kScreenTop) {
-		return _gameTopTexture.getScaleX();
+		return _gameTextureTop.getScaleX();
 	} else {
-		return _gameBottomTexture.getScaleX();
+		return _gameTextureBottom.getScaleX();
 	}
 }
 
@@ -355,17 +355,17 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch, int x,
 	Graphics::Surface subSurface = _gameBuffer.getSubArea(rect);
 
 	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_screenConfig.format, _palette);
-	_gameTopTexture.copyRectToSurface(*convertedSubSurface, x, y, Common::Rect(w, h));
+	_gameTextureTop.copyRectToSurface(*convertedSubSurface, x, y, Common::Rect(w, h));
 
 	convertedSubSurface->free();
 	delete convertedSubSurface;
-	_gameTopTexture.markDirty();
+	_gameTextureTop.markDirty();
 }
 
 void OSystem_3DS::flushGameScreen() {
 	Graphics::Surface *converted = _gameBuffer.convertTo(_screenConfig.format, _palette);
-	_gameTopTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
-	_gameTopTexture.markDirty();
+	_gameTextureTop.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
+	_gameTextureTop.markDirty();
 	converted->free();
 	delete converted;
 }
@@ -393,7 +393,7 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	C3D_FrameBegin(0);
-		_gameTopTexture.transfer();
+		_gameTextureTop.transfer();
 		if (_overlayVisible) {
 			_overlay.transfer();
 		}
@@ -410,8 +410,8 @@ void OSystem_3DS::updateScreen() {
 		C3D_FrameDrawOn(_renderTargetTop);
 		if (config.screen == kScreenTop || config.screen == kScreenBoth) {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _projectionLocation, &_projectionTop);
-			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameTopTexture.getMatrix());
-			_gameTopTexture.render();
+			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameTextureTop.getMatrix());
+			_gameTextureTop.render();
 			if (_overlayVisible && config.screen == kScreenTop) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
 				_overlay.render();
@@ -437,8 +437,8 @@ void OSystem_3DS::updateScreen() {
 		C3D_FrameDrawOn(_renderTargetBottom);
 		if (config.screen == kScreenBottom || config.screen == kScreenBoth) {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _projectionLocation, &_projectionBottom);
-			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameBottomTexture.getMatrix());
-			_gameTopTexture.render();
+			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameTextureBottom.getMatrix());
+			_gameTextureTop.render();
 			if (_overlayVisible) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
 				_overlay.render();
@@ -465,12 +465,12 @@ void OSystem_3DS::setShakePos(int shakeXOffset, int shakeYOffset) {
 	// TODO: implement this in overlay, top screen, and mouse too
 	_screenShakeXOffset = shakeXOffset;
 	_screenShakeYOffset = shakeYOffset;
-	int topX = _gameTopX + (_gameTopTexture.getScaleX() * shakeXOffset);
-	int topY = _gameTopY + (_gameTopTexture.getScaleY() * shakeYOffset);
-	_gameTopTexture.setPosition(topX, topY);
-	int bottomX = _gameBottomX + (_gameBottomTexture.getScaleX() * shakeXOffset);
-	int bottomY = _gameBottomY + (_gameBottomTexture.getScaleY() * shakeYOffset);
-	_gameBottomTexture.setPosition(bottomX, bottomY);
+	int topX = _gameTopX + (_gameTextureTop.getScaleX() * shakeXOffset);
+	int topY = _gameTopY + (_gameTextureTop.getScaleY() * shakeYOffset);
+	_gameTextureTop.setPosition(topX, topY);
+	int bottomX = _gameBottomX + (_gameTextureBottom.getScaleX() * shakeXOffset);
+	int bottomY = _gameBottomY + (_gameTextureBottom.getScaleY() * shakeYOffset);
+	_gameTextureBottom.setPosition(bottomX, bottomY);
 }
 
 void OSystem_3DS::setFocusRectangle(const Common::Rect &rect) {
@@ -568,9 +568,9 @@ void OSystem_3DS::updateMagnify() {
 				0 : ((_cursorY < _gameHeight - _magCenterY) ?
 				_cursorY - _magCenterY : _gameHeight - _magHeight);
 		}
-		_gameTopTexture.setScale(1.f,1.f);
-		_gameTopTexture.setPosition(0,0);
-		_gameTopTexture.setOffset(_magX, _magY);
+		_gameTextureTop.setScale(1.f,1.f);
+		_gameTextureTop.setPosition(0,0);
+		_gameTextureTop.setOffset(_magX, _magY);
 	}
 }
 
@@ -699,8 +699,8 @@ void OSystem_3DS::warpMouse(int x, int y) {
 	int offsetx = 0;
 	int offsety = 0;
 	if (!_overlayVisible) {
-		offsetx = config.screen == kScreenTop ? _gameTopTexture.getPosX() : _gameBottomTexture.getPosX();
-		offsety = config.screen == kScreenTop ? _gameTopTexture.getPosY() : _gameBottomTexture.getPosY();
+		offsetx = config.screen == kScreenTop ? _gameTextureTop.getPosX() : _gameTextureBottom.getPosX();
+		offsety = config.screen == kScreenTop ? _gameTextureTop.getPosY() : _gameTextureBottom.getPosY();
 	}
 
 	_cursorTexture.setPosition(x + offsetx, y + offsety);
@@ -733,15 +733,15 @@ void OSystem_3DS::setMouseCursor(const void *buf, uint w, uint h,
 	_pfCursor = !format ? Graphics::PixelFormat::createFormatCLUT8() : *format;
 //	_pfCursor.colorToRGB(_cursorKeyColor, _cursorKeyR, _cursorKeyG, _cursorKeyB);
 
-	if (w != _cursor.w || h != _cursor.h || _cursor.format != _pfCursor) {
-		_cursor.create(w, h, _pfCursor);
+	if (w != _cursorBuffer.w || h != _cursorBuffer.h || _cursorBuffer.format != _pfCursor) {
+		_cursorBuffer.create(w, h, _pfCursor);
 		_cursorTexture.create(w, h, _screenConfig.format);
 		_cursorSpace = Common::Rect(_cursorTexture.getPosX(), _cursorTexture.getPosY(),
 						_cursorTexture.getPosX() + w, _cursorTexture.getPosY() + h);
 	}
 
 	if ( w != 0 && h != 0 ) {
-		_cursor.copyRectToSurface(buf, w * _pfCursor.bytesPerPixel, 0, 0, w, h);
+		_cursorBuffer.copyRectToSurface(buf, w * _pfCursor.bytesPerPixel, 0, 0, w, h);
 	}
 
 	warpMouse(_cursorX, _cursorY);
@@ -797,23 +797,23 @@ void applyKeyColor(Graphics::Surface *src, Graphics::Surface *dst, Sprite *bg, c
 } // End of anonymous namespace
 
 void OSystem_3DS::flushCursor() {
-	if (_cursor.getPixels()) {
+	if (_cursorBuffer.getPixels()) {
 //		if (_screenConfig.format.bytesPerPixel == 2) {
-//			_cursor.convertToInPlace(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
-//			_cursor.applyColorKey(_cursorKeyR, _cursorKeyG, _cursorKeyB, false);
+//			_cursorBuffer.convertToInPlace(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
+//			_cursorBuffer.applyColorKey(_cursorKeyR, _cursorKeyG, _cursorKeyB, false);
 //		} else {
-			Graphics::Surface *converted = _cursor.convertTo(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
+			Graphics::Surface *converted = _cursorBuffer.convertTo(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
 			_cursorTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 			converted->free();
 			delete converted;
 
-//			_cursorTexture.copyRectToSurface(_gameTopTexture, 0, 0, _cursorSpace);
+//			_cursorTexture.copyRectToSurface(_gameTextureTop, 0, 0, _cursorSpace);
 			if (_pfCursor.bytesPerPixel == 1) {
-				applyKeyColor<byte>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+				applyKeyColor<byte>(&_cursorBuffer, &_cursorTexture, &_gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 2) {
-				applyKeyColor<uint16>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+				applyKeyColor<uint16>(&_cursorBuffer, &_cursorTexture, &_gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 4) {
-				applyKeyColor<uint32>(&_cursor, &_cursorTexture, &_gameTopTexture, _cursorKeyColor, _cursorSpace);
+				applyKeyColor<uint32>(&_cursorBuffer, &_cursorTexture, &_gameTextureTop, _cursorKeyColor, _cursorSpace);
 			}
 			_cursorTexture.markDirty();
 //		}
