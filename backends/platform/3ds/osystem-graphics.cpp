@@ -89,6 +89,14 @@ void OSystem_3DS::initGraphics() {
 }
 
 void OSystem_3DS::destroyGraphics() {
+	_gameBuffer.free();
+	_gameTextureTop.free();
+	_gameTextureBottom.free();
+	_cursorBuffer.free();
+	_cursorTexture.free();
+	_overlay.free();
+	_activityIcon.free();
+
 	unloadGfx();
 	C3D_Fini();
 }
@@ -135,14 +143,6 @@ bool OSystem_3DS::loadGfx() {
 }
 
 void OSystem_3DS::unloadGfx() {
-	_gameBuffer.free();
-	_gameTextureTop.free();
-	_gameTextureBottom.free();
-	_cursorBuffer.free();
-	_cursorTexture.free();
-	_overlay.free();
-	_activityIcon.free();
-
 	shaderProgramFree(&_program);
 	DVLB_Free(_dvlb);
 

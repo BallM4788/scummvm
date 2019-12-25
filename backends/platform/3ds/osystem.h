@@ -27,7 +27,6 @@
 
 #include "backends/mutex/mutex.h"
 #include "backends/base-backend.h"
-//#include "graphics/transparent_surface.h"
 #include "graphics/palette.h"
 #include "base/main.h"
 #include "audio/mixer_intern.h"
@@ -170,7 +169,6 @@ private:
 	int _pixelFormat;
 	int _transactionMode;
 	Graphics::PixelFormat _pfGame, _pfGameOld;
-//	Graphics::PixelFormat _pfGameTexture;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
@@ -220,8 +218,6 @@ private:
 
 	// Cursor
 	Graphics::Surface _cursorBuffer;
-//	Graphics::TransparentSurface _cursorBuffer;
-	Common::Rect _cursorSpace;
 	Sprite _cursorTexture;
 	Common::Rect _cursorSpace;
 	bool _cursorPaletteEnabled;
@@ -231,9 +227,6 @@ private:
 	float _cursorDeltaX, _cursorDeltaY;
 	int _cursorHotspotX, _cursorHotspotY;
 	uint32 _cursorKeyColor;
-//	byte _cursorKeyR;
-//	byte _cursorKeyG;
-//	byte _cursorKeyB;
 
 	// Magnify
 	MagnifyMode _magnifyMode;
