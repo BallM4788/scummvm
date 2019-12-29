@@ -20,36 +20,23 @@
  *
  */
 
+#include "osystem.h"
 #include "backends/platform/3ds/sprite.h"
 #include "common/algorithm.h"
 #include "common/util.h"
 
-#define TEXTURE_TRANSFER_FLAGS_RGBA8							\
-	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |				\
-	 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) |	\
-	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) |				\
-	 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-
-#define TEXTURE_TRANSFER_FLAGS_RGB565							\
-	(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |				\
-	 GX_TRANSFER_RAW_COPY(0) |  GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGB565) |	\
-	 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB565) |				\
-	 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-
-int textureTransferFlags[2] = { TEXTURE_TRANSFER_FLAGS_RGBA8, TEXTURE_TRANSFER_FLAGS_RGB565 };
+namespace _3DS {
 
 Sprite::Sprite()
-	: pixelFormat(0)
+	: textureTransferFlags(0)
 	, dirtyPixels(true)
 	, dirtyMatrix(true)
 	, actualWidth(0)
 	, actualHeight(0)
 	, posX(0)
 	, posY(0)
-// added
 	, posLastX(0)
 	, posLastY(0)
-// end added
 	, offsetX(0)
 	, offsetY(0)
 	, scaleX(1.f)
@@ -64,21 +51,21 @@ Sprite::~Sprite() {
 	//
 }
 
-void Sprite::create(uint16 width, uint16 height, const Graphics::PixelFormat &f) {
+void Sprite::create(uint16 width, uint16 height, ColorConfig *colorConfig) {
 	free();
 
 	actualWidth = width;
 	actualHeight = height;
-	format = f;
+	format = colorConfig->svmFormat;
+	textureTransferFlags = colorConfig->textureTransferFlags;
 	w = MAX<uint16>(Common::nextHigher2(width), 64u);
 	h = MAX<uint16>(Common::nextHigher2(height), 64u);
 	pitch = w * format.bytesPerPixel;
 	dirtyPixels = true;
-	pixelFormat = (format.bytesPerPixel != 2) ? 0 : 1;
 
 	if (width && height) {
 		pixels = linearAlloc(h * pitch);
-		C3D_TexInit(&texture, w, h, ((pixelFormat < 1) ? GPU_RGBA8 : GPU_RGB565));
+		C3D_TexInit(&texture, w, h, colorConfig->textureFormat);
 		C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);
 		assert(pixels && texture.data);
 		clear();
@@ -115,7 +102,7 @@ void Sprite::transfer() {
 		dirtyPixels = false;
 		GSPGPU_FlushDataCache(pixels, w * h * format.bytesPerPixel);
 		C3D_SyncDisplayTransfer((u32*)pixels, GX_BUFFER_DIM(w, h), (u32*)texture.data,
-						GX_BUFFER_DIM(w, h), textureTransferFlags[pixelFormat]);
+						GX_BUFFER_DIM(w, h), textureTransferFlags);
 	}
 }
 
@@ -143,10 +130,8 @@ void Sprite::setScale (float x, float y) {
 
 void Sprite::setPosition(int x, int y) {
 	if (x != posX || y != posY) {
-// added
 		posLastX = posX;
 		posLastY = posY;
-// end added
 		posX = x;
 		posY = y;
 		dirtyMatrix = true;
@@ -168,3 +153,5 @@ C3D_Mtx* Sprite::getMatrix() {
 	}
 	return &modelview;
 }
+
+} // namespace _3DS

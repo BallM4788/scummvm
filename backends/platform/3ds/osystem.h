@@ -39,6 +39,15 @@
 
 namespace _3DS {
 
+enum GraphicModeID {
+	RGBA8,
+	RGB565,
+	RGB8,
+	RGB555,
+	RGB5A1,
+	CLUT8
+};
+
 enum MagnifyMode {
 	MODE_MAGON,
 	MODE_MAGOFF,
@@ -48,6 +57,42 @@ enum InputMode {
 	MODE_HOVER,
 	MODE_DRAG,
 };
+
+// Graphics transaction states
+enum {
+	kTransactionNone = 0,
+	kTransactionActive = 1,
+	kTransactionRollback = 2
+};
+
+// Details for a graphics transaction
+struct TransactionDetails {
+	bool formatChanged;
+
+	TransactionDetails() {
+		formatChanged = false;
+	}
+};
+
+// Screen configuration states
+struct ScreenConfig {
+	bool setup;
+	Graphics::PixelFormat format;
+
+	ScreenConfig() {
+		setup = false;
+		// format set to 0 values by Graphics::PixelFormat constructor
+	}
+};
+
+typedef struct ColorConfig {
+	Graphics::PixelFormat svmFormat;
+	GSPGPU_FramebufferFormats screenFormat;
+	GPU_COLORBUF bufferFormat;
+	GPU_TEXCOLOR textureFormat;
+	uint32 displayTransferFlags;
+	uint32 textureTransferFlags;
+} ColorConfig;
 
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager {
 public:
@@ -59,44 +104,30 @@ public:
 
 	virtual void initBackend();
 
+	// Feature Flags
 	virtual bool hasFeature(OSystem::Feature f);
-	virtual void setFeatureState(OSystem::Feature f, bool enable);
 	virtual bool getFeatureState(OSystem::Feature f);
-
-	virtual bool pollEvent(Common::Event &event);
-
-	virtual uint32 getMillis(bool skipRecord = false);
-	virtual void delayMillis(uint msecs);
-	virtual void getTimeAndDate(TimeDate &t) const;
-
-	virtual MutexRef createMutex();
-	virtual void lockMutex(MutexRef mutex);
-	virtual void unlockMutex(MutexRef mutex);
-	virtual void deleteMutex(MutexRef mutex);
-
-	virtual void logMessage(LogMessageType::Type type, const char *message);
-
-	virtual Audio::Mixer *getMixer();
-	virtual PaletteManager *getPaletteManager() { return this; }
-	virtual Common::String getSystemLanguage() const;
-	virtual void fatalError();
-	virtual void quit();
-
-	virtual Common::String getDefaultConfigFileName();
-	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
+	virtual void setFeatureState(OSystem::Feature f, bool enable);
 
 	// Graphics
-	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
+	const OSystem::GraphicsMode* getSupportedGraphicsModes() const;
+	int getDefaultGraphicsMode() const;
+
+
+
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
+	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
+	ColorConfig *chooseFormat(Graphics::PixelFormat *format);
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
+	void updateSize();
+	float getScaleRatio() const;
 	virtual int getScreenChangeID() const { return _screenChangeId; };
-
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
 	int16 getHeight(){ return _gameHeight; }
 	int16 getWidth(){ return _gameWidth; }
-	float getScaleRatio() const;
+	virtual PaletteManager *getPaletteManager() { return this; }
 	void setPalette(const byte *colors, uint start, uint num);
 	void grabPalette(byte *colors, uint start, uint num) const;
 	void copyRectToScreen(const void *buf, int pitch, int x, int y, int w,
@@ -107,6 +138,14 @@ public:
 	void setShakePos(int shakeXOffset, int shakeYOffset);
 	void setFocusRectangle(const Common::Rect &rect);
 	void clearFocusRectangle();
+	void updateFocus();
+
+	// Magnify
+	void setMagnifyMode(MagnifyMode mode);
+	MagnifyMode getMagnifyMode(){ return _magnifyMode; }
+	void updateMagnify();
+
+	// Overlay
 	void showOverlay();
 	void hideOverlay();
 	Graphics::PixelFormat getOverlayFormat() const;
@@ -116,9 +155,8 @@ public:
 	                       int h);
 	virtual int16 getOverlayHeight();
 	virtual int16 getOverlayWidth();
-	void displayMessageOnOSD(const char *msg) override;
-	void displayActivityIconOnOSD(const Graphics::Surface *icon) override;
 
+	// Mouse
 	bool showMouse(bool visible);
 	void warpMouse(int x, int y);
 	void setMouseCursor(const void *buf, uint w, uint h, int hotspotX,
@@ -126,22 +164,45 @@ public:
 	                    const Graphics::PixelFormat *format = NULL);
 	void setCursorPalette(const byte *colors, uint start, uint num);
 
+	// Mouse - custom functions
 	// Transform point from touchscreen coords into gamescreen coords
 	void transformPoint(touchPosition &point);
 	// Clip point to gamescreen coords
 	void clipPoint(touchPosition &point);
-
 	void setCursorDelta(float deltaX, float deltaY);
 
-	void updateFocus();
-	void updateMagnify();
+	// Events and Time
+	virtual uint32 getMillis(bool skipRecord = false);
+	virtual void delayMillis(uint msecs);
+	virtual void getTimeAndDate(TimeDate &t) const;
+
+	// Events and Time - custom functions
+	virtual bool pollEvent(Common::Event &event);
+
+	// Mutex Handling
+	virtual MutexRef createMutex();
+	virtual void lockMutex(MutexRef mutex);
+	virtual void unlockMutex(MutexRef mutex);
+	virtual void deleteMutex(MutexRef mutex);
+
+	// Sound
+	virtual Audio::Mixer *getMixer();
+
+	// Miscellaneous
+	virtual void quit();
+	virtual void fatalError();
+	void displayMessageOnOSD(const char *msg) override;
+	void displayActivityIconOnOSD(const Graphics::Surface *icon) override;
+	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
+	virtual Common::String getDefaultConfigFileName();
+	virtual void logMessage(LogMessageType::Type type, const char *message);
+	virtual Common::String getSystemLanguage() const;
+
+	// Miscellaneous - custom functions
 	void updateConfig();
-	void updateSize();
-	void setMagnifyMode(MagnifyMode mode);
-	MagnifyMode getMagnifyMode(){ return _magnifyMode; }
 
 private:
-	void initGraphics();
+	void init3DSGraphics();
 	void destroyGraphics();
 	bool loadGfx();
 	void unloadGfx();
@@ -166,8 +227,11 @@ private:
 	Thread audioThread;
 
 	// Graphics
-	int _pixelFormat;
+	GraphicModeID _graphicMode;
 	int _transactionMode;
+	TransactionDetails _transactionDetails;
+	ScreenConfig _screenConfig, _oldScreenConfig;
+
 	Graphics::PixelFormat _pfGame, _pfGameOld;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
@@ -223,7 +287,7 @@ private:
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;
-	float _cursorX, _cursorY;
+	float _cursorXScreen, _cursorYScreen;
 	float _cursorDeltaX, _cursorDeltaY;
 	int _cursorHotspotX, _cursorHotspotY;
 	uint32 _cursorKeyColor;

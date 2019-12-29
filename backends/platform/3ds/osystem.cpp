@@ -44,7 +44,6 @@
 namespace _3DS {
 
 OSystem_3DS::OSystem_3DS():
-	_pixelFormat(0),
 	_focusDirty(true),
 	_focusRect(Common::Rect(1, 1)),
 	_focusPosX(0),
@@ -63,8 +62,8 @@ OSystem_3DS::OSystem_3DS():
 	_cursorPaletteEnabled(false),
 	_cursorVisible(false),
 	_cursorScalable(false),
-	_cursorX(0),
-	_cursorY(0),
+	_cursorXScreen(0),
+	_cursorYScreen(0),
 	_cursorHotspotX(0),
 	_cursorHotspotY(0),
 	_gameTopX(0),
@@ -103,10 +102,6 @@ OSystem_3DS::~OSystem_3DS() {
 	_timerManager = 0;
 }
 
-void OSystem_3DS::quit() {
-	printf("OSystem_3DS::quit()\n");
-}
-
 void OSystem_3DS::initBackend() {
 	loadConfig();
 	ConfMan.registerDefault("fullscreen", true);
@@ -119,25 +114,10 @@ void OSystem_3DS::initBackend() {
 	_timerManager = new DefaultTimerManager();
 	_savefileManager = new DefaultSaveFileManager("sdmc:/3ds/scummvm/saves/");
 
-	initGraphics();
+	init3DSGraphics();
 	initAudio();
 	initEvents();
 	EventsBaseBackend::initBackend();
-}
-
-void OSystem_3DS::updateConfig() {
-	if (_gameBuffer.getPixels()) {
-		updateSize();
-		warpMouse(_cursorX, _cursorY);
-	}
-}
-
-Common::String OSystem_3DS::getDefaultConfigFileName() {
-	return "sdmc:/3ds/scummvm/scummvm.ini";
-}
-
-void OSystem_3DS::addSysArchivesToSearchSet(Common::SearchSet &s, int priority) {
-	s.add("RomFS", new Common::FSDirectory(DATA_PATH"/"), priority);
 }
 
 uint32 OSystem_3DS::getMillis(bool skipRecord) {
@@ -175,6 +155,26 @@ void OSystem_3DS::deleteMutex(MutexRef mutex) {
 	delete (RecursiveLock*)mutex;
 }
 
+void OSystem_3DS::quit() {
+	printf("OSystem_3DS::quit()\n");
+}
+
+void OSystem_3DS::fatalError() {
+	printf("FatalError!\n");
+}
+
+void OSystem_3DS::addSysArchivesToSearchSet(Common::SearchSet &s, int priority) {
+	s.add("RomFS", new Common::FSDirectory(DATA_PATH"/"), priority);
+}
+
+Common::String OSystem_3DS::getDefaultConfigFileName() {
+	return "sdmc:/3ds/scummvm/scummvm.ini";
+}
+
+void OSystem_3DS::logMessage(LogMessageType::Type type, const char *message) {
+	printf("%s", message);
+}
+
 Common::String OSystem_3DS::getSystemLanguage() const {
 	u8 langcode;
 	CFGU_GetSystemLanguage(&langcode);
@@ -195,12 +195,11 @@ Common::String OSystem_3DS::getSystemLanguage() const {
 	}
 }
 
-void OSystem_3DS::fatalError() {
-	printf("FatalError!\n");
-}
-
-void OSystem_3DS::logMessage(LogMessageType::Type type, const char *message) {
-	printf("%s", message);
+void OSystem_3DS::updateConfig() {
+	if (_gameBuffer.getPixels()) {
+		updateSize();
+		warpMouse(_cursorXScreen, _cursorYScreen);
+	}
 }
 
 } // namespace _3DS

@@ -29,16 +29,20 @@
 #include <3ds.h>
 #include <citro3d.h>
 
+namespace _3DS {
+
 typedef struct {
 	float position[3];
 	float texcoord[2];
 } vertex;
 
+struct ColorConfig;
+
 class Sprite : public Graphics::Surface {
 public:
 	Sprite();
 	~Sprite();
-	void create(uint16 width, uint16 height, const Graphics::PixelFormat &format);
+	void create(uint16 width, uint16 height, ColorConfig *colorConfig);
 	void free();
 	void convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette = 0);
 	void transfer();
@@ -63,7 +67,7 @@ public:
 	uint16 actualHeight;
 
 private:
-	int pixelFormat;
+	uint32 textureTransferFlags;
 	bool dirtyPixels;
 	bool dirtyMatrix;
 	C3D_Mtx modelview;
@@ -76,5 +80,7 @@ private:
 	float scaleX;
 	float scaleY;
 };
+
+} // namespace _3DS
 
 #endif
