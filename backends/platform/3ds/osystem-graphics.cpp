@@ -53,15 +53,8 @@ static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 	{ 0, 0, 0 }
 };
 
-
-
-
-
-
-
-
-/* Group the various enums, values, etc. needed for each color format
- * workflow into instaces of GfxMode3DS */
+/* Group the various enums, values, etc. needed for
+ * each graphics mode into instaces of GfxMode3DS */
 GfxMode3DS _modeRGBA8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
 			    GSP_BGR8_OES, GPU_RB_RGBA8, GPU_RGBA8,
 			    DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8),
@@ -91,8 +84,7 @@ GfxMode3DS *gfxModes[6] = { &_modeRGBA8, &_modeRGB565, &_modeRGB8,
 
 // Initiate 3DS graphics when starting up ScummVM
 void OSystem_3DS::init3DSGraphics() {
-	_pfGame = Graphics::PixelFormat::createFormatCLUT8();
-	_gfxState.mode = gfxModes[CLUT8];
+	_gfxState.gfxMode = gfxModes[CLUT8];
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
 	assert(loadGfx() == true);
@@ -112,18 +104,18 @@ void OSystem_3DS::destroyGraphics() {
 	C3D_Fini();
 }
 
-// Set up Citro3D for the desired color format workflow
+// Set up Citro3D for the desired graphics mode
 bool OSystem_3DS::loadGfx() {
 	// Initialize the render targets
 	_renderTargetTop =
-		C3D_RenderTargetCreate(240, 400, _gfxState.mode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
+		C3D_RenderTargetCreate(240, 400, _gfxState.gfxMode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x0000000, 0);
-	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, _gfxState.mode->displayTransferFlags);
+	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, _gfxState.gfxMode->displayTransferFlags);
 
 	_renderTargetBottom =
-		C3D_RenderTargetCreate(240, 320, _gfxState.mode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
+		C3D_RenderTargetCreate(240, 320, _gfxState.gfxMode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetBottom, C3D_CLEAR_ALL, 0x00000000, 0);
-	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, _gfxState.mode->displayTransferFlags);
+	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, _gfxState.gfxMode->displayTransferFlags);
 
 	// Load and bind simple default shader (shader.v.pica)
 	_dvlb = DVLB_ParseFile((u32*)shader_shbin, shader_shbin_size);
@@ -152,7 +144,7 @@ bool OSystem_3DS::loadGfx() {
 	return true;
 }
 
-// Unload the components of the color format workflow no longer in use
+// Unload the components of the graphics mode no longer in use
 void OSystem_3DS::unloadGfx() {
 	shaderProgramFree(&_program);
 	DVLB_Free(_dvlb);
@@ -202,7 +194,7 @@ bool OSystem_3DS::setGraphicsMode(GraphicModeID modeID) {
 	case RGB555:
 	case RGB5A1:
 	case CLUT8:
-		_gfxState.mode = gfxModes[modeID];
+		_gfxState.gfxMode = gfxModes[modeID];
 		return true;
 	default:
 		return false;
@@ -219,11 +211,11 @@ bool OSystem_3DS::setGraphicsMode(GraphicModeID modeID) {
 
 Common::List<Graphics::PixelFormat> OSystem_3DS::getSupportedFormats() const {
 	Common::List<Graphics::PixelFormat> list;
-	list.push_back(_modeRGBA8.svmFormat); // GPU_RGBA8
-	list.push_back(_modeRGB565.svmFormat); // GPU_RGB565
-// 		list.push_back(_modeRGB8.svmFormat); // GPU_RGB8
-	list.push_back(_modeRGB555.svmFormat); // RGB555 (needed for FMTOWNS?)
-	list.push_back(_modeRGB5A1.svmFormat); // GPU_RGBA5551
+	list.push_back(_modeRGBA8.svmPF); // GPU_RGBA8
+	list.push_back(_modeRGB565.svmPF); // GPU_RGB565
+// 		list.push_back(_modeRGB8.svmPF); // GPU_RGB8
+	list.push_back(_modeRGB555.svmPF); // RGB555 (needed for FMTOWNS?)
+	list.push_back(_modeRGB5A1.svmPF); // GPU_RGBA5551
 	list.push_back(Graphics::PixelFormat::createFormatCLUT8());
 	return list;
 }
@@ -258,23 +250,22 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 	_magCenterX = _magWidth / 2;
 	_magCenterY = _magHeight / 2;
 
-	_pfGameOld = _pfGame;
 	if (!format) {
-		if (_pfGame != Graphics::PixelFormat::createFormatCLUT8()) {
-			_pfGame = Graphics::PixelFormat::createFormatCLUT8();
+		if (_gfxState.gamePF != Graphics::PixelFormat::createFormatCLUT8()) {
+			_gfxState.gamePF = Graphics::PixelFormat::createFormatCLUT8();
 		}
 	} else {
 		debug("pixelformat: %d %d %d %d %d", format->bytesPerPixel, format->rBits(), format->gBits(), format->bBits(), format->aBits());
-		_pfGame = *format;
+		_gfxState.gamePF = *format;
 	}
 
-	assert(_pfGame.bytesPerPixel > 0);
+	assert(_gfxState.gamePF.bytesPerPixel > 0);
 
-	/* If the current color format workflow does not fit with the pixel
+	/* If the current graphics mode does not fit with the pixel
 	 * format being requested, choose one that does and switch to it */
-	if (_pfGame != _pfGameOld) {
+	if (_gfxState.gamePF != _oldGfxState.gamePF) {
 		assert(_transactionMode == kTransactionActive);
-		_gfxState.mode = chooseMode(&_pfGame);
+		_gfxState.gfxMode = chooseMode(&_gfxState.gamePF);
 		_transactionDetails.formatChanged = true;
 	}
 
@@ -285,9 +276,9 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 		_screenChangeId++;
 	}
 
-	_gameTextureTop.create(width, height, _gfxState.mode);
-	_overlay.create(400, 320, _gfxState.mode);
-	_gameBuffer.create(width, height, _pfGame);
+	_gameTextureTop.create(width, height, _gfxState.gfxMode);
+	_overlay.create(400, 320, _gfxState.gfxMode);
+	_gameBuffer.create(width, height, _gfxState.gamePF);
 
 	_focusDirty = true;
 	_focusRect = Common::Rect(_gameWidth, _gameHeight);
@@ -360,25 +351,24 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 
 	assert(_transactionMode != kTransactionNone);
 	if (_transactionMode == kTransactionRollback) {
-		if (_gfxState.mode != _oldGfxState.mode) {
+		if (_gfxState.gfxMode != _oldGfxState.gfxMode) {
 			errors |= OSystem::kTransactionFormatNotSupported;
-			_gfxState.mode = _oldGfxState.mode;
-			_pfGame = _pfGameOld;
+			_gfxState = _oldGfxState;
 		}
 
 		_oldGfxState.setup = false;
 	}
 	if (_transactionDetails.formatChanged) {
 		unloadGfx();
-		gfxSetScreenFormat(GFX_TOP, _gfxState.mode->screenFormat);
-		gfxSetScreenFormat(GFX_BOTTOM, _gfxState.mode->screenFormat);
+		gfxSetScreenFormat(GFX_TOP, _gfxState.gfxMode->screenFormat);
+		gfxSetScreenFormat(GFX_BOTTOM, _gfxState.gfxMode->screenFormat);
 		if (!loadGfx()) {
 			if (_oldGfxState.setup) {
 				_transactionMode = kTransactionRollback;
 				errors |= endGFXTransaction();
 			}
 		} else {
-			initSize(_gameWidth, _gameHeight, &_pfGame);
+			initSize(_gameWidth, _gameHeight, &_gfxState.gamePF);
 			clearOverlay();
 			_gfxState.setup = true;
 			_screenChangeId++;
@@ -409,7 +399,7 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch,
 	_gameBuffer.copyRectToSurface(buf, pitch, x, y, w, h);
 	Graphics::Surface subSurface = _gameBuffer.getSubArea(rect);
 
-	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_gfxState.mode->svmFormat, _palette);
+	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_gfxState.gfxMode->svmPF, _palette);
 	_gameTextureTop.copyRectToSurface(*convertedSubSurface, x, y, Common::Rect(w, h));
 
 	convertedSubSurface->free();
@@ -418,7 +408,7 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch,
 }
 
 void OSystem_3DS::flushGameScreen() {
-	Graphics::Surface *converted = _gameBuffer.convertTo(_gfxState.mode->svmFormat, _palette);
+	Graphics::Surface *converted = _gameBuffer.convertTo(_gfxState.gfxMode->svmPF, _palette);
 	_gameTextureTop.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 	_gameTextureTop.markDirty();
 	converted->free();
@@ -439,7 +429,7 @@ void OSystem_3DS::updateScreen() {
 // 	updateFocus();
 	updateMagnify();
 
-	if (_gfxState.mode->svmFormat.aBits() == 0) {
+	if (_gfxState.gfxMode->svmPF.aBits() == 0) {
 		flushCursor();
 	}
 
@@ -612,15 +602,15 @@ void OSystem_3DS::updateFocus() {
 }
 
 void OSystem_3DS::updateMagnify() {
-	if (_magnifyMode == MODE_MAGON && config.screen != kScreenBoth) {
+	if (_gfxState.magMode == MODE_MAGON && config.screen != kScreenBoth) {
 		// Only allow to magnify when both screens are enabled
-		_magnifyMode = MODE_MAGOFF;
+		_gfxState.magMode = MODE_MAGOFF;
 	}
 
 	// TODO: When exiting GUI, prevent cursor's position within GUI from changing
 	// position of magnification viewport. Possible solution: save in-game cursor
 	// coordinates separately from GUI cursor coordinates?
-	if (_magnifyMode == MODE_MAGON) {
+	if (_gfxState.magMode == MODE_MAGON) {
 		if (!g_gui.isActive()) {
 			_magX = (_cursorXScreen < _magCenterX) ?
 				 0 : ((_cursorXScreen < (_gameWidth - _magCenterX)) ?
@@ -646,7 +636,7 @@ void OSystem_3DS::hideOverlay() {
 }
 
 Graphics::PixelFormat OSystem_3DS::getOverlayFormat() const {
-	return _gfxState.mode->svmFormat;
+	return _gfxState.gfxMode->svmPF;
 }
 
 void OSystem_3DS::clearOverlay() {
@@ -657,7 +647,7 @@ void OSystem_3DS::grabOverlay(void *buf, int pitch) {
 	byte *dst = (byte *)buf;
 
 	for (int y = 0; y < getOverlayHeight(); ++y) {
-		memcpy(dst, _overlay.getBasePtr(0, y), getOverlayWidth() * _gfxState.mode->svmFormat.bytesPerPixel);
+		memcpy(dst, _overlay.getBasePtr(0, y), getOverlayWidth() * _gfxState.gfxMode->svmPF.bytesPerPixel);
 		dst += pitch;
 	}
 }
@@ -705,14 +695,14 @@ void OSystem_3DS::displayMessageOnOSD(const char *msg) {
 	if (height > getOverlayHeight())
 		height = getOverlayHeight();
 
-	_osdMessage.create(width, height, _gfxState.mode);
-	_osdMessage.fillRect(Common::Rect(width, height), _gfxState.mode->svmFormat.ARGBToColor(200, 0, 0, 0));
+	_osdMessage.create(width, height, _gfxState.gfxMode);
+	_osdMessage.fillRect(Common::Rect(width, height), _gfxState.gfxMode->svmPF.ARGBToColor(200, 0, 0, 0));
 
 	// Render the message, centered, and in white
 	for (i = 0; i < lines.size(); i++) {
 		font->drawString(&_osdMessage, lines[i],
 				 0, 0 + i * lineHeight + vOffset + lineSpacing, width,
-				 _gfxState.mode->svmFormat.RGBToColor(255, 255, 255),
+				 _gfxState.gfxMode->svmPF.RGBToColor(255, 255, 255),
 				 Graphics::kTextAlignCenter);
 	}
 
@@ -724,10 +714,10 @@ void OSystem_3DS::displayActivityIconOnOSD(const Graphics::Surface *icon) {
 		_activityIcon.free();
 	} else {
 		if (!_activityIcon.getPixels() || icon->w != _activityIcon.w || icon->h != _activityIcon.h) {
-			_activityIcon.create(icon->w, icon->h, _gfxState.mode);
+			_activityIcon.create(icon->w, icon->h, _gfxState.gfxMode);
 		}
 
-		Graphics::Surface *converted = icon->convertTo(_gfxState.mode->svmFormat);
+		Graphics::Surface *converted = icon->convertTo(_gfxState.gfxMode->svmPF);
 		_activityIcon.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 		_activityIcon.markDirty();
 		converted->free();
@@ -773,7 +763,7 @@ void OSystem_3DS::warpMouse(int x, int y) {
 		int cursorRight = cursorLeft + _cursorTexture.actualWidth;
 		int cursorBottom = cursorTop + _cursorTexture.actualHeight;
 		_cursorSpace = Common::Rect(cursorLeft, cursorTop, cursorRight, cursorBottom);
-		if (_gfxState.mode->svmFormat.aBits() == 0) {
+		if (_gfxState.gfxMode->svmPF.aBits() == 0) {
 			flushCursor();
 		}
 	}
@@ -796,7 +786,7 @@ void OSystem_3DS::setMouseCursor(const void *buf, uint w, uint h,
 
 	if (w != _cursorBuffer.w || h != _cursorBuffer.h || _cursorBuffer.format != _pfCursor) {
 		_cursorBuffer.create(w, h, _pfCursor);
-		_cursorTexture.create(w, h, _gfxState.mode);
+		_cursorTexture.create(w, h, _gfxState.gfxMode);
 		_cursorSpace = Common::Rect(_cursorTexture.getPosX(), _cursorTexture.getPosY(),
 					    _cursorTexture.getPosX() + w, _cursorTexture.getPosY() + h);
 	}
@@ -850,12 +840,12 @@ void applyKeyColor(Graphics::Surface &src, Sprite &dst, Sprite &screen, const Sr
 
 void OSystem_3DS::flushCursor() {
 	if (_cursorBuffer.getPixels()) {
-		Graphics::Surface *converted = _cursorBuffer.convertTo(_gfxState.mode->svmFormat, _cursorPaletteEnabled ? _cursorPalette : _palette);
+		Graphics::Surface *converted = _cursorBuffer.convertTo(_gfxState.gfxMode->svmPF, _cursorPaletteEnabled ? _cursorPalette : _palette);
 		_cursorTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 		converted->free();
 		delete converted;
 
-		if (_gfxState.mode->svmFormat.bytesPerPixel == 4) {
+		if (_gfxState.gfxMode->svmPF.bytesPerPixel == 4) {
 			if (_pfCursor.bytesPerPixel == 1) {
 				applyKeyColor<byte, uint32>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 2) {
@@ -863,7 +853,7 @@ void OSystem_3DS::flushCursor() {
 			} else if (_pfCursor.bytesPerPixel == 4) {
 				applyKeyColor<uint32, uint32>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			}
-		} else if (_gfxState.mode->svmFormat.bytesPerPixel == 2) {
+		} else if (_gfxState.gfxMode->svmPF.bytesPerPixel == 2) {
 			if (_pfCursor.bytesPerPixel == 1) {
 				applyKeyColor<byte, uint16>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 2) {

@@ -78,7 +78,7 @@ OSystem_3DS::OSystem_3DS():
 	_magHeight(240),
 	_overlayVisible(false),
 	_screenChangeId(0),
-	_magnifyMode(MODE_MAGOFF),
+//	_gfxState.magMode(MODE_MAGOFF),
 	exiting(false),
 	sleeping(false)
 {

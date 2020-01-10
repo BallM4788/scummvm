@@ -322,7 +322,7 @@ void OSystem_3DS::clipPoint(touchPosition &point) {
 }
 
 void OSystem_3DS::setMagnifyMode(MagnifyMode mode) {
-	_magnifyMode = mode;
+	_gfxState.magMode = mode;
 }
 
 bool OSystem_3DS::pollEvent(Common::Event &event) {

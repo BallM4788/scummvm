@@ -75,7 +75,7 @@ struct TransactionDetails {
 };
 
 typedef struct GfxMode3DS {
-	Graphics::PixelFormat svmFormat;
+	Graphics::PixelFormat svmPF;
 	GSPGPU_FramebufferFormats screenFormat;
 	GPU_COLORBUF bufferFormat;
 	GPU_TEXCOLOR textureFormat;
@@ -86,10 +86,14 @@ typedef struct GfxMode3DS {
 // Screen configuration states
 struct GfxState {
 	bool setup;
-	GfxMode3DS *mode;
+	GfxMode3DS *gfxMode;
+	MagnifyMode magMode;
+	Graphics::PixelFormat gamePF;
 
 	GfxState() {
 		setup = false;
+		magMode = MODE_MAGOFF;
+		gamePF = Graphics::PixelFormat::createFormatCLUT8();
 		// format set to 0 values by Graphics::PixelFormat constructor
 	}
 };
@@ -117,7 +121,7 @@ public:
 
 
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
-	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
+	inline Graphics::PixelFormat getScreenFormat() const { return _gfxState.gamePF; }
 	GfxMode3DS *chooseMode(Graphics::PixelFormat *format);
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
@@ -143,7 +147,7 @@ public:
 
 	// Magnify
 	void setMagnifyMode(MagnifyMode mode);
-	MagnifyMode getMagnifyMode(){ return _magnifyMode; }
+	MagnifyMode getMagnifyMode(){ return _gfxState.magMode; }
 	void updateMagnify();
 
 	// Overlay
@@ -233,7 +237,6 @@ private:
 	TransactionDetails _transactionDetails;
 	GfxState _gfxState, _oldGfxState;
 
-	Graphics::PixelFormat _pfGame, _pfGameOld;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
@@ -294,7 +297,6 @@ private:
 	uint32 _cursorKeyColor;
 
 	// Magnify
-	MagnifyMode _magnifyMode;
 	u16 _magX, _magY;
 	u16 _magWidth, _magHeight;
 	u16 _magCenterX, _magCenterY;

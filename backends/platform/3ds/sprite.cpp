@@ -56,7 +56,7 @@ void Sprite::create(uint16 width, uint16 height, GfxMode3DS *mode) {
 
 	actualWidth = width;
 	actualHeight = height;
-	format = mode->svmFormat;
+	format = mode->svmPF;
 	textureTransferFlags = mode->textureTransferFlags;
 	w = MAX<uint16>(Common::nextHigher2(width), 64u);
 	h = MAX<uint16>(Common::nextHigher2(height), 64u);
