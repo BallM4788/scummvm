@@ -44,7 +44,7 @@
 
 namespace _3DS {
 
-static const OSystem::GraphicsMode supportedGraphicsModes[] = {
+static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 	{ "RGBA8", "RGBA8", RGBA8 },
 	{ "RGB565", "RGB565", RGB565 },
 	{ "RGB8", "RGB8", RGB8 },
@@ -61,38 +61,38 @@ static const OSystem::GraphicsMode supportedGraphicsModes[] = {
 
 
 /* Group the various enums, values, etc. needed for each color format
- * workflow into instaces of ColorConfig */
-ColorConfig _configRGBA8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
-			     GSP_BGR8_OES, GPU_RB_RGBA8, GPU_RGBA8,
-			     DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8),
-			     TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8) };
-ColorConfig _configRGB565 = { Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0),
-			      GSP_RGB565_OES, GPU_RB_RGB565, GPU_RGB565,
-			      DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB565, GX_TRANSFER_FMT_RGB565),
-			      TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB565) };
-ColorConfig _configRGB8 = { Graphics::PixelFormat(3, 0, 0, 0, 8, 0, 8, 16, 0),
-			    GSP_BGR8_OES, GPU_RB_RGB8, GPU_RGB8,
-			    DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB8, GX_TRANSFER_FMT_RGB8),
-			    TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB8) };
-ColorConfig _configRGB555 = { Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0),
-			      GSP_RGB5_A1_OES, GPU_RB_RGBA5551, GPU_RGBA5551,
-			      DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1, GX_TRANSFER_FMT_RGB5A1),
-			      TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1) };
-ColorConfig _configRGB5A1 = { Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0),
-			      GSP_RGB5_A1_OES, GPU_RB_RGBA5551, GPU_RGBA5551,
-			      DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1, GX_TRANSFER_FMT_RGB5A1),
-			      TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1) };
-ColorConfig _configCLUT8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
-			     GSP_BGR8_OES, GPU_RB_RGBA8, GPU_RGBA8,
-			     DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8),
-			     TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8) };
-ColorConfig *_activeConfig;
+ * workflow into instaces of GfxMode3DS */
+GfxMode3DS _modeRGBA8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
+			    GSP_BGR8_OES, GPU_RB_RGBA8, GPU_RGBA8,
+			    DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8),
+			    TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8) };
+GfxMode3DS _modeRGB565 = { Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0),
+			     GSP_RGB565_OES, GPU_RB_RGB565, GPU_RGB565,
+			     DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB565, GX_TRANSFER_FMT_RGB565),
+			     TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB565) };
+GfxMode3DS _modeRGB8 = { Graphics::PixelFormat(3, 0, 0, 0, 8, 0, 8, 16, 0),
+			   GSP_BGR8_OES, GPU_RB_RGB8, GPU_RGB8,
+			   DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB8, GX_TRANSFER_FMT_RGB8),
+			   TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB8) };
+GfxMode3DS _modeRGB555 = { Graphics::PixelFormat(2, 5, 5, 5, 0, 10, 5, 0, 0),
+			     GSP_RGB5_A1_OES, GPU_RB_RGBA5551, GPU_RGBA5551,
+			     DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1, GX_TRANSFER_FMT_RGB5A1),
+			     TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1) };
+GfxMode3DS _modeRGB5A1 = { Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0),
+			     GSP_RGB5_A1_OES, GPU_RB_RGBA5551, GPU_RGBA5551,
+			     DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1, GX_TRANSFER_FMT_RGB5A1),
+			     TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1) };
+GfxMode3DS _modeCLUT8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
+			    GSP_BGR8_OES, GPU_RB_RGBA8, GPU_RGBA8,
+			    DISPLAY_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8),
+			    TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8) };
+GfxMode3DS *gfxModes[6] = { &_modeRGBA8, &_modeRGB565, &_modeRGB8,
+			    &_modeRGB555, &_modeRGB5A1, &_modeCLUT8 };
 
 // Initiate 3DS graphics when starting up ScummVM
 void OSystem_3DS::init3DSGraphics() {
 	_pfGame = Graphics::PixelFormat::createFormatCLUT8();
-	_activeConfig = &_configCLUT8;
-	_screenConfig.format = _activeConfig->svmFormat;
+	_gfxState.mode = gfxModes[CLUT8];
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
 
 	assert(loadGfx() == true);
@@ -116,14 +116,14 @@ void OSystem_3DS::destroyGraphics() {
 bool OSystem_3DS::loadGfx() {
 	// Initialize the render targets
 	_renderTargetTop =
-		C3D_RenderTargetCreate(240, 400, _activeConfig->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
+		C3D_RenderTargetCreate(240, 400, _gfxState.mode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x0000000, 0);
-	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, _activeConfig->displayTransferFlags);
+	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, _gfxState.mode->displayTransferFlags);
 
 	_renderTargetBottom =
-		C3D_RenderTargetCreate(240, 320, _activeConfig->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
+		C3D_RenderTargetCreate(240, 320, _gfxState.mode->bufferFormat, GPU_RB_DEPTH24_STENCIL8);
 	C3D_RenderTargetClear(_renderTargetBottom, C3D_CLEAR_ALL, 0x00000000, 0);
-	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, _activeConfig->displayTransferFlags);
+	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, _gfxState.mode->displayTransferFlags);
 
 	// Load and bind simple default shader (shader.v.pica)
 	_dvlb = DVLB_ParseFile((u32*)shader_shbin, shader_shbin_size);
@@ -187,43 +187,66 @@ bool OSystem_3DS::getFeatureState(OSystem::Feature f) {
 }
 
 const OSystem::GraphicsMode* OSystem_3DS::getSupportedGraphicsModes() const {
-	return supportedGraphicsModes;
+	return s_supportedGraphicsModes;
 }
 
 int OSystem_3DS::getDefaultGraphicsMode() const {
 	return CLUT8;
 }
 
+bool OSystem_3DS::setGraphicsMode(GraphicModeID modeID) {
+	switch (modeID) {
+	case RGBA8:
+	case RGB565:
+	case RGB8:
+	case RGB555:
+	case RGB5A1:
+	case CLUT8:
+		_gfxState.mode = gfxModes[modeID];
+		return true;
+	default:
+		return false;
+	}
+}
+
+
+
+
+
+
+
+
+
 Common::List<Graphics::PixelFormat> OSystem_3DS::getSupportedFormats() const {
 	Common::List<Graphics::PixelFormat> list;
-	list.push_back(_configRGBA8.svmFormat); // GPU_RGBA8
-	list.push_back(_configRGB565.svmFormat); // GPU_RGB565
-// 		list.push_back(_configRGB8.svmFormat); // GPU_RGB8
-	list.push_back(_configRGB555.svmFormat); // RGB555 (needed for FMTOWNS?)
-	list.push_back(_configRGB5A1.svmFormat); // GPU_RGBA5551
+	list.push_back(_modeRGBA8.svmFormat); // GPU_RGBA8
+	list.push_back(_modeRGB565.svmFormat); // GPU_RGB565
+// 		list.push_back(_modeRGB8.svmFormat); // GPU_RGB8
+	list.push_back(_modeRGB555.svmFormat); // RGB555 (needed for FMTOWNS?)
+	list.push_back(_modeRGB5A1.svmFormat); // GPU_RGBA5551
 	list.push_back(Graphics::PixelFormat::createFormatCLUT8());
 	return list;
 }
 
-ColorConfig *OSystem_3DS::chooseFormat(Graphics::PixelFormat *format) {
+GfxMode3DS *OSystem_3DS::chooseMode(Graphics::PixelFormat *format) {
 	if (format->bytesPerPixel > 2) {
 		if (format->aBits() > 0) {
-			return &_configRGBA8;
+			return gfxModes[RGBA8];
 		} else {
-			return &_configRGB8;
+			return gfxModes[RGB8];
 		}
 	} else if (format->bytesPerPixel > 1) {
 		if (format->gBits() > 5) {
-			return &_configRGB565;
+			return gfxModes[RGB565];
 		} else if (format->aBits() == 0) {
-			return &_configRGB555;
+			return gfxModes[RGB555];
 		} else {
-			return &_configRGB5A1;
+			return gfxModes[RGB5A1];
 		}
 	}
 
 	// Last resort
-	return &_configCLUT8;
+	return gfxModes[CLUT8];
 }
 
 void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat *format) {
@@ -251,9 +274,8 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 	 * format being requested, choose one that does and switch to it */
 	if (_pfGame != _pfGameOld) {
 		assert(_transactionMode == kTransactionActive);
-		_activeConfig = chooseFormat(&_pfGame);
+		_gfxState.mode = chooseMode(&_pfGame);
 		_transactionDetails.formatChanged = true;
-		_screenConfig.format = _activeConfig->svmFormat;
 	}
 
 	debug("3ds initsize w:%d h:%d", width, height);
@@ -263,8 +285,8 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 		_screenChangeId++;
 	}
 
-	_gameTextureTop.create(width, height, _activeConfig);
-	_overlay.create(400, 320, _activeConfig);
+	_gameTextureTop.create(width, height, _gfxState.mode);
+	_overlay.create(400, 320, _gfxState.mode);
 	_gameBuffer.create(width, height, _pfGame);
 
 	_focusDirty = true;
@@ -330,7 +352,7 @@ void OSystem_3DS::beginGFXTransaction() {
 	assert(_transactionMode == kTransactionNone);
 	_transactionMode = kTransactionActive;
 	_transactionDetails.formatChanged = false;
-	_oldScreenConfig = _screenConfig;
+	_oldGfxState = _gfxState;
 }
 
 OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
@@ -338,27 +360,27 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 
 	assert(_transactionMode != kTransactionNone);
 	if (_transactionMode == kTransactionRollback) {
-		if (_screenConfig.format != _oldScreenConfig.format) {
+		if (_gfxState.mode != _oldGfxState.mode) {
 			errors |= OSystem::kTransactionFormatNotSupported;
-			_screenConfig.format = _oldScreenConfig.format;
+			_gfxState.mode = _oldGfxState.mode;
 			_pfGame = _pfGameOld;
 		}
 
-		_oldScreenConfig.setup = false;
+		_oldGfxState.setup = false;
 	}
 	if (_transactionDetails.formatChanged) {
 		unloadGfx();
-		gfxSetScreenFormat(GFX_TOP, _activeConfig->screenFormat);
-		gfxSetScreenFormat(GFX_BOTTOM, _activeConfig->screenFormat);
+		gfxSetScreenFormat(GFX_TOP, _gfxState.mode->screenFormat);
+		gfxSetScreenFormat(GFX_BOTTOM, _gfxState.mode->screenFormat);
 		if (!loadGfx()) {
-			if (_oldScreenConfig.setup) {
+			if (_oldGfxState.setup) {
 				_transactionMode = kTransactionRollback;
 				errors |= endGFXTransaction();
 			}
 		} else {
 			initSize(_gameWidth, _gameHeight, &_pfGame);
 			clearOverlay();
-			_screenConfig.setup = true;
+			_gfxState.setup = true;
 			_screenChangeId++;
 		}
 	}
@@ -387,7 +409,7 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch,
 	_gameBuffer.copyRectToSurface(buf, pitch, x, y, w, h);
 	Graphics::Surface subSurface = _gameBuffer.getSubArea(rect);
 
-	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_screenConfig.format, _palette);
+	Graphics::Surface *convertedSubSurface = subSurface.convertTo(_gfxState.mode->svmFormat, _palette);
 	_gameTextureTop.copyRectToSurface(*convertedSubSurface, x, y, Common::Rect(w, h));
 
 	convertedSubSurface->free();
@@ -396,7 +418,7 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch,
 }
 
 void OSystem_3DS::flushGameScreen() {
-	Graphics::Surface *converted = _gameBuffer.convertTo(_screenConfig.format, _palette);
+	Graphics::Surface *converted = _gameBuffer.convertTo(_gfxState.mode->svmFormat, _palette);
 	_gameTextureTop.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 	_gameTextureTop.markDirty();
 	converted->free();
@@ -417,7 +439,7 @@ void OSystem_3DS::updateScreen() {
 // 	updateFocus();
 	updateMagnify();
 
-	if (_screenConfig.format.aBits() == 0) {
+	if (_gfxState.mode->svmFormat.aBits() == 0) {
 		flushCursor();
 	}
 
@@ -624,7 +646,7 @@ void OSystem_3DS::hideOverlay() {
 }
 
 Graphics::PixelFormat OSystem_3DS::getOverlayFormat() const {
-	return _screenConfig.format;
+	return _gfxState.mode->svmFormat;
 }
 
 void OSystem_3DS::clearOverlay() {
@@ -635,7 +657,7 @@ void OSystem_3DS::grabOverlay(void *buf, int pitch) {
 	byte *dst = (byte *)buf;
 
 	for (int y = 0; y < getOverlayHeight(); ++y) {
-		memcpy(dst, _overlay.getBasePtr(0, y), getOverlayWidth() * _screenConfig.format.bytesPerPixel);
+		memcpy(dst, _overlay.getBasePtr(0, y), getOverlayWidth() * _gfxState.mode->svmFormat.bytesPerPixel);
 		dst += pitch;
 	}
 }
@@ -683,14 +705,14 @@ void OSystem_3DS::displayMessageOnOSD(const char *msg) {
 	if (height > getOverlayHeight())
 		height = getOverlayHeight();
 
-	_osdMessage.create(width, height, _activeConfig);
-	_osdMessage.fillRect(Common::Rect(width, height), _screenConfig.format.ARGBToColor(200, 0, 0, 0));
+	_osdMessage.create(width, height, _gfxState.mode);
+	_osdMessage.fillRect(Common::Rect(width, height), _gfxState.mode->svmFormat.ARGBToColor(200, 0, 0, 0));
 
 	// Render the message, centered, and in white
 	for (i = 0; i < lines.size(); i++) {
 		font->drawString(&_osdMessage, lines[i],
 				 0, 0 + i * lineHeight + vOffset + lineSpacing, width,
-				 _screenConfig.format.RGBToColor(255, 255, 255),
+				 _gfxState.mode->svmFormat.RGBToColor(255, 255, 255),
 				 Graphics::kTextAlignCenter);
 	}
 
@@ -702,10 +724,10 @@ void OSystem_3DS::displayActivityIconOnOSD(const Graphics::Surface *icon) {
 		_activityIcon.free();
 	} else {
 		if (!_activityIcon.getPixels() || icon->w != _activityIcon.w || icon->h != _activityIcon.h) {
-			_activityIcon.create(icon->w, icon->h, _activeConfig);
+			_activityIcon.create(icon->w, icon->h, _gfxState.mode);
 		}
 
-		Graphics::Surface *converted = icon->convertTo(_screenConfig.format);
+		Graphics::Surface *converted = icon->convertTo(_gfxState.mode->svmFormat);
 		_activityIcon.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 		_activityIcon.markDirty();
 		converted->free();
@@ -751,7 +773,7 @@ void OSystem_3DS::warpMouse(int x, int y) {
 		int cursorRight = cursorLeft + _cursorTexture.actualWidth;
 		int cursorBottom = cursorTop + _cursorTexture.actualHeight;
 		_cursorSpace = Common::Rect(cursorLeft, cursorTop, cursorRight, cursorBottom);
-		if (_screenConfig.format.aBits() == 0) {
+		if (_gfxState.mode->svmFormat.aBits() == 0) {
 			flushCursor();
 		}
 	}
@@ -774,7 +796,7 @@ void OSystem_3DS::setMouseCursor(const void *buf, uint w, uint h,
 
 	if (w != _cursorBuffer.w || h != _cursorBuffer.h || _cursorBuffer.format != _pfCursor) {
 		_cursorBuffer.create(w, h, _pfCursor);
-		_cursorTexture.create(w, h, _activeConfig);
+		_cursorTexture.create(w, h, _gfxState.mode);
 		_cursorSpace = Common::Rect(_cursorTexture.getPosX(), _cursorTexture.getPosY(),
 					    _cursorTexture.getPosX() + w, _cursorTexture.getPosY() + h);
 	}
@@ -828,12 +850,12 @@ void applyKeyColor(Graphics::Surface &src, Sprite &dst, Sprite &screen, const Sr
 
 void OSystem_3DS::flushCursor() {
 	if (_cursorBuffer.getPixels()) {
-		Graphics::Surface *converted = _cursorBuffer.convertTo(_screenConfig.format, _cursorPaletteEnabled ? _cursorPalette : _palette);
+		Graphics::Surface *converted = _cursorBuffer.convertTo(_gfxState.mode->svmFormat, _cursorPaletteEnabled ? _cursorPalette : _palette);
 		_cursorTexture.copyRectToSurface(*converted, 0, 0, Common::Rect(converted->w, converted->h));
 		converted->free();
 		delete converted;
 
-		if (_activeConfig->svmFormat.bytesPerPixel == 4) {
+		if (_gfxState.mode->svmFormat.bytesPerPixel == 4) {
 			if (_pfCursor.bytesPerPixel == 1) {
 				applyKeyColor<byte, uint32>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 2) {
@@ -841,7 +863,7 @@ void OSystem_3DS::flushCursor() {
 			} else if (_pfCursor.bytesPerPixel == 4) {
 				applyKeyColor<uint32, uint32>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			}
-		} else if (_activeConfig->svmFormat.bytesPerPixel == 2) {
+		} else if (_gfxState.mode->svmFormat.bytesPerPixel == 2) {
 			if (_pfCursor.bytesPerPixel == 1) {
 				applyKeyColor<byte, uint16>(_cursorBuffer, _cursorTexture, _gameTextureTop, _cursorKeyColor, _cursorSpace);
 			} else if (_pfCursor.bytesPerPixel == 2) {

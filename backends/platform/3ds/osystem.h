@@ -74,25 +74,25 @@ struct TransactionDetails {
 	}
 };
 
-// Screen configuration states
-struct ScreenConfig {
-	bool setup;
-	Graphics::PixelFormat format;
-
-	ScreenConfig() {
-		setup = false;
-		// format set to 0 values by Graphics::PixelFormat constructor
-	}
-};
-
-typedef struct ColorConfig {
+typedef struct GfxMode3DS {
 	Graphics::PixelFormat svmFormat;
 	GSPGPU_FramebufferFormats screenFormat;
 	GPU_COLORBUF bufferFormat;
 	GPU_TEXCOLOR textureFormat;
 	uint32 displayTransferFlags;
 	uint32 textureTransferFlags;
-} ColorConfig;
+} GfxMode3DS;
+
+// Screen configuration states
+struct GfxState {
+	bool setup;
+	GfxMode3DS *mode;
+
+	GfxState() {
+		setup = false;
+		// format set to 0 values by Graphics::PixelFormat constructor
+	}
+};
 
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager {
 public:
@@ -112,12 +112,13 @@ public:
 	// Graphics
 	const OSystem::GraphicsMode* getSupportedGraphicsModes() const;
 	int getDefaultGraphicsMode() const;
+	bool setGraphicsMode(GraphicModeID modeID);
 
 
 
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
 	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
-	ColorConfig *chooseFormat(Graphics::PixelFormat *format);
+	GfxMode3DS *chooseMode(Graphics::PixelFormat *format);
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
 	void updateSize();
@@ -230,7 +231,7 @@ private:
 	GraphicModeID _graphicMode;
 	int _transactionMode;
 	TransactionDetails _transactionDetails;
-	ScreenConfig _screenConfig, _oldScreenConfig;
+	GfxState _gfxState, _oldGfxState;
 
 	Graphics::PixelFormat _pfGame, _pfGameOld;
 	Graphics::PixelFormat _pfCursor;

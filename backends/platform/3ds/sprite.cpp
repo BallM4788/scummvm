@@ -51,13 +51,13 @@ Sprite::~Sprite() {
 	//
 }
 
-void Sprite::create(uint16 width, uint16 height, ColorConfig *colorConfig) {
+void Sprite::create(uint16 width, uint16 height, GfxMode3DS *mode) {
 	free();
 
 	actualWidth = width;
 	actualHeight = height;
-	format = colorConfig->svmFormat;
-	textureTransferFlags = colorConfig->textureTransferFlags;
+	format = mode->svmFormat;
+	textureTransferFlags = mode->textureTransferFlags;
 	w = MAX<uint16>(Common::nextHigher2(width), 64u);
 	h = MAX<uint16>(Common::nextHigher2(height), 64u);
 	pitch = w * format.bytesPerPixel;
@@ -65,7 +65,7 @@ void Sprite::create(uint16 width, uint16 height, ColorConfig *colorConfig) {
 
 	if (width && height) {
 		pixels = linearAlloc(h * pitch);
-		C3D_TexInit(&texture, w, h, colorConfig->textureFormat);
+		C3D_TexInit(&texture, w, h, mode->textureFormat);
 		C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);
 		assert(pixels && texture.data);
 		clear();
