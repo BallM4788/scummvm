@@ -77,6 +77,7 @@ public:
 	~DefaultEventManager();
 
 	virtual void init() override;
+	virtual void reInit() override;
 	virtual bool pollEvent(Common::Event &event) override;
 	virtual void pushEvent(const Common::Event &event) override;
 	virtual void purgeMouseEvents() override;

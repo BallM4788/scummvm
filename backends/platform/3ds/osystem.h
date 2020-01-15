@@ -49,6 +49,15 @@ enum InputMode {
 	MODE_DRAG,
 };
 
+enum GraphicsModeID {
+	RGBA8,
+	RGB565,
+	RGB8,
+	RGB555,
+	RGB5A1,
+	CLUT8
+};
+
 // Graphics transaction states
 enum TransactionState {
 	kTransactionNone = 0,
@@ -56,12 +65,14 @@ enum TransactionState {
 	kTransactionRollback = 2
 };
 
+
 // Details for a graphics transaction
 struct TransactionDetails {
-	bool formatChanged;
+	bool formatChanged, modeChanged;
 
 	TransactionDetails() {
 		formatChanged = false;
+		modeChanged = false;
 	}
 };
 
@@ -74,22 +85,12 @@ typedef struct GfxMode3DS {
 	uint32 textureTransferFlags;
 } GfxMode3DS;
 
-enum GraphicsModeID {
-	RGBA8,
-	RGB565,
-	RGB8,
-	RGB555,
-	RGB5A1,
-	CLUT8
-};
-
-// Screen configuration states
+// Graphics configuration properties
 struct GfxState {
 	bool setup;
 	GraphicsModeID gfxModeID;
 	GfxMode3DS *gfxMode;
 	MagnifyMode magMode;
-	Graphics::PixelFormat gamePF;
 
 /*	Graphics::PixelFormat svmPF;
 	GSPGPU_FramebufferFormats screenFormat;
@@ -102,10 +103,73 @@ struct GfxState {
 		setup = false;
 		gfxModeID = CLUT8;
 		magMode = MODE_MAGOFF;
-		gamePF = Graphics::PixelFormat::createFormatCLUT8();
-		// format set to 0 values by Graphics::PixelFormat constructor
 	}
 };
+
+// Game buffer configuration properties
+struct GameState {
+	u16 width, height;
+	u16 topX, topY;
+	u16 bottomX, bottomY;
+	Graphics::PixelFormat pixfmt;
+
+	GameState() {
+		width = 320;
+		height = 240;
+		topX = bottomX = 0;
+		topY = bottomY = 0;
+		pixfmt = Graphics::PixelFormat::createFormatCLUT8();
+	}
+};
+
+// Cursor configuration state
+struct CursorState {
+	Common::Rect area;
+	float coordXScreen, coordYScreen;
+	float coordXOverlay, coordYOverlay;
+	float deltaX, deltaY;
+	int hotspotX, hotspotY;
+	Graphics::PixelFormat pixfmt;
+	uint32 keyColor;
+	bool visible;
+	bool scalable;
+	bool paletteEnabled;
+
+	CursorState() {
+		area = Common::Rect(0, 0, 0, 0);
+		coordXScreen = coordXOverlay = 0;
+		coordYScreen = coordYOverlay = 0;
+		deltaX = deltaY = 0;
+		hotspotX = hotspotY = 0;
+		pixfmt = Graphics::PixelFormat::createFormatCLUT8();
+		keyColor = 0;
+		visible = scalable = paletteEnabled = false;
+	}
+};
+
+// Overlay configuration state
+struct OverlayState {
+	
+
+	OverlayState() {
+		
+	}
+};
+
+// Magnify configuration state
+struct MagState {
+	u16 x, y;
+	u16 width, height;
+	u16 centerX() { return width / 2; }
+	u16 centerY() { return height / 2; }
+
+	MagState() {
+		x = y = 0;
+		width = 400;
+		height = 240;
+	}
+};
+
 
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager {
 public:
@@ -144,7 +208,7 @@ public:
 	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
 
 	// Graphics
-	inline Graphics::PixelFormat getScreenFormat() const { return _gfxState.gamePF; }
+	inline Graphics::PixelFormat getScreenFormat() const { return _gameState.pixfmt; }
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
@@ -154,8 +218,8 @@ public:
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
-	int16 getHeight(){ return _gameHeight; }
-	int16 getWidth(){ return _gameWidth; }
+	int16 getHeight(){ return _gameState.height; }
+	int16 getWidth(){ return _gameState.width; }
 	float getScaleRatio() const;
 	void setPalette(const byte *colors, uint start, uint num);
 	void grabPalette(byte *colors, uint start, uint num) const;
@@ -221,26 +285,25 @@ protected:
 	Audio::MixerImpl *_mixer;
 
 private:
-	u16 _gameWidth, _gameHeight;
-	u16 _gameTopX, _gameTopY;
-	u16 _gameBottomX, _gameBottomY;
-
 	// Audio
 	Thread audioThread;
 
 	// Graphics
-	GfxState _gfxState, _oldGfxState;
 	GraphicsModeID _graphicsModeID;
 	TransactionState _transactionState;
 	TransactionDetails _transactionDetails;
 
-	Graphics::PixelFormat _pfCursor;
+	GfxState _gfxState, _oldGfxState;
+	GameState _gameState, _oldGameState;
+	CursorState _cursorState;
+	MagState _magState;
+
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];
 
 	Graphics::Surface _gameBuffer;
-	Sprite _gameTextureTop;
-	Sprite _gameTextureBottom;
+	Sprite _screenBufferTop;
+	Sprite _screenBufferBottom;
 	Sprite _overlay;
 	Sprite _activityIcon;
 	Sprite _osdMessage;
@@ -284,20 +347,7 @@ private:
 	// Cursor
 	Graphics::Surface _cursorBuffer;
 	Sprite _cursorTexture;
-	Common::Rect _cursorSpace;
-	bool _cursorPaletteEnabled;
-	bool _cursorVisible;
-	bool _cursorScalable;
-	float _cursorXScreen, _cursorYScreen;
-	float _cursorXOverlay, _cursorYOverlay;
-	float _cursorDeltaX, _cursorDeltaY;
-	int _cursorHotspotX, _cursorHotspotY;
-	uint32 _cursorKeyColor;
 
-	// Magnify
-	u16 _magX, _magY;
-	u16 _magWidth, _magHeight;
-	u16 _magCenterX, _magCenterY;
 };
 
 } // namespace _3DS

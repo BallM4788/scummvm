@@ -450,6 +450,11 @@ public:
 	virtual void init() {}
 
 	/**
+	 * Renitialize the event manager.
+	 */
+	virtual void reInit() {}
+
+	/**
 	 * Get the next event in the event queue.
 	 * @param event	point to an Event struct, which will be filled with the event data.
 	 * @return true if an event was retrieved.

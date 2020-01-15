@@ -84,6 +84,13 @@ void DefaultEventManager::init() {
 #endif
 }
 
+void DefaultEventManager::reInit() {
+#ifdef ENABLE_VKEYBD
+	delete _vk;
+#endif
+	init();
+}
+
 bool DefaultEventManager::pollEvent(Common::Event &event) {
 	_dispatcher.dispatch();
 

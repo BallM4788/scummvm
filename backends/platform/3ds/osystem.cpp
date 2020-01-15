@@ -60,25 +60,6 @@ OSystem_3DS::OSystem_3DS():
 	_focusStepScaleX(0.f),
 	_focusStepScaleY(0.f),
 	_focusClearTime(0),
-	_cursorPaletteEnabled(false),
-	_cursorVisible(false),
-	_cursorScalable(false),
-	_cursorXScreen(0),
-	_cursorYScreen(0),
-	_cursorXOverlay(0),
-	_cursorYOverlay(0),
-	_cursorHotspotX(0),
-	_cursorHotspotY(0),
-	_gameTopX(0),
-	_gameTopY(0),
-	_gameBottomX(0),
-	_gameBottomY(0),
-	_gameWidth(320),
-	_gameHeight(240),
-	_magX(0),
-	_magY(0),
-	_magWidth(400),
-	_magHeight(240),
 	_overlayVisible(false),
 	_screenChangeId(0),
 	exiting(false),
@@ -129,7 +110,7 @@ void OSystem_3DS::initBackend() {
 void OSystem_3DS::updateConfig() {
 	if (_gameBuffer.getPixels()) {
 		updateSize();
-		(!g_gui.isActive()) ? warpMouse(_cursorXScreen, _cursorYScreen) : warpMouse(_cursorXOverlay, _cursorYOverlay);
+		(!g_gui.isActive()) ? warpMouse(_cursorState.coordXScreen, _cursorState.coordYScreen) : warpMouse(_cursorState.coordXOverlay, _cursorState.coordYOverlay);
 	}
 }
 
