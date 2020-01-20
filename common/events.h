@@ -471,6 +471,12 @@ public:
 	 */
 	virtual void purgeMouseEvents() = 0;
 
+	/**
+	 * Returns true if ENABLE_VKEYBD is defined and
+	 * if the virtual keyboard is displayed on screen.
+	 */
+	virtual bool isVkeybdDisplaying() = 0;
+
 	/** Return the current mouse position */
 	virtual Point getMousePos() const = 0;
 

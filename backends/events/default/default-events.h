@@ -81,6 +81,7 @@ public:
 	virtual bool pollEvent(Common::Event &event) override;
 	virtual void pushEvent(const Common::Event &event) override;
 	virtual void purgeMouseEvents() override;
+	virtual bool isVkeybdDisplaying() override;
 
 	virtual Common::Point getMousePos() const override { return _mousePos; }
 	virtual int getButtonState() const override { return _buttonState; }

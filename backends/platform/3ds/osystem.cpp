@@ -93,10 +93,12 @@ void OSystem_3DS::initBackend() {
 	loadConfig();
 	ConfMan.registerDefault("fullscreen", true);
 	ConfMan.registerDefault("aspect_ratio", true);
-	if (!ConfMan.hasKey("vkeybd_pack_name"))
+	if (!ConfMan.hasKey("vkeybd_pack_name")) {
 		ConfMan.set("vkeybd_pack_name", "vkeybd_small");
-	if (!ConfMan.hasKey("gui_theme"))
+	}
+	if (!ConfMan.hasKey("gui_theme")) {
 		ConfMan.set("gui_theme", "builtin");
+	}
 
 	_timerManager = new DefaultTimerManager();
 	_savefileManager = new DefaultSaveFileManager("sdmc:/3ds/scummvm/saves/");
@@ -110,7 +112,8 @@ void OSystem_3DS::initBackend() {
 void OSystem_3DS::updateConfig() {
 	if (_gameBuffer.getPixels()) {
 		updateSize();
-		(!g_gui.isActive()) ? warpMouse(_cursorState.coordXScreen, _cursorState.coordYScreen) : warpMouse(_cursorState.coordXOverlay, _cursorState.coordYOverlay);
+		(!g_gui.isActive()) ? warpMouse(_cursorState.coordXScreen, _cursorState.coordYScreen) :
+		                      warpMouse(_cursorState.coordXOverlay, _cursorState.coordYOverlay);
 	}
 }
 

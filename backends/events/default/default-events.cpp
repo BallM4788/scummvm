@@ -324,4 +324,11 @@ void DefaultEventManager::purgeMouseEvents() {
 	_eventQueue = filteredQueue;
 }
 
+bool DefaultEventManager::isVkeybdDisplaying() {
+#ifdef ENABLE_VKEYBD
+	return _vk->isDisplaying();
+#endif
+	return false;
+}
+
 #endif // !defined(DISABLE_DEFAULT_EVENTMANAGER)

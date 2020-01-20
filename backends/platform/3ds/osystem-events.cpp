@@ -71,10 +71,12 @@ static void eventThreadFunc(void *arg) {
 
 		// C-Pad used to control the cursor
 		hidCircleRead(&circle);
-		if (circle.dx < circleDeadzone && circle.dx > -circleDeadzone)
+		if (circle.dx < circleDeadzone && circle.dx > -circleDeadzone) {
 			circle.dx = 0;
-		if (circle.dy < circleDeadzone && circle.dy > -circleDeadzone)
+		}
+		if (circle.dy < circleDeadzone && circle.dy > -circleDeadzone) {
 			circle.dy = 0;
+		}
 		cursorDeltaX = (0.0002f + config.sensitivity / 100000.f) * circle.dx * abs(circle.dx);
 		cursorDeltaY = (0.0002f + config.sensitivity / 100000.f) * circle.dy * abs(circle.dy);
 
@@ -82,14 +84,18 @@ static void eventThreadFunc(void *arg) {
 		if (held & KEY_TOUCH) {
 			hidTouchRead(&touch);
 			if (config.snapToBorder) {
-				if (touch.px < borderSnapZone)
+				if (touch.px < borderSnapZone) {
 					touch.px = 0;
-				if (touch.px > 319 - borderSnapZone)
+				}
+				if (touch.px > 319 - borderSnapZone) {
 					touch.px = 319;
-				if (touch.py < borderSnapZone)
+				}
+				if (touch.py < borderSnapZone) {
 					touch.py = 0;
-				if (touch.py > 239 - borderSnapZone)
+				}
+				if (touch.py > 239 - borderSnapZone) {
 					touch.py = 239;
+				}
 			}
 
 			osys->transformPoint(touch);
@@ -179,25 +185,28 @@ static void eventThreadFunc(void *arg) {
 				if (osys->getMagnifyMode() == MODE_MAGOFF) {
 					inputMode = savedInputMode = MODE_DRAG;
 					osys->displayMessageOnOSD(_("Drag Mode"));
-				} else
+				} else {
 					osys->displayMessageOnOSD(_("Cannot Switch to Drag Mode while Magnify Mode is On"));
+				}
 			}
 		}
 		if (keysPressed & KEY_A || keysPressed & KEY_DLEFT || keysReleased & KEY_A || keysReleased & KEY_DLEFT) {
 			// SIMULATE LEFT CLICK
 			event.mouse.x = lastTouch.px;
 			event.mouse.y = lastTouch.py;
-			if (keysPressed & KEY_A || keysPressed & KEY_DLEFT)
+			if (keysPressed & KEY_A || keysPressed & KEY_DLEFT) {
 				event.type = Common::EVENT_LBUTTONDOWN;
-			else
+			} else {
 				event.type = Common::EVENT_LBUTTONUP;
+			}
 			pushEventQueue(eventQueue, event);
 		}
 		if (keysPressed & KEY_B || keysReleased & KEY_B || keysPressed & KEY_DDOWN || keysReleased & KEY_DDOWN) {
-			if (keysPressed & KEY_B || keysPressed & KEY_DDOWN)
+			if (keysPressed & KEY_B || keysPressed & KEY_DDOWN) {
 				event.type = Common::EVENT_KEYDOWN;
-			else
+			} else {
 				event.type = Common::EVENT_KEYUP;
+			}
 			event.kbd.keycode = Common::KEYCODE_ESCAPE;
 			event.kbd.ascii = Common::ASCII_ESCAPE;
 			event.kbd.flags = 0;
@@ -207,10 +216,11 @@ static void eventThreadFunc(void *arg) {
 			// SIMULATE RIGHT CLICK
 			event.mouse.x = lastTouch.px;
 			event.mouse.y = lastTouch.py;
-			if (keysPressed & KEY_X || keysPressed & KEY_DUP)
+			if (keysPressed & KEY_X || keysPressed & KEY_DUP) {
 				event.type = Common::EVENT_RBUTTONDOWN;
-			else
+			} else {
 				event.type = Common::EVENT_RBUTTONUP;
+			}
 			pushEventQueue(eventQueue, event);
 		}
 		if (keysPressed & KEY_Y || keysPressed & KEY_DRIGHT) {
@@ -222,8 +232,9 @@ static void eventThreadFunc(void *arg) {
 			pushEventQueue(eventQueue, event);
 		}
 		if (keysPressed & KEY_SELECT) {
-			if (!optionMenuOpened)
+			if (!optionMenuOpened) {
 				optionMenuOpening = true;
+			}
 		}
 
 		// If magnify mode is on when returning to Launcher, turn it off
@@ -234,8 +245,9 @@ static void eventThreadFunc(void *arg) {
 				if (savedInputMode == MODE_DRAG) {
 					inputMode = savedInputMode;
 					osys->displayMessageOnOSD(_("Magnify Mode Off. Reactivating Drag Mode.\nReturning to Launcher..."));
-				} else
+				} else {
 					osys->displayMessageOnOSD(_("Magnify Mode Off. Returning to Launcher..."));
+				}
 			}
 		}
 
@@ -250,8 +262,9 @@ static void aptHookFunc(APT_HookType hookType, void *param) {
 	switch (hookType) {
 		case APTHOOK_ONSUSPEND:
 		case APTHOOK_ONSLEEP:
-			if (g_engine)
+			if (g_engine) {
 				g_engine->pauseEngine(true);
+			}
 			osys->sleeping = true;
 			if (R_SUCCEEDED(gspLcdInit())) {
 				GSPLCD_PowerOnBacklight(GSPLCD_SCREEN_BOTH);
@@ -260,8 +273,9 @@ static void aptHookFunc(APT_HookType hookType, void *param) {
 			break;
 		case APTHOOK_ONRESTORE:
 		case APTHOOK_ONWAKEUP:
-			if (g_engine)
+			if (g_engine) {
 				g_engine->pauseEngine(false);
+			}
 			osys->sleeping = false;
 			loadConfig();
 			break;
@@ -335,8 +349,9 @@ bool OSystem_3DS::pollEvent(Common::Event &event) {
 
 	Common::StackLock lock(*eventMutex);
 
-	if (_eventQueue.empty())
+	if (_eventQueue.empty()) {
 		return false;
+	}
 
 	event = _eventQueue.pop();
 	return true;
@@ -344,11 +359,13 @@ bool OSystem_3DS::pollEvent(Common::Event &event) {
 
 void OSystem_3DS::runOptionsDialog() {
 	OptionsDialog dialog;
-	if (g_engine)
+	if (g_engine) {
 		g_engine->pauseEngine(true);
+	}
 	int result = dialog.runModal();
-	if (g_engine)
+	if (g_engine) {
 		g_engine->pauseEngine(false);
+	}
 
 	if (result > 0) {
 		int oldScreen = config.screen;
