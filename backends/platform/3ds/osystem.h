@@ -77,7 +77,8 @@ struct TransactionDetails {
 };
 
 typedef struct GfxMode3DS {
-	Graphics::PixelFormat svmPF;
+	Graphics::PixelFormat svmBufferPF;
+	Graphics::PixelFormat svmScreenPF;
 	GSPGPU_FramebufferFormats screenFormat;
 	GPU_COLORBUF bufferFormat;
 	GPU_TEXCOLOR textureFormat;
@@ -92,7 +93,7 @@ struct GfxState {
 	GfxMode3DS *gfxMode;
 	MagnifyMode magMode;
 
-/*	Graphics::PixelFormat svmPF;
+/*	Graphics::PixelFormat svmBufferPF;
 	GSPGPU_FramebufferFormats screenFormat;
 	GPU_COLORBUF bufferFormat;
 	GPU_TEXCOLOR textureFormat;
