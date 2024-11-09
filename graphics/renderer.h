@@ -46,7 +46,8 @@ enum RendererType : uint32 {
 	kRendererTypeDefault = 0,
 	kRendererTypeOpenGL = 1,
 	kRendererTypeOpenGLShaders = 2,
-	kRendererTypeTinyGL = 4
+	kRendererTypeTinyGL = 4,
+	kRendererTypeN3DS = 8
 };
 
 struct RendererTypeDescription {

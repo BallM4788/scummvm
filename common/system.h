@@ -142,6 +142,29 @@ typedef struct ImGuiCallbacks {
 } ImGuiCallbacks;
 #endif
 
+#if defined(USE_3DS_RENDER)
+//struct Tex3DS_Texture_s
+//{
+//	u16 numSubTextures;               // Number of subtextures
+//	u16 width;                        // Texture width
+//	u16 height;                       // Texture height
+//	u8  format;                       // Texture format
+//	u8  mipmapLevels;                 // Number of mipmaps
+//	Tex3DS_SubTexture *subTextures;   // Subtextures
+//};
+
+enum N3D_CULLFACE {
+	N3D_CULLFACE_FRONT          = 0,
+	N3D_CULLFACE_BACK           = 1,
+	N3D_CULLFACE_FRONT_AND_BACK = 2,
+};
+
+enum N3D_FRONTFACE {
+	N3D_FRONTFACE_CW  = 0,
+	N3D_FRONTFACE_CCW = 1,
+};
+#endif // #if defined(USE_3DS_RENDER)
+
 /**
  * Interface for ScummVM backends.
  *
@@ -2004,6 +2027,10 @@ public:
 	virtual bool isConnectionLimited();
 
 	//@}
+
+#if defined(USE_3DS_RENDER)
+	virtual void *getGameSurface() { return nullptr; }
+#endif
 };
 
 

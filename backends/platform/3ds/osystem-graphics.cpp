@@ -100,10 +100,15 @@ void OSystem_3DS::init3DSGraphics() {
 	Mtx_OrthoTilt(&_projectionTop, 0.0, 400.0, 240.0, 0.0, 0.0, 1.0, true);
 	Mtx_OrthoTilt(&_projectionBottom, 0.0, 320.0, 240.0, 0.0, 0.0, 1.0, true);
 
-	C3D_TexEnv *env = C3D_GetTexEnv(0);
-	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
-	C3D_TexEnvOpRgb(env, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR);
-	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
+//	C3D_TexEnv *env = C3D_GetTexEnv(0);
+//	C3D_TexEnvSrc(env, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
+//	C3D_TexEnvOpRgb(env, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR);
+//	C3D_TexEnvFunc(env, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvInit(&_defaultTexEnv);
+	C3D_TexEnvSrc(&_defaultTexEnv, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
+	C3D_TexEnvOpRgb(&_defaultTexEnv, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR);
+	C3D_TexEnvFunc(&_defaultTexEnv, C3D_Both, GPU_REPLACE);
+	C3D_SetTexEnv(0, &_defaultTexEnv);
 
 	C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
 	C3D_CullFace(GPU_CULL_NONE);
@@ -180,7 +185,7 @@ GraphicsModeID OSystem_3DS::chooseMode(Graphics::PixelFormat *format) {
 	return CLUT8;
 }
 
-bool OSystem_3DS::setGraphicsMode(GraphicsModeID modeID) {
+bool OSystem_3DS::setGraphicsMode3DS(GraphicsModeID modeID) {
 	switch (modeID) {
 	case RGBA8:
 	case RGB565:
@@ -314,7 +319,7 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 		_oldGfxState.setup = false;
 	}
 	if (_transactionDetails.formatChanged) {
-		if (!setGraphicsMode(_gfxState.gfxModeID)) {
+		if (!setGraphicsMode3DS(_gfxState.gfxModeID)) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
 				errors |= endGFXTransaction();
@@ -438,6 +443,7 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	C3D_FrameBegin(0);
+		C3D_SetTexEnv(0, &_defaultTexEnv);
 		_gameTopTexture.transfer();
 		if (_overlayVisible) {
 			_overlay.transfer();
@@ -858,6 +864,10 @@ void OSystem_3DS::flushCursor() {
 			applyKeyColor<uint32>(&_cursor, &_cursorTexture, _cursorKeyColor);
 		}
 	}
+}
+
+void *OSystem_3DS::getGameSurface() {
+	return (void *)_gameTopTexture.getTex();
 }
 
 } // namespace N3DS

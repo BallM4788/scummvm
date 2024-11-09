@@ -97,6 +97,12 @@ MODULE_OBJS += \
 	tinygl/zdirtyrect.o
 endif
 
+ifeq ($(BACKEND), 3ds)
+MODULE_OBJS += \
+	3ds/n3d-context.o \
+	3ds/n3d.o
+endif
+
 ifdef USE_ASPECT
 MODULE_OBJS += \
 	scaler/aspect.o

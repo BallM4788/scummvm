@@ -3954,6 +3954,8 @@ fi
 #
 case $_backend in
 	3ds)
+		# add ability to use native 3DS rendering for engines that support it
+		define_in_config_h_if_yes yes "USE_3DS_RENDER"
 		;;
 	android)
 		append_var DEFINES "-DREDUCE_MEMORY_USAGE"

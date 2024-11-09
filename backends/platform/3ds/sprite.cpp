@@ -151,6 +151,10 @@ C3D_Mtx* Sprite::getMatrix() {
 	return &modelview;
 }
 
+C3D_Tex* Sprite::getTex() {
+	return &texture;
+}
+
 void Sprite::setFilteringMode(bool enableLinearFiltering) {
 	GPU_TEXTURE_FILTER_PARAM filteringMode = enableLinearFiltering ? GPU_LINEAR : GPU_NEAREST;
 	C3D_TexSetFilter(&texture, filteringMode, filteringMode);

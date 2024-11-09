@@ -147,7 +147,7 @@ public:
 	              const Graphics::PixelFormat *format = NULL);
 	virtual int getScreenChangeID() const { return _screenChangeId; };
 	GraphicsModeID chooseMode(Graphics::PixelFormat *format);
-	bool setGraphicsMode(GraphicsModeID modeID);
+	bool setGraphicsMode3DS(GraphicsModeID modeID);
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
@@ -196,6 +196,8 @@ public:
 	void updateBacklight();
 	void updateConfig();
 	void updateSize();
+
+	void *getGameSurface() override;
 
 private:
 	void init3DSGraphics();
@@ -301,6 +303,8 @@ private:
 	u16 _magCenterX, _magCenterY;
 
 	Common::Path _logFilePath;
+
+	C3D_TexEnv _defaultTexEnv;
 
 public:
 	// Pause

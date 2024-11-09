@@ -113,6 +113,7 @@ GrimEngine::GrimEngine(OSystem *syst, uint32 gameFlags, GrimGameType gameType, C
 	_showFps = ConfMan.getBool("show_fps");
 
 	_softRenderer = true;
+	_n3dsRenderer = true;
 
 	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType, 192);
 	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
@@ -272,7 +273,15 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
+#if defined(USE_3DS_RENDER)
+			Graphics::kRendererTypeN3DS |
+#endif
 			0;
+
+	// For Nintendo 3DS builds of ScummVM, use native rendering instead of TinyGL
+	if (availableRendererTypes & Graphics::kRendererTypeN3DS) {
+		availableRendererTypes &= ~Graphics::kRendererTypeTinyGL;
+	}
 
 	// For Grim Fandango, Korean fan translation can only use OpenGL renderer
 	if (getGameType() == GType_GRIM && g_grim->getGameLanguage() == Common::KO_KOR) {
@@ -295,7 +304,9 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 	Graphics::RendererType matchingRendererType = Graphics::Renderer::getBestMatchingType(desiredRendererType, availableRendererTypes);
 
 	_softRenderer = matchingRendererType == Graphics::kRendererTypeTinyGL;
-	if (!_softRenderer) {
+	_n3dsRenderer = matchingRendererType == Graphics::kRendererTypeN3DS;
+
+	if ((!_softRenderer) && (!_n3dsRenderer)) {
 		initGraphics3d(screenW, screenH);
 	} else {
 		initGraphics(screenW, screenH, nullptr);
@@ -315,6 +326,11 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_TINYGL)
 	if (matchingRendererType == Graphics::kRendererTypeTinyGL) {
 		renderer = CreateGfxTinyGL();
+	}
+#endif
+#if defined(USE_3DS_RENDER)
+	if (matchingRendererType == Graphics::kRendererTypeN3DS) {
+		renderer = CreateGfxN3DS();
 	}
 #endif
 
@@ -439,7 +455,7 @@ Common::Error GrimEngine::run() {
 
 	// This flipBuffer() may make the OpenGL renderer show garbage instead of the splash,
 	// while the TinyGL renderer needs it.
-	if (_softRenderer)
+	if (_softRenderer | _n3dsRenderer)
 		g_driver->flipBuffer();
 
 	LuaBase *lua = createLua();
