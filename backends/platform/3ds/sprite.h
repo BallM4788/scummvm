@@ -57,6 +57,7 @@ public:
 	int getPosX() const { return posX; }
 	int getPosY() const { return posY; }
 	C3D_Mtx* getMatrix();
+	C3D_Tex* getTex();
 
 	void setFilteringMode(bool enableLinearFiltering);
 
