@@ -197,6 +197,8 @@ public:
 	void updateConfig();
 	void updateSize();
 
+	void *getGameSurface();
+
 private:
 	void init3DSGraphics();
 	void destroy3DSGraphics();

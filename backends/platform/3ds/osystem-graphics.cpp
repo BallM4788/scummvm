@@ -860,4 +860,8 @@ void OSystem_3DS::flushCursor() {
 	}
 }
 
+void *OSystem_3DS::getGameSurface() {
+	return (void *)_gameTopTexture.getTex();
+}
+
 } // namespace N3DS

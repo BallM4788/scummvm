@@ -1,0 +1,702 @@
+/* ScummVM - Graphic Adventure Engine
+ *
+ * ScummVM is the legal property of its developers, whose names
+ * are too numerous to list here. Please refer to the COPYRIGHT
+ * file distributed with this source distribution.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+#include "graphics/3ds/z3d.h"
+
+namespace N3DS_3D {
+
+// from citro3d/include/c3d/maths.h
+C3D_FVec N3DContext::opFVec4_New(float x, float y, float z, float w) {
+	return FVec4_New(x, y, z, w);
+}
+
+C3D_FVec N3DContext::opFVec4_Subtract(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec4_Subtract(lhs, rhs);
+}
+
+C3D_FVec N3DContext::opFVec4_Negate(C3D_FVec v) {
+	return FVec4_Negate(v);
+}
+
+C3D_FVec N3DContext::opFVec4_Scale(C3D_FVec v, float s) {
+	return FVec4_Scale(v, s);
+}
+
+C3D_FVec N3DContext::opFVec4_PerspDivide(C3D_FVec v) {
+	return FVec4_PerspDivide(v);
+}
+
+float N3DContext::opFVec4_Dot(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec4_Dot(lhs, rhs);
+}
+
+float N3DContext::opFVec4_Magnitude(C3D_FVec v) {
+	return FVec4_Magnitude(v);
+}
+
+C3D_FVec N3DContext::opFVec4_Normalize(C3D_FVec v) {
+	return FVec4_Normalize(v);
+}
+
+C3D_FVec N3DContext::opFVec3_New(float x, float y, float z) {
+	return FVec3_New(x, y, z);
+}
+
+float N3DContext::opFVec3_Dot(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec3_Dot(lhs, rhs);
+}
+
+float N3DContext::opFVec3_Magnitude(C3D_FVec v) {
+	return FVec3_Magnitude(v);
+}
+
+C3D_FVec N3DContext::opFVec3_Normalize(C3D_FVec v) {
+	return FVec3_Normalize(v);
+}
+
+C3D_FVec N3DContext::opFVec3_Add(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec3_Add(lhs, rhs);
+}
+
+C3D_FVec N3DContext::opFVec3_Subtract(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec3_Subtract(lhs, rhs);
+}
+
+float N3DContext::opFVec3_Distance(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec3_Distance(lhs, rhs);
+}
+
+C3D_FVec N3DContext::opFVec3_Scale(C3D_FVec v, float s) {
+	return FVec3_Scale(v, s);
+}
+
+C3D_FVec N3DContext::opFVec3_Negate(C3D_FVec v) {
+	return FVec3_Negate(v);
+}
+
+C3D_FVec N3DContext::opFVec3_Cross(C3D_FVec lhs, C3D_FVec rhs) {
+	return FVec3_Cross(lhs, rhs);
+}
+
+void N3DContext::opMtx_Zeros(C3D_Mtx* out) {
+	Mtx_Zeros(out);
+}
+
+void N3DContext::opMtx_Copy(C3D_Mtx* out, const C3D_Mtx* in) {
+	Mtx_Copy(out, in);
+}
+
+void N3DContext::opMtx_Diagonal(C3D_Mtx* out, float x, float y, float z, float w) {
+	Mtx_Diagonal(out, x, y, z, w);
+}
+
+void N3DContext::opMtx_Identity(C3D_Mtx* out) {
+	Mtx_Identity(out);
+}
+
+void N3DContext::opMtx_Transpose(C3D_Mtx* out) {
+	Mtx_Transpose(out);
+}
+
+void N3DContext::opMtx_Add(C3D_Mtx* out, const C3D_Mtx* lhs, const C3D_Mtx* rhs) {
+	Mtx_Add(out, lhs, rhs);
+}
+
+void N3DContext::opMtx_Subtract(C3D_Mtx* out, const C3D_Mtx* lhs, const C3D_Mtx* rhs) {
+	Mtx_Subtract(out, lhs, rhs);
+}
+
+void N3DContext::opMtx_Multiply(C3D_Mtx* out, const C3D_Mtx* a, const C3D_Mtx* b) {
+	Mtx_Multiply(out, a, b);
+}
+
+float N3DContext::opMtx_Inverse(C3D_Mtx* out) {
+	return Mtx_Inverse(out);
+}
+
+C3D_FVec N3DContext::opMtx_MultiplyFVec3(const C3D_Mtx* mtx, C3D_FVec v) {
+	return Mtx_MultiplyFVec3(mtx, v);
+}
+
+C3D_FVec N3DContext::opMtx_MultiplyFVec4(const C3D_Mtx* mtx, C3D_FVec v) {
+	return Mtx_MultiplyFVec4(mtx, v);
+}
+
+C3D_FVec N3DContext::opMtx_MultiplyFVecH(const C3D_Mtx* mtx, C3D_FVec v) {
+	return Mtx_MultiplyFVecH(mtx, v);
+}
+
+void N3DContext::opMtx_FromQuat(C3D_Mtx* m, C3D_FQuat q) {
+	Mtx_FromQuat(m, q);
+}
+
+void N3DContext::opMtx_Translate(C3D_Mtx* mtx, float x, float y, float z, bool bRightSide) {
+	Mtx_Translate(mtx, x, y, z, bRightSide);
+}
+
+void N3DContext::opMtx_Scale(C3D_Mtx* mtx, float x, float y, float z) {
+	Mtx_Scale(mtx, x, y, z);
+}
+
+void N3DContext::opMtx_Rotate(C3D_Mtx* mtx, C3D_FVec axis, float angle, bool bRightSide) {
+	Mtx_Rotate(mtx, axis, angle, bRightSide);
+}
+
+void N3DContext::opMtx_RotateX(C3D_Mtx* mtx, float angle, bool bRightSide) {
+	Mtx_RotateX(mtx, angle, bRightSide);
+}
+
+void N3DContext::opMtx_RotateY(C3D_Mtx* mtx, float angle, bool bRightSide) {
+	Mtx_RotateY(mtx, angle, bRightSide);
+}
+
+void N3DContext::opMtx_RotateZ(C3D_Mtx* mtx, float angle, bool bRightSide) {
+	Mtx_RotateZ(mtx, angle, bRightSide);
+}
+
+void N3DContext::opMtx_Ortho(C3D_Mtx* mtx, float left, float right, float bottom, float top, float near, float far, bool isLeftHanded) {
+	Mtx_Ortho(mtx, left, right, bottom, top, near, far, isLeftHanded);
+}
+
+void N3DContext::opMtx_Persp(C3D_Mtx* mtx, float fovy, float aspect, float near, float far, bool isLeftHanded) {
+	Mtx_Persp(mtx, fovy, aspect, near, far, isLeftHanded);
+}
+
+void N3DContext::opMtx_PerspStereo(C3D_Mtx* mtx, float fovy, float aspect, float near, float far, float iod, float screen, bool isLeftHanded) {
+	Mtx_PerspStereo(mtx, fovy, aspect, near, far, iod, screen, isLeftHanded);
+}
+
+void N3DContext::opMtx_OrthoTilt(C3D_Mtx* mtx, float left, float right, float bottom, float top, float near, float far, bool isLeftHanded) {
+	Mtx_OrthoTilt(mtx, left, right, bottom, top, near, far, isLeftHanded);
+}
+
+void N3DContext::opMtx_PerspTilt(C3D_Mtx* mtx, float fovy, float aspect, float near, float far, bool isLeftHanded) {
+	Mtx_PerspTilt(mtx, fovy, aspect, near, far, isLeftHanded);
+}
+
+void N3DContext::opMtx_PerspStereoTilt(C3D_Mtx* mtx, float fovy, float aspect, float near, float far, float iod, float screen, bool isLeftHanded) {
+	Mtx_PerspStereoTilt(mtx, fovy, aspect, near, far, iod, screen, isLeftHanded);
+}
+
+void N3DContext::opMtx_LookAt(C3D_Mtx* out, C3D_FVec cameraPosition, C3D_FVec cameraTarget, C3D_FVec cameraUpVector, bool isLeftHanded) {
+	Mtx_LookAt(out, cameraPosition, cameraTarget, cameraUpVector, isLeftHanded);
+}
+
+// #define   opQuat_New(i,j,k,r)      opFVec4_New(i,j,k,r)
+// #define   opQuat_Negate(q)         opFVec4_Negate(q)
+// #define   opQuat_Add(lhs,rhs)      opFVec4_Add(lhs,rhs)
+// #define   opQuat_Subtract(lhs,rhs) opFVec4_Subtract(lhs,rhs)
+// #define   opQuat_Scale(q,s)        opFVec4_Scale(q,s)
+// #define   opQuat_Normalize(q)      opFVec4_Normalize(q)
+// #define   opQuat_Dot(lhs,rhs)      opFVec4_Dot(lhs,rhs)
+
+C3D_FQuat N3DContext::opQuat_Multiply(C3D_FQuat lhs, C3D_FQuat rhs) {
+	return Quat_Multiply(lhs, rhs);
+}
+
+C3D_FQuat N3DContext::opQuat_Pow(C3D_FQuat q, float p) {
+	return Quat_Pow(q, p);
+}
+
+C3D_FVec N3DContext::opQuat_CrossFVec3(C3D_FQuat q, C3D_FVec v) {
+	return Quat_CrossFVec3(q, v);
+}
+
+C3D_FQuat N3DContext::opQuat_Rotate(C3D_FQuat q, C3D_FVec axis, float r, bool bRightSide) {
+	return Quat_Rotate(q, axis, r, bRightSide);
+}
+
+C3D_FQuat N3DContext::opQuat_RotateX(C3D_FQuat q, float r, bool bRightSide) {
+	return Quat_RotateX(q, r, bRightSide);
+}
+
+C3D_FQuat N3DContext::opQuat_RotateY(C3D_FQuat q, float r, bool bRightSide) {
+	return Quat_RotateY(q, r, bRightSide);
+}
+
+C3D_FQuat N3DContext::opQuat_RotateZ(C3D_FQuat q, float r, bool bRightSide) {
+	return Quat_RotateZ(q, r, bRightSide);
+}
+
+C3D_FQuat N3DContext::opQuat_FromMtx(const C3D_Mtx* m) {
+	return Quat_FromMtx(m);
+}
+
+C3D_FQuat N3DContext::opQuat_Identity() {
+	return Quat_Identity();
+}
+
+C3D_FQuat N3DContext::opQuat_Conjugate(C3D_FQuat q) {
+	return Quat_Conjugate(q);
+}
+
+C3D_FQuat N3DContext::opQuat_Inverse(C3D_FQuat q) {
+	return Quat_Inverse(q);
+}
+
+C3D_FVec N3DContext::opFVec3_CrossQuat(C3D_FVec v, C3D_FQuat q) {
+	return FVec3_CrossQuat(v, q);
+}
+
+C3D_FQuat N3DContext::opQuat_FromPitchYawRoll(float pitch, float yaw, float roll, bool bRightSide) {
+	return Quat_FromPitchYawRoll(pitch, yaw, roll, bRightSide);
+}
+
+C3D_FQuat N3DContext::opQuat_LookAt(C3D_FVec source, C3D_FVec target, C3D_FVec forwardVector, C3D_FVec upVector) {
+	return Quat_LookAt(source, target, forwardVector, upVector);
+}
+
+C3D_FQuat N3DContext::opQuat_FromAxisAngle(C3D_FVec axis, float angle) {
+	return Quat_FromAxisAngle(axis, angle);
+}
+
+// from citro3d/include/c3d/mtxstack.h
+C3D_Mtx *N3DContext::opMtxStack_Cur(C3D_MtxStack* stk) {
+	return MtxStack_Cur(stk);
+}
+
+void N3DContext::opMtxStack_Init(C3D_MtxStack* stk) {
+	MtxStack_Init(stk);
+}
+
+void N3DContext::opMtxStack_Bind(C3D_MtxStack* stk, GPU_SHADER_TYPE unifType, int unifPos, int unifLen) {
+	MtxStack_Bind(stk, unifType, unifPos, unifLen);
+}
+
+C3D_Mtx *N3DContext::opMtxStack_Push(C3D_MtxStack* stk) {
+	return MtxStack_Push(stk);
+}
+
+C3D_Mtx *N3DContext::opMtxStack_Pop(C3D_MtxStack* stk) {
+	return MtxStack_Pop(stk);
+}
+
+void N3DContext::opMtxStack_Update(C3D_MtxStack* stk) {
+	MtxStack_Update(stk);
+}
+
+// from citro3d/include/c3d/uniforms.h
+C3D_FVec *N3DContext::opC3D_FVUnifWritePtr(GPU_SHADER_TYPE type, int id, int size) {
+	return C3D_FVUnifWritePtr(type, id, size);
+}
+
+C3D_IVec *N3DContext::opC3D_IVUnifWritePtr(GPU_SHADER_TYPE type, int id) {
+	return C3D_IVUnifWritePtr(type, id);
+}
+
+void N3DContext::opC3D_FVUnifMtxNx4(GPU_SHADER_TYPE type, int id, const C3D_Mtx* mtx, int num) {
+	C3D_FVUnifMtxNx4(type, id, mtx, num);
+}
+
+void N3DContext::opC3D_FVUnifMtx4x4(GPU_SHADER_TYPE type, int id, const C3D_Mtx* mtx) {
+	C3D_FVUnifMtx4x4(type, id, mtx);
+}
+
+void N3DContext::opC3D_FVUnifMtx3x4(GPU_SHADER_TYPE type, int id, const C3D_Mtx* mtx) {
+	C3D_FVUnifMtx3x4(type, id, mtx);
+}
+
+void N3DContext::opC3D_FVUnifMtx2x4(GPU_SHADER_TYPE type, int id, const C3D_Mtx* mtx) {
+	C3D_FVUnifMtx2x4(type, id, mtx);
+}
+
+void N3DContext::opC3D_FVUnifSet(GPU_SHADER_TYPE type, int id, float x, float y, float z, float w) {
+	C3D_FVUnifSet(type, id, x, y, z, w);
+}
+
+void N3DContext::opC3D_IVUnifSet(GPU_SHADER_TYPE type, int id, int x, int y, int z, int w) {
+	C3D_IVUnifSet(type, id, x, y, z, w);
+}
+
+void N3DContext::opC3D_BoolUnifSet(GPU_SHADER_TYPE type, int id, bool value) {
+	C3D_BoolUnifSet(type, id, value);
+}
+
+void N3DContext::opC3D_UpdateUniforms(GPU_SHADER_TYPE type) {
+	C3D_UpdateUniforms(type);
+}
+
+// from citro3d/include/c3d/attribs.h
+void N3DContext::opAttrInfo_Init(C3D_AttrInfo* info) {
+	AttrInfo_Init(info);
+}
+
+int N3DContext::opAttrInfo_AddLoader(C3D_AttrInfo* info, int regId, GPU_FORMATS format, int count) {
+	return AttrInfo_AddLoader(info, regId, format, count);
+}
+
+int N3DContext::opAttrInfo_AddFixed(C3D_AttrInfo* info, int regId) {
+	return AttrInfo_AddFixed(info, regId);
+}
+
+C3D_AttrInfo *N3DContext::opC3D_GetAttrInfo() {
+	return C3D_GetAttrInfo();
+}
+
+void N3DContext::opC3D_SetAttrInfo(C3D_AttrInfo* info) {
+	C3D_SetAttrInfo(info);
+}
+
+// from citro3d/include/c3d/buffers.h
+void N3DContext::opBufInfo_Init(C3D_BufInfo* info) {
+	BufInfo_Init(info);
+}
+
+int N3DContext::opBufInfo_Add(C3D_BufInfo* info, const void* data, ptrdiff_t stride, int attribCount, u64 permutation) {
+	return BufInfo_Add(info, data, stride, attribCount, permutation);
+}
+
+C3D_BufInfo *N3DContext::opC3D_GetBufInfo() {
+	return C3D_GetBufInfo();
+}
+
+void N3DContext::opC3D_SetBufInfo(C3D_BufInfo* info) {
+	C3D_SetBufInfo(info);
+}
+
+// from citro3d/include/c3d/base.h
+float N3DContext::opC3D_GetCmdBufUsage() {
+	return C3D_GetCmdBufUsage();
+}
+
+void N3DContext::opC3D_BindProgram(shaderProgram_s* program) {
+	C3D_BindProgram(program);
+}
+
+void N3DContext::opC3D_SetViewport(u32 x, u32 y, u32 w, u32 h) {
+	C3D_SetViewport(x, y, w, h);
+}
+
+void N3DContext::opC3D_SetScissor(GPU_SCISSORMODE mode, u32 left, u32 top, u32 right, u32 bottom) {
+	C3D_SetScissor(mode, left, top, right, bottom);
+}
+
+void N3DContext::opC3D_DrawArrays(GPU_Primitive_t primitive, int first, int size) {
+	C3D_DrawArrays(primitive, first, size);
+}
+
+void N3DContext::opC3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices) {
+	C3D_DrawElements(primitive, count, type, indices);
+}
+
+void N3DContext::opC3D_ImmDrawBegin(GPU_Primitive_t primitive) {
+	C3D_ImmDrawBegin(primitive);
+}
+
+void N3DContext::opC3D_ImmSendAttrib(float x, float y, float z, float w) {
+	C3D_ImmSendAttrib(x, y, z, w);
+}
+
+void N3DContext::opC3D_ImmDrawEnd() {
+	C3D_ImmDrawEnd();
+}
+
+void N3DContext::opC3D_ImmDrawRestartPrim() {
+	C3D_ImmDrawRestartPrim();
+}
+
+C3D_FVec *N3DContext::opC3D_FixedAttribGetWritePtr(int id) {
+	return C3D_FixedAttribGetWritePtr(id);
+}
+
+void N3DContext::opC3D_FixedAttribSet(int id, float x, float y, float z, float w) {
+	C3D_FixedAttribSet(id, x, y, z, w);
+}
+
+// from citro3d/include/c3d/texenv.h
+C3D_TexEnv *N3DContext::opC3D_GetTexEnv(int id) {
+	return C3D_GetTexEnv(id);
+}
+
+void N3DContext::opC3D_SetTexEnv(int id, C3D_TexEnv* env) {
+	C3D_SetTexEnv(id, env);
+}
+
+void N3DContext::opC3D_DirtyTexEnv(C3D_TexEnv* env) {
+	C3D_DirtyTexEnv(env);
+}
+
+void N3DContext::opC3D_TexEnvBufUpdate(int mode, int mask) {
+	C3D_TexEnvBufUpdate(mode, mask);
+}
+
+void N3DContext::opC3D_TexEnvBufColor(u32 color) {
+	C3D_TexEnvBufColor(color);
+}
+
+void N3DContext::opC3D_TexEnvInit(C3D_TexEnv* env) {
+	C3D_TexEnvInit(env);
+}
+
+void N3DContext::opC3D_TexEnvSrc(C3D_TexEnv* env, C3D_TexEnvMode mode, GPU_TEVSRC s1, GPU_TEVSRC s2, GPU_TEVSRC s3) {
+	C3D_TexEnvSrc(env, mode, s1, s2, s3);
+}
+
+void N3DContext::opC3D_TexEnvOpRgb(C3D_TexEnv* env, GPU_TEVOP_RGB o1, GPU_TEVOP_RGB o2, GPU_TEVOP_RGB o3) {
+	C3D_TexEnvOpRgb(env, o1, o2, o3);
+}
+
+void N3DContext::opC3D_TexEnvOpAlpha(C3D_TexEnv* env, GPU_TEVOP_A o1, GPU_TEVOP_A o2, GPU_TEVOP_A o3) {
+	C3D_TexEnvOpAlpha(env, o1, o2, o3);
+}
+
+void N3DContext::opC3D_TexEnvFunc(C3D_TexEnv* env, C3D_TexEnvMode mode, GPU_COMBINEFUNC param) {
+	C3D_TexEnvFunc(env, mode, param);
+}
+
+void N3DContext::opC3D_TexEnvColor(C3D_TexEnv* env, u32 color) {
+	C3D_TexEnvColor(env, color);
+}
+
+void N3DContext::opC3D_TexEnvScale(C3D_TexEnv* env, int mode, GPU_TEVSCALE param) {
+	C3D_TexEnvScale(env, mode, param);
+}
+
+// from citro3d/include/c3d/effect.h
+void N3DContext::opC3D_FragOpShadow(float scale, float bias) {
+	C3D_FragOpShadow(scale, bias);
+}
+
+// from citro3d/include/c3d/texture.h
+bool N3DContext::opC3D_TexInitWithParams(C3D_Tex* tex, C3D_TexCube* cube, C3D_TexInitParams p) {
+	return C3D_TexInitWithParams(tex, cube, p);
+}
+
+void N3DContext::opC3D_TexLoadImage(C3D_Tex* tex, const void* data, GPU_TEXFACE face, int level) {
+	C3D_TexLoadImage(tex, data, face, level);
+}
+
+void N3DContext::opC3D_TexGenerateMipmap(C3D_Tex* tex, GPU_TEXFACE face) {
+	C3D_TexGenerateMipmap(tex, face);
+}
+
+void N3DContext::opC3D_TexBind(int unitId, C3D_Tex* tex) {
+	C3D_TexBind(unitId, tex);
+}
+
+void N3DContext::opC3D_TexFlush(C3D_Tex* tex) {
+	C3D_TexFlush(tex);
+}
+
+void N3DContext::opC3D_TexDelete(C3D_Tex* tex) {
+	C3D_TexDelete(tex);
+}
+
+void N3DContext::opC3D_TexShadowParams(bool perspective, float bias) {
+	C3D_TexShadowParams(perspective, bias);
+}
+
+int N3DContext::opC3D_TexCalcMaxLevel(u32 width, u32 height) {
+	return C3D_TexCalcMaxLevel(width, height);
+}
+
+u32 N3DContext::opC3D_TexCalcLevelSize(u32 size, int level) {
+	return C3D_TexCalcLevelSize(size, level);
+}
+
+u32 N3DContext::opC3D_TexCalcTotalSize(u32 size, int maxLevel) {
+	return C3D_TexCalcTotalSize(size, maxLevel);
+}
+
+bool N3DContext::opC3D_TexInit(C3D_Tex* tex, u16 width, u16 height, GPU_TEXCOLOR format) {
+	return C3D_TexInit(tex, width, height, format);
+}
+
+bool N3DContext::opC3D_TexInitMipmap(C3D_Tex* tex, u16 width, u16 height, GPU_TEXCOLOR format) {
+	return C3D_TexInitMipmap(tex, width, height, format);
+}
+
+bool N3DContext::opC3D_TexInitCube(C3D_Tex* tex, C3D_TexCube* cube, u16 width, u16 height, GPU_TEXCOLOR format) {
+	return C3D_TexInitCube(tex, cube, width, height, format);
+}
+
+bool N3DContext::opC3D_TexInitVRAM(C3D_Tex* tex, u16 width, u16 height, GPU_TEXCOLOR format) {
+	return C3D_TexInitVRAM(tex, width, height, format);
+}
+
+bool N3DContext::opC3D_TexInitShadow(C3D_Tex* tex, u16 width, u16 height) {
+	return C3D_TexInitShadow(tex, width, height);
+}
+
+bool N3DContext::opC3D_TexInitShadowCube(C3D_Tex* tex, C3D_TexCube* cube, u16 width, u16 height) {
+	return C3D_TexInitShadowCube(tex, cube, width, height);
+}
+
+GPU_TEXTURE_MODE_PARAM N3DContext::opC3D_TexGetType(C3D_Tex* tex) {
+	return C3D_TexGetType(tex);
+}
+
+void *N3DContext::opC3D_TexGetImagePtr(C3D_Tex* tex, void* data, int level, u32* size) {
+	return C3D_TexGetImagePtr(tex, data, level, size);
+}
+
+void *N3DContext::opC3D_Tex2DGetImagePtr(C3D_Tex* tex, int level, u32* size) {
+	return C3D_Tex2DGetImagePtr(tex, level, size);
+}
+
+void *N3DContext::opC3D_TexCubeGetImagePtr(C3D_Tex* tex, GPU_TEXFACE face, int level, u32* size) {
+	return C3D_TexCubeGetImagePtr(tex, face, level, size);
+}
+
+void N3DContext::opC3D_TexUpload(C3D_Tex* tex, const void* data) {
+	C3D_TexUpload(tex, data);
+}
+
+void N3DContext::opC3D_TexSetFilter(C3D_Tex* tex, GPU_TEXTURE_FILTER_PARAM magFilter, GPU_TEXTURE_FILTER_PARAM minFilter) {
+	C3D_TexSetFilter(tex, magFilter, minFilter);
+}
+
+void N3DContext::opC3D_TexSetFilterMipmap(C3D_Tex* tex, GPU_TEXTURE_FILTER_PARAM filter) {
+	C3D_TexSetFilterMipmap(tex, filter);
+}
+
+void N3DContext::opC3D_TexSetWrap(C3D_Tex* tex, GPU_TEXTURE_WRAP_PARAM wrapS, GPU_TEXTURE_WRAP_PARAM wrapT) {
+	C3D_TexSetWrap(tex, wrapS, wrapT);
+}
+
+void N3DContext::opC3D_TexSetLodBias(C3D_Tex* tex, float lodBias) {
+	C3D_TexSetLodBias(tex, lodBias);
+}
+
+// from citro3d/include/c3d/proctex.
+// from citro3d/include/c3d/light.h
+// from citro3d/include/c3d/lughtlut.h
+// from citro3d/include/c3d/fog.h
+
+// from citro3d/include/c3d/framebuffer.h
+u32 N3DContext::opC3D_CalcColorBufSize(u32 width, u32 height, GPU_COLORBUF fmt) {
+	return C3D_CalcColorBufSize(width, height, fmt);
+}
+
+u32 N3DContext::opC3D_CalcDepthBufSize(u32 width, u32 height, GPU_DEPTHBUF fmt) {
+	return C3D_CalcDepthBufSize(width, height, fmt);
+}
+
+C3D_FrameBuf *N3DContext::opC3D_GetFrameBuf() {
+	return C3D_GetFrameBuf();
+}
+
+void N3DContext::opC3D_SetFrameBuf(C3D_FrameBuf* fb) {
+	C3D_SetFrameBuf(fb);
+}
+
+void N3DContext::opC3D_FrameBufTex(C3D_FrameBuf* fb, C3D_Tex* tex, GPU_TEXFACE face, int level) {
+	C3D_FrameBufTex(fb, tex, face, level);
+}
+
+void N3DContext::opC3D_FrameBufClear(C3D_FrameBuf* fb, C3D_ClearBits clearBits, u32 clearColor, u32 clearDepth) {
+	C3D_FrameBufClear(fb, clearBits, clearColor, clearDepth);
+}
+
+void N3DContext::opC3D_FrameBufTransfer(C3D_FrameBuf* fb, gfxScreen_t screen, gfx3dSide_t side, u32 transferFlags) {
+	C3D_FrameBufTransfer(fb, screen, side, transferFlags);
+}
+
+void N3DContext::opC3D_FrameBufAttrib(C3D_FrameBuf* fb, u16 width, u16 height, bool block32) {
+	C3D_FrameBufAttrib(fb, width, height, block32);
+}
+
+void N3DContext::opC3D_FrameBufColor(C3D_FrameBuf* fb, void* buf, GPU_COLORBUF fmt) {
+	C3D_FrameBufColor(fb, buf, fmt);
+}
+
+void N3DContext::opC3D_FrameBufDepth(C3D_FrameBuf* fb, void* buf, GPU_DEPTHBUF fmt) {
+	C3D_FrameBufDepth(fb, buf, fmt);
+}
+
+// from citro3d/include/c3d/renderqueue.h
+float N3DContext::opC3D_FrameRate(float fps) {
+	return C3D_FrameRate(fps);
+}
+
+void N3DContext::opC3D_FrameSync() {
+	C3D_FrameSync();
+}
+
+u32 N3DContext::opC3D_FrameCounter(int id) {
+	return C3D_FrameCounter(id);
+}
+
+bool N3DContext::opC3D_FrameBegin(u8 flags) {
+	return C3D_FrameBegin(flags);
+}
+
+bool N3DContext::opC3D_FrameDrawOn(C3D_RenderTarget* target) {
+	return C3D_FrameDrawOn(target);
+}
+
+void N3DContext::opC3D_FrameSplit(u8 flags) {
+	C3D_FrameSplit(flags);
+}
+
+void N3DContext::opC3D_FrameEnd(u8 flags) {
+	C3D_FrameEnd(flags);
+}
+
+void N3DContext::opC3D_FrameEndHook(void (* hook)(void*), void* param) {
+	C3D_FrameEndHook(hook, param);
+}
+
+float N3DContext::opC3D_GetDrawingTime() {
+	return C3D_GetDrawingTime();
+}
+
+float N3DContext::opC3D_GetProcessingTime() {
+	return C3D_GetProcessingTime();
+}
+
+C3D_RenderTarget *N3DContext::opC3D_RenderTargetCreate(int width, int height, GPU_COLORBUF colorFmt, C3D_DEPTHTYPE depthFmt) {
+	return C3D_RenderTargetCreate(width, height, colorFmt, depthFmt);
+}
+
+C3D_RenderTarget *N3DContext::opC3D_RenderTargetCreateFromTex(C3D_Tex* tex, GPU_TEXFACE face, int level, C3D_DEPTHTYPE depthFmt) {
+	return C3D_RenderTargetCreateFromTex(tex, face, level, depthFmt);
+}
+
+void N3DContext::opC3D_RenderTargetDelete(C3D_RenderTarget* target) {
+	C3D_RenderTargetDelete(target);
+}
+
+void N3DContext::opC3D_RenderTargetSetOutput(C3D_RenderTarget* target, gfxScreen_t screen, gfx3dSide_t side, u32 transferFlags) {
+	C3D_RenderTargetSetOutput(target, screen, side, transferFlags);
+}
+
+void N3DContext::opC3D_RenderTargetDetachOutput(C3D_RenderTarget* target) {
+	C3D_RenderTargetDetachOutput(target);
+}
+
+void N3DContext::opC3D_RenderTargetClear(C3D_RenderTarget* target, C3D_ClearBits clearBits, u32 clearColor, u32 clearDepth) {
+	C3D_RenderTargetClear(target, clearBits, clearColor, clearDepth);
+}
+
+void N3DContext::opC3D_SyncDisplayTransfer(u32* inadr, u32 indim, u32* outadr, u32 outdim, u32 flags) {
+	C3D_SyncDisplayTransfer(inadr, indim, outadr, outdim, flags);
+}
+
+void N3DContext::opC3D_SyncTextureCopy(u32* inadr, u32 indim, u32* outadr, u32 outdim, u32 size, u32 flags) {
+	C3D_SyncTextureCopy(inadr, indim, outadr, outdim, size, flags);
+}
+
+void N3DContext::opC3D_SyncMemoryFill(u32* buf0a, u32 buf0v, u32* buf0e, u16 control0, u32* buf1a, u32 buf1v, u32* buf1e, u16 control1) {
+	C3D_SyncMemoryFill(buf0a, buf0v, buf0e, control0, buf1a, buf1v, buf1e, control1);
+}
+
+} // end namespace N3DS_3D
