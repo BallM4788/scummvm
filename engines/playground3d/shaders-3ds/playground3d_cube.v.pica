@@ -1,0 +1,101 @@
+; cube shader for playground3d in ScummVM
+
+; ORIGINAL GLSL CODE
+; in vec3 position;
+; in vec3 color;
+; in vec3 normal;
+; in vec2 texcoord;
+;
+; uniform mat4 mvpMatrix;
+; uniform mat4 projMatrix;									NOT USED????
+; uniform mat4 modelMatrix;									NOT USED????
+; uniform mat4 rotateMatrix;
+; uniform UBOOL textured;
+; uniform vec3 modelPos;
+;
+; out vec2 Texcoord;
+; out vec3 Color;
+;
+; void main() {
+; 	Texcoord = texcoord;
+;
+; 	vec4 pos = rotateMatrix * vec4(position, 1.0);
+; 	gl_Position = mvpMatrix * (pos + vec4(modelPos, 1.0));
+;
+; 	if (UBOOL_TEST(textured)) {
+; 		Color = vec3(1.0);
+; 	} else {
+; 		Color = color;
+; 	}
+; }
+
+; FRAGMENT SHADER CODE
+; in vec2 Texcoord;
+; in vec3 Color;
+;
+; OUTPUT
+;
+; uniform UBOOL textured;
+; uniform sampler2D tex;
+;
+; void main() {
+; 	outColor = vec4(Color, 1.0);
+; 	if (UBOOL_TEST(textured)) {
+; 		outColor *= texture(tex, Texcoord);
+; 	}
+; }
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ZEROES myConst.xxxx
+.alias        ONES	 myConst.yyyy
+.alias        HALF	 myConst.wwww
+
+
+; Inputs
+.alias inTcoord		v0		; in vec2 texcoord;
+.alias    inPos		v1		; in vec3 position;
+.alias inNormal		v2		; in vec3 normal;
+.alias  inColor		v3		; in vec3 color;
+
+
+; Uniforms
+.fvec    mvpMatrix[4] ; uniform mat4 mvpMatrix;
+.fvec rotateMatrix[4] ; uniform mat4 rotateMatrix;
+.fvec     modelPos    ; uniform vec3 modelPos;
+.fvec     textured    ; uniform UBOOL textured;
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outClr		clr		; out vec4 Color
+;.out outTcoord	tcoord0	; out vec2 Texcoord
+
+
+; Main
+.entry main
+.proc main
+;	mov outTcoord.xy,	inTcoord
+;	mov outTcoord.z,	-HALF
+;	mov outTcoord.w,	ONES
+
+	mov r0.xyz,			inPos
+	mov r0.w,			ONES
+	dp4 r1.x,			rotateMatrix[0], r0
+	dp4 r1.y,			rotateMatrix[1], r0
+	dp4 r1.z,			rotateMatrix[2], r0
+	dp4 r1.w,			rotateMatrix[3], r0
+
+	mov r0.xyz,			modelPos
+	mov r0.w,			ONES
+	add r1,				r1, r0
+	dp4 outPos.x,		mvpMatrix[0], r1
+	dp4 outPos.y,		mvpMatrix[1], r1
+	dp4 outPos.z,		mvpMatrix[2], r1
+	dp4 outPos.w,		mvpMatrix[3], r1
+
+	mov outClr.xyz,		inColor
+	mov outClr.w,		ONES
+
+	end
+.end

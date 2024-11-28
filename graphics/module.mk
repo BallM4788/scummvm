@@ -104,7 +104,6 @@ MODULE_OBJS += \
 	3ds/z3d.o \
 	3ds/api.o \
 	3ds/ops-gl2citro.o \
-	3ds/ops-citro3d.o \
 	3ds/ops-custom.o \
 	3ds/init.o
 endif

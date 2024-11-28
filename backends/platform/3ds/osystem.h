@@ -207,7 +207,7 @@ public:
 	void updateConfig();
 	void updateSize();
 
-	void *getGameSurface();
+	C3D_Tex *getGameSurface();
 
 private:
 	void init3DSGraphics();
@@ -236,6 +236,7 @@ private:
 
 	// Graphics
 	C3D_TexEnv _defaultTexEnv;
+	C3D_AttrInfo _defaultAttrInfo;
 	TransactionState _transactionState;
 	TransactionDetails _transactionDetails;
 

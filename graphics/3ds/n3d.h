@@ -40,19 +40,46 @@
 
 
 #include "graphics/3ds/ngl.h"
-//#include "graphics/3ds/z3d.h"
+#include "graphics/3ds/z3d.h"
 
-#define N3DCONTEXT_FROM_HANDLE(handle) ((N3DS_3D::N3DContext *)handle)
+//#define N3DCONTEXT_FROM_HANDLE(handle) N3DS_3D::getContext(handle)
 
 namespace N3DS_3D {
 
+static void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr) {
+	void *ptr;
+
+	// if (!stride) {
+		ptr = linearAlloc(size);
+		if (data == nullptr)
+			memset(ptr, 0, size);
+		else
+			memcpy(ptr, data, size);
+	// } else {
+	//	ptr = calloc(size, stride);
+	//	if (data == nullptr)
+	//		memset(ptr, 0, size * stride);
+	//	else
+	//		memcpy(ptr, data, size * stride);
+	//}
+
+	return ptr;
+}
+
+static void freeBuffer(void *linearBuffer) {
+	linearFree(linearBuffer);
+}
+
+
 typedef void *ContextHandle;
 
-ContextHandle *createContext(ContextHandle *source = nullptr);
+ContextHandle *createContext();
+ContextHandle *createContext(ContextHandle *source);
 ContextHandle *createOGLContext();
 void destroyNative3D();
 void destroyContext(ContextHandle *handle);
 void setContext(ContextHandle *handle);
+N3DContext *getContext(ContextHandle *handle);
 
 
 } // end of namespace N3DS_3D

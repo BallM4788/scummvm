@@ -19,8 +19,6 @@
  *
  */
 
-//#include <3ds.h>
-//#include <citro3d.h>
 #include "graphics/3ds/z3d.h"
 
 namespace N3DS_3D {
@@ -67,16 +65,17 @@ void N3DContext::updateBlend() {
 }
 
 void N3DContext::updateEntireContext() {
-	C3D_BindProgram(activeShaderObj->_program);
-	C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
-	C3D_SetBufInfo(&activeShaderObj->_bufInfo);
-	activeShaderObj->sendDirtyUniforms();
+	if (activeShaderObj != nullptr) {
+		C3D_BindProgram(activeShaderObj->_program);
+		C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
+		C3D_SetBufInfo(&activeShaderObj->_bufInfo);
+		activeShaderObj->sendDirtyUniforms();
+	}
 
 	// <----------------------------------------------------------------------------------------------------------------------TEXENV
 
 	updateCullMode();
 	updateDepthMap();
-	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
 	C3D_SetScissor(scissor_mode, scissor_x, scissor_y, scissor_w, scissor_h);
 	C3D_AlphaTest(alphaTest_enabled, alphaTest_func, alphaTest_ref);
 	C3D_StencilTest(stencilTest_enabled, stencilTest_func, stencilTest_ref, stencilTest_mask, stencilTest_writeMask);
@@ -96,6 +95,8 @@ void N3DContext::updateEntireContext() {
 	}
 
 	C3D_BlendingColor((blend_color[3] << 24) | (blend_color[2] << 16) | (blend_color[1] << 8) | blend_color[0]);
+
+	C3D_TexBind(0, boundTexUnits[0]);
 }
 
 void N3DContext::changeShader(ShaderObj *shaderObj) {
@@ -131,12 +132,11 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 	shaderProgramInit(_program);
 	Result vshResult = shaderProgramSetVsh(_program, &_binary->DVLE[0]);
 	Result gshResult = shaderProgramSetGsh(_program, &_binary->DVLE[1], geomStride);
-//	_attrInfo = new C3D_AttrInfo();
-//	_bufInfo = new C3D_BufInfo();
+	_si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
 
-	if (vshResult == 0) {
+	if (_si_flags & SI_VERTEX) {
 		_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
 		if (_vert_numFVecs > 0) {
 			_vert_UniformMap = new UniformsMap();
@@ -145,7 +145,7 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 			_vert_dirtyFVecs = new FVecQueue();
 		}
 	}
-	if (gshResult == 0) {
+	if (_si_flags & SI_GEOM) {
 		_geom_numFVecs = _program->geometryShader->numFloat24Uniforms;
 		if (_geom_numFVecs > 0) {
 			_geom_UniformMap = new UniformsMap();
@@ -170,10 +170,7 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 // cloned shader object
 ShaderObj::ShaderObj(ShaderObj *original) : _binary(original->_binary),
                                             _program(original->_program),
-//                                            _attrInfo(original->_attrInfo),
-//                                            _bufInfo(original->_bufInfo),
-//                                            _vert_numFVecs(original->_vert_numFVecs),
-//                                            _geom_numFVecs(original->_geom_numFVecs),
+                                            _si_flags(original->_si_flags),
                                             _vert_UniformMap(original->_vert_UniformMap),
                                             _vert_unif_FVecs(original->_vert_unif_FVecs),
                                             _vert_dirtyFVecs(original->_vert_dirtyFVecs),
@@ -194,8 +191,6 @@ ShaderObj::~ShaderObj() {
 	if (_isClone) {
 		_binary = nullptr;
 		_program = nullptr;
-//		_attrInfo = nullptr;
-//		_bufInfo = nullptr;
 		_vert_UniformMap = _geom_UniformMap = nullptr;
 		_vert_unif_FVecs = _geom_unif_FVecs = nullptr;
 		_vert_dirtyFVecs = _geom_dirtyFVecs = nullptr;
@@ -203,10 +198,6 @@ ShaderObj::~ShaderObj() {
 		_unif_bools = nullptr;
 		_dirtyIVecs = _dirtyBools = nullptr;
 	} else {
-//		delete _attrInfo;
-//		delete _bufInfo;
-//		delete _vert_numFVecs;
-//		delete _geom_numFVecs;
 		if (_program->vertexShader) {
 			delete _vert_unif_FVecs;
 			delete _vert_dirtyFVecs;
@@ -220,44 +211,11 @@ ShaderObj::~ShaderObj() {
 		delete _dirtyIVecs;
 		delete _dirtyBools;
 
-//		for (UniformsMap::iterator it = _vert_UniformMap->begin(); it != _vert_UniformMap->end(); ++it) {
-//			delete it->_value;
-//		}
-//		delete _vert_UniformMap;
-//		for (UniformsMap::iterator it = _geom_UniformMap->begin(); it != _geom_UniformMap->end(); ++it) {
-//			delete it->_value;
-//		}
-//		delete _geom_UniformMap;
-
 		shaderProgramFree(_program);
 		delete _program;
 
 		DVLB_Free(_binary);
 	}
-}
-
-void *ShaderObj::createBuffer(size_t size/*, size_t stride*/, const void *data) {
-	void *ptr;
-
-	// if (!stride) {
-		ptr = linearAlloc(size);
-		if (data == nullptr)
-			memset(ptr, 0, size);
-		else
-			memcpy(ptr, data, size);
-	// } else {
-	//	ptr = calloc(size, stride);
-	//	if (data == nullptr)
-	//		memset(ptr, 0, size * stride);
-	//	else
-	//		memcpy(ptr, data, size * stride);
-	//}
-
-	return ptr;
-}
-
-void ShaderObj::freeBuffer(void *linearBuffer) {
-	linearFree(linearBuffer);
 }
 
 static u32 convertPhysToVirt(const void *addr) {
@@ -285,10 +243,7 @@ void ShaderObj::freeAttachedBuffer(/*C3D_BufInfo *bufInfo, bool inLinearMem, */i
 	// get virtual address from physical address
 	u32 vaddr = convertPhysToVirt((void *)paddr);
 
-	// if (inLinearMem)
-		linearFree((void *)vaddr);
-	// else
-	//	free((void *)vaddr);
+	linearFree((void *)vaddr);
 }
 
 int ShaderObj::BufInfo_AddOrModify(const void* data, ptrdiff_t stride, int attribCount, u64 permutation, int id) {
@@ -313,12 +268,22 @@ void ShaderObj::sendDirtyUniforms() {
 	for (int shaderType = 0; shaderType < 2; shaderType++) {
 		shaderEnum = N3DSMACRO_GPUSHADERTYPE_ENUM(shaderType);
 
+		if (!((shaderEnum + 1) & _si_flags)) {
+			continue;
+		}
+		if (N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty())
+			continue;
+
 		while (!N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty()) {
 			dirtyFVec temp = N3DSMACRO_DIRTY_FVECS(shaderEnum)->pop();
 			if (temp.dirtyRows <= 4) {
 				C3D_FVUnifMtxNx4(shaderEnum, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
 			} else {
 				for (int row = 0; row < temp.dirtyRows; row++) {
+					debug("%f,\t%f,\t%f,\t%f", temp.ptr[row].x,
+					                           temp.ptr[row].y,
+					                           temp.ptr[row].z,
+					                           temp.ptr[row].w);
 					C3D_FVUnifSet(shaderEnum, temp.pos, temp.ptr[row].x,
 					                                    temp.ptr[row].y,
 					                                    temp.ptr[row].z,
@@ -329,6 +294,10 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int IV_ID = 0; IV_ID < 4; IV_ID++) {
 			if (_dirtyIVecs[(shaderType * 4) + IV_ID] == true) {
+				debug("%d,\t%d,\t%d,\t%d", N3DSMACRO_IVEC_ID_POS(shaderType, 0),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 1),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 2),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 3));
 				C3D_IVUnifSet(shaderEnum, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 1),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 2),
@@ -339,6 +308,7 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int bool_ID = 0; bool_ID < 2; bool_ID++) {
 			if (_dirtyBools[(shaderType * 2) + bool_ID] == true) {
+				debug("%d", _unif_bools[(shaderType * 2) + bool_ID]);
 				C3D_BoolUnifSet(shaderEnum, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
 				_dirtyBools[(shaderType * 2) + bool_ID] = false;
 			}

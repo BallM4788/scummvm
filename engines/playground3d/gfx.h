@@ -34,6 +34,15 @@
 
 namespace Playground3d {
 
+#if defined (__3DS__)
+typedef struct {
+	float texcoord[2];
+	float position[3];
+	float normal[3];
+	float color[3];
+} CubeVtx;
+#endif
+
 class Renderer {
 public:
 	Renderer(OSystem *system);
@@ -80,6 +89,9 @@ protected:
 	Math::Matrix4 _modelViewMatrix;
 	Math::Matrix4 _mvpMatrix;
 
+#if defined (__3DS__)
+	static const CubeVtx cubeVertices3DS[6 * 4];
+#endif
 	static const float cubeVertices[11 * 6 * 4];
 	Graphics::Surface *_texture;
 
@@ -88,6 +100,7 @@ protected:
 
 Renderer *CreateGfxOpenGL(OSystem *system);
 Renderer *CreateGfxOpenGLShader(OSystem *system);
+Renderer *CreateGfxN3DS(OSystem *system);
 Renderer *CreateGfxTinyGL(OSystem *system);
 Renderer *createRenderer(OSystem *system);
 

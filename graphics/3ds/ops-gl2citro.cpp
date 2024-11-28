@@ -23,17 +23,17 @@
 
 namespace N3DS_3D {
 
-void N3DContext::opViewport(u32 x, u32 y, u32 w, u32 h) {
-	if ((vport_x == x) && (vport_y == y) && (vport_w == w) && (vport_h == h))
-		return;
-
-	vport_x = x;
-	vport_y = y;
-	vport_w = w;
-	vport_h = h;
-
-	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
-}
+//void N3DContext::opViewport(u32 x, u32 y, u32 w, u32 h) {
+//	if ((vport_x == x) && (vport_y == y) && (vport_w == w) && (vport_h == h))
+//		return;
+//
+//	vport_x = x;
+//	vport_y = y;
+//	vport_w = w;
+//	vport_h = h;
+//
+//	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
+//}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // culling
@@ -352,7 +352,7 @@ void N3DContext::opBlendEnabled(bool state) {
 		C3D_ColorLogicOp(colorLogicOp_op);
 	else {
 		(blend_enabled)
-			? C3D_AlphaBlend(blend_colorEq,  blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha)
+			? C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha)
 			: C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ZERO, GPU_ONE, GPU_ZERO);
 		if (fragOpMode != GPU_FRAGOPMODE_GL)
 			C3D_FragOpMode(fragOpMode);
@@ -371,10 +371,8 @@ void N3DContext::opLogicOp(GPU_LOGICOP op) {
 	colorLogicOp_op = op;
 
 	C3D_ColorLogicOp(colorLogicOp_op);
-	if (colorLogicOp_enabled != true) {                              // ??????????????????????????????????
-		C3D_AlphaBlend(blend_colorEq,  blend_alphaEq,
-		               blend_srcColor, blend_dstColor,
-		               blend_srcAlpha, blend_dstAlpha);
+	if (colorLogicOp_enabled != true) {
+		C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha);
 		if (fragOpMode != GPU_FRAGOPMODE_GL)
 			C3D_FragOpMode(fragOpMode);
 	}
@@ -390,12 +388,8 @@ void N3DContext::opColorLogicOpEnabled(bool state) {
 		C3D_ColorLogicOp(colorLogicOp_op);
 	else {
 		(blend_enabled)
-			? C3D_AlphaBlend(blend_colorEq,  blend_alphaEq,
-			                 blend_srcColor, blend_dstColor,
-			                 blend_srcAlpha, blend_dstAlpha)
-			: C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD,
-			                 GPU_ONE,       GPU_ZERO,
-			                 GPU_ONE,       GPU_ZERO);
+			? C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha)
+			: C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ZERO, GPU_ONE, GPU_ZERO);
 		if (fragOpMode != GPU_FRAGOPMODE_GL)
 			C3D_FragOpMode(fragOpMode);
 	}

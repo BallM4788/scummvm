@@ -77,6 +77,8 @@ private:
 	uint16 offsetY;
 	float scaleX;
 	float scaleY;
+
+	u32 texaddr;
 };
 
 } // namespace N3DS

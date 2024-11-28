@@ -99,15 +99,26 @@ N3DContext *getActiveContext() {
 	return activeContext;
 }
 
+
+
+ContextHandle *createContext() {
+	activeContext = Native3D::instance().createContext();
+	activeContext->init();
+	activeContext->updateEntireContext();
+	return (ContextHandle *)activeContext;
+}
+
 ContextHandle *createContext(ContextHandle *source) {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init((N3DContext *)source);
+	activeContext->updateEntireContext();
 	return (ContextHandle *)activeContext;
 }
 
 ContextHandle *createOGLContext() {
 	activeContext = Native3D::instance().createContext();
 	activeContext->initOGL();
+	activeContext->updateEntireContext();
 	return (ContextHandle *)activeContext;
 }
 
@@ -135,12 +146,20 @@ void setContext(ContextHandle *handle) {
 	activeContext->updateEntireContext();
 }
 
+N3DContext *getContext(ContextHandle *handle) {
+	N3DContext *ctx = Native3D::instance().getContext(handle);
+	if (ctx == nullptr) {
+		error("N3DS_3D: Context not found");
+	}
+	return ctx;
+}
+
 void N3DContext::init(N3DContext *source) {
 	if (source != nullptr) {
-		vport_x                 = source->vport_x;
-		vport_y                 = source->vport_y;
-		vport_w                 = source->vport_w;
-		vport_h                 = source->vport_h;
+//		vport_x                 = source->vport_x;
+//		vport_y                 = source->vport_y;
+//		vport_w                 = source->vport_w;
+//		vport_h                 = source->vport_h;
 		cullFace_mode           = source->cullFace_mode;
 		cullFace_faceToCull     = source->cullFace_faceToCull;
 		cullFace_frontFace      = source->cullFace_frontFace;
@@ -188,67 +207,79 @@ void N3DContext::init(N3DContext *source) {
 		colorLogicOp_op         = source->colorLogicOp_op;
 		colorLogicOp_enabled    = source->colorLogicOp_enabled;
 		fragOpMode              = source->fragOpMode;
+		boundTexUnits[0]        = source->boundTexUnits[0];
+		boundTexUnits[1]        = source->boundTexUnits[1];
+		boundTexUnits[2]        = source->boundTexUnits[2];
+		activeShaderObj         = source->activeShaderObj;
+
 	} else {
 		// Citro3D starting values?
-		vport_x                 = 0;
-		vport_y                 = 0;
-		vport_w                 = 0;
-		vport_h                 = 0;
-		cullFace_mode           = GPU_CULL_BACK_CCW;
-		cullFace_faceToCull     = N3D_CULLFACE_BACK;
-		cullFace_frontFace      = N3D_FRONTFACE_CCW;
-		cullFace_enabled        = false;
-		depthMap_pOffUnits      = 0;
-		depthMap_wScale         = 0.0f;
-		depthMap_rangeN         = 0.0f;
-		depthMap_rangeF         = 1.0f;
-		depthMap_zScale         = -1.0f;
-		depthMap_zOffset        = 0.0f;
-		depthMap_enabled        = true;
-		scissor_mode            = GPU_SCISSOR_DISABLE;
-		scissor_x               = 0;
-		scissor_y               = 0;
-		scissor_w               = 0;
-		scissor_h               = 0;
-		alphaTest_func          = GPU_ALWAYS;
-		alphaTest_ref           = 0;
-		alphaTest_enabled       = false;
-		stencilTest_func        = GPU_ALWAYS;
-		stencilTest_ref         = 0x00;
-		stencilTest_mask        = 0xFF;
-		stencilTest_writeMask   = 0x00;
-		stencilOp_fail          = GPU_STENCIL_KEEP;
-		stencilOp_zfail         = GPU_STENCIL_KEEP;
-		stencilOp_zpass         = GPU_STENCIL_KEEP;
-		stencilTest_enabled     = false;
-		depthTest_func          = GPU_GREATER;
-		depthTest_writeMask     = GPU_WRITE_ALL;
-		depthTest_enabled       = true;
-		earlyDepthTest_func     = GPU_EARLYDEPTH_GREATER;
-		earlyDepthTest_clear    = 0;
-		earlyDepthTest_enabled  = false;
-		blend_color[0]          = 0;
-		blend_color[1]          = 0;
-		blend_color[2]          = 0;
-		blend_color[3]          = 0;
-		blend_colorEq           = GPU_BLEND_ADD;
-		blend_alphaEq           = GPU_BLEND_ADD;
-		blend_srcColor          = GPU_SRC_ALPHA;
-		blend_dstColor          = GPU_ONE_MINUS_SRC_ALPHA;
-		blend_srcAlpha          = GPU_SRC_ALPHA;
-		blend_dstAlpha          = GPU_ONE_MINUS_SRC_ALPHA;
-		blend_enabled           = true;
+//		vport_x                 = 0;
+//		vport_y                 = 0;
+//		vport_w                 = 0;
+//		vport_h                 = 0;
+		cullFace_mode           = GPU_CULL_BACK_CCW;					// C3D DEFAULT
+		cullFace_faceToCull     = N3D_CULLFACE_BACK;					// C3D DEFAULT
+		cullFace_frontFace      = N3D_FRONTFACE_CCW;					// C3D DEFAULT
+		cullFace_enabled        = false;								// SCUMMVM BACKEND
+		depthMap_pOffUnits      = 0;									// DEDUCED
+		depthMap_wScale         = 0.0f;									// DEDUCED
+		depthMap_rangeN         = 0.0f;									// DEDUCED
+		depthMap_rangeF         = 1.0f;									// DEDUCED
+		depthMap_zScale         = -1.0f;								// C3D DEFAULT
+		depthMap_zOffset        = 0.0f;									// C3D DEFAULT
+		depthMap_enabled        = true;									// C3D DEFAULT
+		scissor_mode            = GPU_SCISSOR_DISABLE;					// C3D LIBRARY CONTEXT SETS THIS WHENEVER C3D_FrameDrawOn IS CALLED
+		scissor_x               = 0;									// DEDUCED
+		scissor_y               = 0;									// DEDUCED
+		scissor_w               = 0;									// DEDUCED
+		scissor_h               = 0;									// DEDUCED
+		alphaTest_func          = GPU_ALWAYS;							// C3D DEFAULT
+		alphaTest_ref           = 0x00;									// C3D DEFAULT
+		alphaTest_enabled       = false;								// C3D DEFAULT
+		stencilTest_func        = GPU_ALWAYS;							// C3D DEFAULT
+		stencilTest_ref         = 0x00;									// C3D DEFAULT
+		stencilTest_mask        = 0xFF;									// C3D DEFAULT
+		stencilTest_writeMask   = 0x00;									// C3D DEFAULT
+		stencilOp_fail          = GPU_STENCIL_KEEP;						// C3D DEFAULT
+		stencilOp_zfail         = GPU_STENCIL_KEEP;						// C3D DEFAULT
+		stencilOp_zpass         = GPU_STENCIL_KEEP;						// C3D DEFAULT
+		stencilTest_enabled     = false;								// C3D DEFAULT
+		depthTest_func          = GPU_GEQUAL;							// SCUMMVM BACKEND
+		depthTest_writeMask     = GPU_WRITE_ALL;						// C3D DEFAULT
+		depthTest_enabled       = false;								// SCUMMVM BACKEND
+		earlyDepthTest_func     = GPU_EARLYDEPTH_GREATER;				// C3D DEFAULT
+		earlyDepthTest_clear    = 0;									// C3D DEFAULT
+		earlyDepthTest_enabled  = false;								// C3D DEFAULT
+		blend_color[0]          = 0;									// C3D DEFAULT
+		blend_color[1]          = 0;									// C3D DEFAULT
+		blend_color[2]          = 0;									// C3D DEFAULT
+		blend_color[3]          = 0;									// C3D DEFAULT
+		blend_colorEq           = GPU_BLEND_ADD;						// C3D DEFAULT
+		blend_alphaEq           = GPU_BLEND_ADD;						// C3D DEFAULT
+		blend_srcColor          = GPU_SRC_ALPHA;						// C3D DEFAULT
+		blend_dstColor          = GPU_ONE_MINUS_SRC_ALPHA;				// C3D DEFAULT
+		blend_srcAlpha          = GPU_SRC_ALPHA;						// C3D DEFAULT
+		blend_dstAlpha          = GPU_ONE_MINUS_SRC_ALPHA;				// C3D DEFAULT
+		blend_enabled           = true;									// C3D DEFAULT
 		colorLogicOp_op         = GPU_LOGICOP_COPY;
-		colorLogicOp_enabled    = false;
-		fragOpMode              = GPU_FRAGOPMODE_GL;
+		colorLogicOp_enabled    = false;								// C3D DEFAULT
+		fragOpMode              = GPU_FRAGOPMODE_GL;					// C3D DEFAULT
+		boundTexUnits[0]        = NULL;
+		boundTexUnits[1]        = NULL;
+		boundTexUnits[2]        = NULL;
+		activeShaderObj         = nullptr;
 	}
 }
 
 void N3DContext::initOGL() {
-	vport_x                 = 0;
-	vport_y                 = 0;
-	vport_w                 = 0;
-	vport_h                 = 0;
+//	vport_x                 = 0;
+//	vport_y                 = 0;
+//	vport_w                 = 0;
+//	vport_h                 = 0;
+	// clear color
+	// clear depth
+	// clear stencil
 	cullFace_mode           = GPU_CULL_BACK_CCW;
 	cullFace_faceToCull     = N3D_CULLFACE_BACK;
 	cullFace_frontFace      = N3D_FRONTFACE_CCW;
@@ -259,7 +290,7 @@ void N3DContext::initOGL() {
 	depthMap_rangeF         = 1.0f;
 	depthMap_zScale         = -1.0f;
 	depthMap_zOffset        = 0.0f;
-	depthMap_enabled        = true;
+	depthMap_enabled        = false;
 	scissor_mode            = GPU_SCISSOR_DISABLE;
 	scissor_x               = 0;
 	scissor_y               = 0;
@@ -277,7 +308,7 @@ void N3DContext::initOGL() {
 	stencilOp_zpass         = GPU_STENCIL_KEEP;
 	stencilTest_enabled     = false;
 	depthTest_func          = GPU_LESS;
-	depthTest_writeMask     = GPU_WRITE_ALL;
+	depthTest_writeMask     = GPU_WRITE_ALL;				// Whether to update the color and/or depth buffers if depth testing is enabled
 	depthTest_enabled       = false;
 	earlyDepthTest_func     = GPU_EARLYDEPTH_LESS;
 	earlyDepthTest_clear    = 0X00FFFFFF;
@@ -292,17 +323,20 @@ void N3DContext::initOGL() {
 	blend_dstColor          = GPU_ZERO;
 	blend_srcAlpha          = GPU_ONE;
 	blend_dstAlpha          = GPU_ZERO;
-	blend_enabled           = true;
+	blend_enabled           = false;
 	colorLogicOp_op         = GPU_LOGICOP_COPY;
 	colorLogicOp_enabled    = false;
 	fragOpMode              = GPU_FRAGOPMODE_GL;
+	boundTexUnits[0]        = NULL;
+	boundTexUnits[1]        = NULL;
+	boundTexUnits[2]        = NULL;
+	activeShaderObj         = nullptr;
 }
 
 void N3DContext::deinit() {
-	boundTexUnits[0] = nullptr;
-	boundTexUnits[1] = nullptr;
-	boundTexUnits[2] = nullptr;
-//	boundTexUnits[3] = nullptr;
+	boundTexUnits[0] = NULL;
+	boundTexUnits[1] = NULL;
+	boundTexUnits[2] = NULL;
 }
 
 } // end of namespace N3DS_3D

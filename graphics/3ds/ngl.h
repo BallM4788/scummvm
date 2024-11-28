@@ -40,7 +40,7 @@ enum N3D_FRONTFACE {
 };
 
 // from "graphics/3ds/ops-gl2citro.cpp"
-void N3D_Viewport(u32 x, u32 y, u32 w, u32 h);
+//void N3D_Viewport(u32 x, u32 y, u32 w, u32 h);
 void N3D_CullFace(N3D_CULLFACE mode);
 void N3D_FrontFace(N3D_FRONTFACE mode);
 void N3D_CullFaceEnabled(bool state);
