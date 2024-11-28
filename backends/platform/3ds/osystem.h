@@ -50,7 +50,7 @@ enum InputMode {
 	MODE_DRAG,
 };
 
-enum GraphicsModeID {
+enum TexModeID {
 	RGBA8,
 	RGB565,
 	RGB555,
@@ -81,20 +81,20 @@ struct TransactionDetails {
 	}
 };
 
-typedef struct GfxMode3DS {
+typedef struct TexMode {
 	Graphics::PixelFormat surfaceFormat;
 	GPU_TEXCOLOR textureFormat;
 	uint32 textureTransferFlags;
-} GfxMode3DS;
+} TexMode;
 
 struct GfxState {
 	bool setup;
-	GraphicsModeID gfxModeID;
-	const GfxMode3DS *gfxMode;
+	TexModeID texModeID;
+	const TexMode *texMode;
 
 	GfxState() {
 		setup = false;
-		gfxModeID = CLUT8;
+		texModeID = CLUT8;
 	}
 };
 
@@ -146,8 +146,8 @@ public:
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
 	virtual int getScreenChangeID() const { return _screenChangeId; };
-	GraphicsModeID chooseMode(Graphics::PixelFormat *format);
-	bool setGraphicsMode(GraphicsModeID modeID);
+	TexModeID chooseTexModeID(Graphics::PixelFormat *format);
+	bool setTexMode(TexModeID modeID);
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
@@ -226,7 +226,7 @@ private:
 	Thread audioThread;
 
 	// Graphics
-	GraphicsModeID _graphicsModeID;
+	TexModeID _texModeID;
 	TransactionState _transactionState;
 	TransactionDetails _transactionDetails;
 
