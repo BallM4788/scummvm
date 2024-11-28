@@ -40,6 +40,19 @@
 		 GX_TRANSFER_OUT_FORMAT(out) | GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 #define DEFAULT_MODE _texmodeRGBA8
 
+#define GAME_FORMAT _pfGame
+#define GAME_WIDTH  _gameWidth
+#define GAME_HEIGHT _gameHeight
+#define TEXMODE_ID  _gfxState.texModeID
+#define TEXMODE     _gfxState.texMode
+//#define RENDER_MODE _gfxState.renderMode
+#define OLD_GAME_FORMAT _oldPfGame
+//#define OLD_GAME_WIDTH  _oldGfxState.gameWidth
+//#define OLD_GAME_HEIGHT _oldGfxState.gameHeight
+#define OLD_TEXMODE_ID  _oldGfxState.texModeID
+#define OLD_TEXMODE     _oldGfxState.texMode
+//#define OLD_RENDER_MODE _oldGfxState.renderMode
+
 namespace N3DS {
 /* Group the various enums, values, etc. needed for
  * each graphics mode into instaces of TexMode */
@@ -61,8 +74,8 @@ static const TexMode *texmodes[] = { &_texmodeRGBX8, &_texmodeRGB565, &_texmodeR
 
 
 void OSystem_3DS::init3DSGraphics() {
-	_gfxState.texMode = texmodes[CLUT8];
-	_pfGame = Graphics::PixelFormat::createFormatCLUT8();
+	TEXMODE = texmodes[CLUT8];
+	GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
 	_pfDefaultTexture = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
 
 	C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
@@ -188,7 +201,7 @@ bool OSystem_3DS::setTexMode(TexModeID modeID) {
 	case RGB5A1:
 	case RGBA4:
 	case CLUT8:
-		_gfxState.texMode = texmodes[modeID];
+		TEXMODE = texmodes[modeID];
 		return true;
 	default:
 		return false;
@@ -201,33 +214,33 @@ void OSystem_3DS::initSize(uint width, uint height,
 	updateBacklight();
 	updateConfig();
 
-	_gameWidth = width;
-	_gameHeight = height;
+	GAME_WIDTH = width;
+	GAME_HEIGHT = height;
 	_magCenterX = _magWidth / 2;
 	_magCenterY = _magHeight / 2;
 
-	_oldPfGame = _pfGame;
+	OLD_GAME_FORMAT = GAME_FORMAT;
 	if (!format) {
-		_pfGame = Graphics::PixelFormat::createFormatCLUT8();
+		GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
 	} else {
 		debug("pixelformat: %d %d %d %d %d", format->bytesPerPixel, format->rBits(), format->gBits(), format->bBits(), format->aBits());
-		_pfGame = *format;
+		GAME_FORMAT = *format;
 	}
 
 	/* If the current graphics mode does not fit with the pixel
 	 * format being requested, choose one that does and switch to it */
-	assert(_pfGame.bytesPerPixel > 0);
-	if (_pfGame != _oldPfGame) {
+	assert(GAME_FORMAT.bytesPerPixel > 0);
+	if (GAME_FORMAT != OLD_GAME_FORMAT) {
 		assert(_transactionState == kTransactionActive);
-		_gfxState.texModeID = chooseTexModeID(&_pfGame);
+		TEXMODE_ID = chooseTexModeID(&GAME_FORMAT);
 		_transactionDetails.formatChanged = true;
 	}
 
-	_gameTopTexture.create(width, height, _gfxState.texMode, true);
-	_gameScreen.create(width, height, _pfGame);
+	_gameTopTexture.create(width, height, TEXMODE, true);
+	_gameScreen.create(width, height, GAME_FORMAT);
 
 	_focusDirty = true;
-	_focusRect = Common::Rect(_gameWidth, _gameHeight);
+	_focusRect = Common::Rect(GAME_WIDTH, GAME_HEIGHT);
 
 	updateSize();
 }
@@ -235,32 +248,32 @@ void OSystem_3DS::initSize(uint width, uint height,
 void OSystem_3DS::updateSize() {
 	if (_stretchToFit) {
 		_gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;
-		_gameTopTexture.setScale(400.f / _gameWidth, 240.f / _gameHeight);
-		_gameBottomTexture.setScale(320.f / _gameWidth, 240.f / _gameHeight);
+		_gameTopTexture.setScale(400.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
+		_gameBottomTexture.setScale(320.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
 	} else {
-		float ratio = static_cast<float>(_gameWidth) / _gameHeight;
+		float ratio = static_cast<float>(GAME_WIDTH) / GAME_HEIGHT;
 
 		if (ratio > 400.f / 240.f) {
-			float r = 400.f / _gameWidth;
+			float r = 400.f / GAME_WIDTH;
 			_gameTopTexture.setScale(r, r);
 			_gameTopX = 0;
-			_gameTopY = (240.f / r - _gameHeight) / 2.f;
+			_gameTopY = (240.f / r - GAME_HEIGHT) / 2.f;
 		} else {
-			float r = 240.f / _gameHeight;
+			float r = 240.f / GAME_HEIGHT;
 			_gameTopTexture.setScale(r, r);
 			_gameTopY = 0;
-			_gameTopX = (400.f / r - _gameWidth) / 2.f;
+			_gameTopX = (400.f / r - GAME_WIDTH) / 2.f;
 		}
 		if (ratio > 320.f / 240.f) {
-			float r = 320.f / _gameWidth;
+			float r = 320.f / GAME_WIDTH;
 			_gameBottomTexture.setScale(r, r);
 			_gameBottomX = 0;
-			_gameBottomY = (240.f / r - _gameHeight) / 2.f;
+			_gameBottomY = (240.f / r - GAME_HEIGHT) / 2.f;
 		} else {
-			float r = 240.f / _gameHeight;
+			float r = 240.f / GAME_HEIGHT;
 			_gameBottomTexture.setScale(r, r);
 			_gameBottomY = 0;
-			_gameBottomX = (320.f / r - _gameWidth) / 2.f;
+			_gameBottomX = (320.f / r - GAME_WIDTH) / 2.f;
 		}
 	}
 	_gameTopTexture.setPosition(_gameTopX, _gameTopY);
@@ -302,11 +315,11 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 
 	assert(_transactionState != kTransactionNone);
 	if (_transactionState == kTransactionRollback) {
-		if (_gfxState.texModeID != _oldGfxState.texModeID) {
+		if (TEXMODE_ID != OLD_TEXMODE_ID) {
 			errors |= OSystem::kTransactionModeSwitchFailed;
 			_gfxState = _oldGfxState;
-		} else if ((_gfxState.texMode != _oldGfxState.texMode) |
-		           (_gfxState.texMode != texmodes[_gfxState.texModeID])) {
+		} else if ((TEXMODE != OLD_TEXMODE) |
+		           (TEXMODE != texmodes[TEXMODE_ID])) {
 			errors |= OSystem::kTransactionFormatNotSupported;
 			_gfxState = _oldGfxState;
 		}
@@ -314,18 +327,18 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 		_oldGfxState.setup = false;
 	}
 	if (_transactionDetails.formatChanged) {
-		if (!setTexMode(_gfxState.texModeID)) {
+		if (!setTexMode(TEXMODE_ID)) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
 				errors |= endGFXTransaction();
 			}
-		} else if (_gfxState.texMode != texmodes[_gfxState.texModeID]) {
+		} else if (TEXMODE != texmodes[TEXMODE_ID]) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
 				errors |= endGFXTransaction();
 			}
 		} else {
-			initSize(_gameWidth, _gameHeight, &_pfGame);
+			initSize(GAME_WIDTH, GAME_HEIGHT, &GAME_FORMAT);
 			clearOverlay();
 			_gfxState.setup = true;
 			_screenChangeId++;
@@ -376,29 +389,29 @@ void OSystem_3DS::copyRectToScreen(const void *buf, int pitch, int x,
 	_gameScreen.copyRectToSurface(buf, pitch, x, y, w, h);
 	Graphics::Surface subSurface = _gameScreen.getSubArea(rect);
 
-	if (_pfGame == _gameTopTexture.format) {
+	if (GAME_FORMAT == _gameTopTexture.format) {
 		_gameTopTexture.copyRectToSurface(subSurface, x, y, Common::Rect(w, h));
-	} else if (_gfxState.texMode == &_texmodeRGB555) {
+	} else if (TEXMODE == &_texmodeRGB555) {
 		copyRect555To5551(subSurface, _gameTopTexture, x, y, Common::Rect(w, h));
-	} else if (_gfxState.texMode == &_texmodeCLUT8) {
+	} else if (TEXMODE == &_texmodeCLUT8) {
 		byte *dst = (byte *)_gameTopTexture.getBasePtr(x, y);
 		Graphics::crossBlitMap(dst, (const byte *)buf, _gameTopTexture.pitch, pitch,
 			w, h, _gameTopTexture.format.bytesPerPixel, _paletteMap);
 	} else {
 		byte *dst = (byte *)_gameTopTexture.getBasePtr(x, y);
 		Graphics::crossBlit(dst, (const byte *)buf, _gameTopTexture.pitch, pitch,
-			w, h, _gameTopTexture.format, _pfGame);
+			w, h, _gameTopTexture.format, GAME_FORMAT);
 	}
 
 	_gameTopTexture.markDirty();
 }
 
 void OSystem_3DS::flushGameScreen() {
-	if (_pfGame == _gameTopTexture.format) {
+	if (GAME_FORMAT == _gameTopTexture.format) {
 		_gameTopTexture.copyRectToSurface(_gameScreen, 0, 0, Common::Rect(_gameScreen.w, _gameScreen.h));
-	} else if (_gfxState.texMode == &_texmodeRGB555) {
+	} else if (TEXMODE == &_texmodeRGB555) {
 		copyRect555To5551(_gameScreen, _gameTopTexture, 0, 0, Common::Rect(_gameScreen.w, _gameScreen.h));
-	} else if (_gfxState.texMode == &_texmodeCLUT8) {
+	} else if (TEXMODE == &_texmodeCLUT8) {
 		const byte *src = (const byte *)_gameScreen.getPixels();
 		byte *dst = (byte *)_gameTopTexture.getPixels();
 		Graphics::crossBlitMap(dst, src, _gameTopTexture.pitch, _gameScreen.pitch,
@@ -407,7 +420,7 @@ void OSystem_3DS::flushGameScreen() {
 		const byte *src = (const byte *)_gameScreen.getPixels();
 		byte *dst = (byte *)_gameTopTexture.getPixels();
 		Graphics::crossBlit(dst, src, _gameTopTexture.pitch, _gameScreen.pitch,
-			_gameScreen.w, _gameScreen.h, _gameTopTexture.format, _pfGame);
+			_gameScreen.w, _gameScreen.h, _gameTopTexture.format, GAME_FORMAT);
 	}
 
 	_gameTopTexture.markDirty();
@@ -538,7 +551,7 @@ void OSystem_3DS::updateFocus() {
 	if (_focusClearTime && getMillis() - _focusClearTime > 5000) {
 		_focusClearTime = 0;
 		_focusDirty = true;
-		_focusRect = Common::Rect(_gameWidth, _gameHeight);
+		_focusRect = Common::Rect(GAME_WIDTH, GAME_HEIGHT);
 	}
 
 	if (_focusDirty) {
@@ -559,10 +572,10 @@ void OSystem_3DS::updateFocus() {
 			_focusTargetPosY = _focusTargetScaleY * _focusRect.top;
 			_focusTargetPosX = _focusTargetScaleX * ((float)_focusRect.left - (newWidth - _focusRect.width())/2.f);
 		}
-		if (_focusTargetPosX < 0 && _focusTargetScaleY != 240.f / _gameHeight) {
+		if (_focusTargetPosX < 0 && _focusTargetScaleY != 240.f / GAME_HEIGHT) {
 			_focusTargetPosX = 0;
 		}
-		if (_focusTargetPosY < 0 && _focusTargetScaleX != 400.f / _gameWidth) {
+		if (_focusTargetPosY < 0 && _focusTargetScaleX != 400.f / GAME_WIDTH) {
 			_focusTargetPosY = 0;
 		}
 		_focusStepPosX = duration * (_focusTargetPosX - _focusPosX);
@@ -614,11 +627,11 @@ void OSystem_3DS::updateMagnify() {
 	if (_magnifyMode == MODE_MAGON) {
 		if (!_overlayVisible) {
 			_magX = (_cursorScreenX < _magCenterX) ?
-			         0 : ((_cursorScreenX < (_gameWidth - _magCenterX)) ?
-			         _cursorScreenX - _magCenterX : _gameWidth - _magWidth);
+			         0 : ((_cursorScreenX < (GAME_WIDTH - _magCenterX)) ?
+			         _cursorScreenX - _magCenterX : GAME_WIDTH - _magWidth);
 			_magY = (_cursorScreenY < _magCenterY) ?
-			         0 : ((_cursorScreenY < _gameHeight - _magCenterY) ?
-			         _cursorScreenY - _magCenterY : _gameHeight - _magHeight);
+			         0 : ((_cursorScreenY < GAME_HEIGHT - _magCenterY) ?
+			         _cursorScreenY - _magCenterY : GAME_HEIGHT - _magHeight);
 		}
 		_gameTopTexture.setScale(1.f,1.f);
 		_gameTopTexture.setPosition(0,0);
