@@ -1,0 +1,79 @@
+; text shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;	in vec2 texcoord;
+;
+;	out vec2 Texcoord;
+;
+;	void main() {
+;		Texcoord = texcoord;
+;
+;		// Coordinates are [0.0;1.0], transform to [-1.0; 1.0]
+;		vec2 pos = position;
+;		pos.x = pos.x * 2.0 - 1.0;
+;		pos.y = -1.0 * (pos.y * 2.0 - 1.0);
+;
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+; FRAGMENT SHADER CODE
+;	in vec2 Texcoord;
+;
+;	OUTPUT
+;
+;	uniform sampler2D tex;
+;	uniform vec3 color;
+;
+;	void main() {
+;		outColor = texture(tex, Texcoord) * vec4(color, 1.0);
+;	}
+
+; NOTES
+;	- Since the 3DS doesn't support custom fragment shaders,
+;		we're doing color multiplication via the texture environment.
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ONES	 myConst.yyyy
+.alias        TWOS	 myConst.zzzz
+.alias        HALF	 myConst.wwww
+.alias     NEGONES	-myConst.yyyy
+
+
+; Inputs
+.alias inPos		v0		; in vec2 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec color					; vec3 color
+
+
+; Outputs
+.out outPos			pos		; gl_Position
+.out outTcoord		tcoord0	; out vec2 Texcoord
+.out outColor		clr		; outColor
+
+
+; Main
+.entry main
+.proc main
+	mov outTcoord.xy,	inTcoord.xy
+	mov outColor.rgb,	color.rgb
+
+	mov r0.xy,			inPos.xy
+	mov r1.xy,			TWOS
+	mad r2.xy,			r1.xy,				r0.xy,				NEGONES
+	mul r2.y,			NEGONES,			r2.y
+	mov outPos.xy,		r2.xy
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+
+	mov outColor.a,		 ONES
+
+	end
+.end

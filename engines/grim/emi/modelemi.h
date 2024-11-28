@@ -55,7 +55,11 @@ class Skeleton;
 class EMIMeshFace {
 public:
 	Vector3int *_indexes;
+#if defined(__3DS__)
+	void *_indicesEBO;
+#else
 	uint32 _indicesEBO;
+#endif
 	uint32 _faceLength;
 	uint32 _numFaces;
 	uint32 _hasTexture;
@@ -69,7 +73,11 @@ public:
 		kUnknownBlend = 0x40000 // used only in intro screen actors
 	};
 
+#if defined(__3DS__)
+	EMIMeshFace() : _faceLength(0), _numFaces(0), _hasTexture(0), _texID(0), _flags(0), _indexes(NULL), _parent(NULL), _indicesEBO(nullptr) { }
+#else
 	EMIMeshFace() : _faceLength(0), _numFaces(0), _hasTexture(0), _texID(0), _flags(0), _indexes(NULL), _parent(NULL), _indicesEBO(0) { }
+#endif
 	~EMIMeshFace();
 	void loadFace(Common::SeekableReadStream *data);
 	void setParent(EMIModel *m) { _parent = m; }

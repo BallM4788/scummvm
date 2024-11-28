@@ -1,0 +1,84 @@
+; emergency text shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;	in vec2 texcoord;
+;
+;	uniform vec2 sizeWH;
+;	uniform vec2 offsetXY;
+;
+;	uniform vec2 texOffsetXY;
+;	uniform vec2 texScale;
+;
+;	out vec2 Texcoord;
+;
+;	void main() {
+;		vec2 tex = texcoord;
+;		tex.y = 1.0 - tex.y;
+;		tex *= texScale;
+;		Texcoord = texOffsetXY + tex;
+;		vec2 pos = offsetXY + position * sizeWH;
+;		pos.x = pos.x * 2.0 - 1.0;
+;		pos.y = -1.0 * (pos.y * 2.0 - 1.0);
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+; NOTES
+;	- Since the 3DS doesn't support custom fragment shaders,
+;		we're assigning the Alpha component via the texture environment.
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias ZEROS		 myConst.xxxx
+.alias ONES			 myConst.yyyy
+.alias TWOS			 myConst.zzzz
+.alias HALF			 myConst.wwww
+.alias NEGONES		-myConst.yyyy
+
+
+; Inputs
+.alias inPos		v0		; in vec2 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec sizeWHtexScale		; vec2 sizeWH + vec2 texScale
+.fvec offsetXYtexOffsetXY	; vec2 offsetXY + vec2 texOffsetXY
+.fvec color					; vec3 color
+.alias sizeWH		sizeWHtexScale.xy
+.alias texScale		sizeWHtexScale.zw
+.alias offsetXY		offsetXYtexOffsetXY.xy
+.alias texOffsetXY	offsetXYtexOffsetXY.zw
+
+
+; Outputs
+.out outPos			pos		; gl_Position
+.out outTcoord		tcoord0	; out vec2 Texcoord
+.out outColor		clr		; outColor
+
+
+; Main
+.entry main
+.proc main
+	mov r0.xy,			inTcoord
+	mov r1.y,			NEGONES
+	mad r0.y,			r0.y,				r1.y,				ONES
+	mul r0.xy,			texScale,			r0.xy
+	add outTcoord.xy,	texOffsetXY,		r0.xy
+
+	mov r1.xy,			offsetXY
+	mad r0.xy,			inPos.xy,			sizeWH,				r1.xy
+	mov r1.xy,			TWOS
+	mad r0.xy,			r0.xy,				r1.xy,				NEGONES
+	mul r0.y,			NEGONES,			r0.y
+	mov outPos.xy,		r0.xy
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+
+	mov outColor.rgb,	 color.rgb
+
+	end
+.end

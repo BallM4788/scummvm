@@ -143,6 +143,26 @@ MODULE_OBJS += \
 	movie/codecs/blocky8ARM.o
 endif
 
+ifeq ($(BACKEND), 3ds)
+MODULE_OBJS += \
+	shaders-3ds/grim_actor.shbin.o \
+	shaders-3ds/grim_actorlights.shbin.o \
+	shaders-3ds/emi_actor.shbin.o \
+	shaders-3ds/emi_actorlights.shbin.o \
+	shaders-3ds/grim_background.shbin.o \
+	shaders-3ds/emi_background.shbin.o \
+	shaders-3ds/emi_dimplane.shbin.o \
+	shaders-3ds/emi_sprite.shbin.o \
+	shaders-3ds/grim_dim.shbin.o \
+	shaders-3ds/grim_emerg.shbin.o \
+	shaders-3ds/grim_primLines.shbin.o \
+	shaders-3ds/grim_primRect.shbin.o \
+	shaders-3ds/grim_shadowplane.shbin.o \
+	shaders-3ds/grim_smush.shbin.o \
+	shaders-3ds/grim_text.shbin.o \
+	shaders-3ds/manualclear.shbin.o \
+	gfx_n3ds.o
+endif
 ifdef USE_TINYGL
 MODULE_OBJS += \
 	gfx_tinygl.o

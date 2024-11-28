@@ -1,0 +1,63 @@
+; background shader for Grim Fandango in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;	in vec2 texcoord;
+;
+;	uniform vec2 texcrop;
+;	uniform vec2 offsetXY;
+;	uniform vec2 sizeWH;
+;
+;	out vec2 Texcoord;
+;
+;	void main() {
+;		Texcoord = texcoord * texcrop;
+;		// Coordinates are [0.0;1.0], transform [-1.0; 1.0] and flip Y
+;		vec2 pos = offsetXY + position * sizeWH;
+;		pos.x = pos.x * 2.0 - 1.0;
+;		pos.y = -1.0 * (pos.y * 2.0 - 1.0);
+;
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ONES	 myConst.yyyy
+.alias        TWOS	 myConst.zzzz
+.alias        HALF	 myConst.wwww
+.alias     NEGONES	-myConst.yyyy
+
+
+; Inputs
+.alias    inPos		v0		; in vec2 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec texcrop		; vec2 texcrop
+.fvec offsetXY		; vec2 offsetXY
+.fvec sizeWH		; vec2 sizeWH
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outTcoord	tcoord0	; out vec2 Texcoord
+
+
+; Main
+.entry main
+.proc main
+	mul outTcoord.xy,	texcrop.xy,			inTcoord.xy
+	mov r0.xy,			sizeWH.xy
+	mad r1.xy,			r0.xy,				inPos.xy,			offsetXY.xy
+	mov r2.xy,			TWOS
+	mad r3.xy,			r2.xy,				r1.xy,				NEGONES
+	mul r3.y,			NEGONES,			r3.y
+	mov outPos.xy,		r3.xy
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+
+	end
+.end

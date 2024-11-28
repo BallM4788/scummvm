@@ -1,0 +1,216 @@
+; primitive line shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; This 3DS shader program replicates the functionality of GL_LINES. The code in this
+; file is run in the geometry shader, after the vertex shader code has run.
+
+.gsh point c0
+
+; Constants
+.constf myConstG(0.0, 1.0, 2.0, 0.0)
+.alias ZEROS		myConstG.xxxx
+.alias ONES			myConstG.yyyy
+.alias TWOS			myConstG.zzzz
+.alias ZERO_ONE		myConstG.xyxy
+
+
+; Inputs
+.alias inPos		v0
+.alias inColor		v1
+
+; Uniforms
+; scaleWH is in v2, but here we only use swizzles of it
+.alias scaleW		v2.xxxx
+.alias scaleH		v2.yyyy
+.alias scaleHW		v2.yxyx
+
+
+; Outputs
+.out outPos			pos
+.out outColor		clr
+
+
+; Register Aliases
+.alias TMP_0		r0
+.alias TMP_1		r1
+.alias TMP_2		r2
+.alias PrevD		r3					; Previous delta
+.alias CurrD		r4					; Current delta
+.alias CapStat		r5.x
+.alias SegInfo		r6
+.alias PrevInfo		r6.x
+.alias CurrInfo		r6.y
+.alias VtxIdx		r6.z
+.alias VtxCnt		r6.w				; Records which vertex in a line segment we are on
+.alias PrevPos		r7
+.alias PrevClr		r8
+.alias Initted		b15					; Geometry shader initialization bool - automatically set to true after gmain has run for the first vertex of the vertex array
+
+
+.entry gmain
+.proc gmain
+	; - Get the number of recorded coordinates for the current line segment.
+	; - Get the geometry shader initialization status.
+	; - Clear the segment info and skip calculations if no coordinates
+	;		have been recorded for the current line segment, or if the geom
+	;		shader is uninitialized.
+	mov TMP_0.x,		VtxCnt
+	ifu Initted
+		mov TMP_0.y,		ONES
+	.else
+		mov TMP_0.y,		ZEROS
+	.end
+
+	cmp ZEROS.xy,		eq, eq,				TMP_0.xy
+
+	ifc cmp.x || cmp.y
+		mov SegInfo,		ZEROS
+	.else
+		slt CapStat,		VtxCnt,				TWOS			; set CapStat to 1 if VtxCnt is less than 2
+		mov PrevD,			inPos								; Move current vertex coords into PrevD
+
+		; Calculating directions
+
+		; PrevD.x = |inPos.x - PrevPos.x| / viewport height
+		; PrevD.y = |inPos.y - PrevPos.y| / viewport width
+		mov TMP_0.xy,		PrevPos								; mul TMP_0.xy,	PrevPos, PrevD.w (1.0)
+		mov TMP_1.z,		CapStat
+		mov CurrD,			ZEROS								; Clear CurrD
+		add TMP_0.xy,		PrevD,				-TMP_0			; mad TMP_0.xy,	PrevD, PrevPos.w (1.0), -TMP_0
+		mov TMP_1.w,		ZEROS								; Clear TMP_1.w in case vertices were emitted in a previous cycle
+		max PrevD.xy,		TMP_0,				-TMP_0
+		mov TMP_2,			scaleHW
+		mul PrevD.xy,		PrevD,				 TMP_2
+		cmp PrevD.x,		gt, gt,				 PrevD.y		; X-Major or Y-Major?
+		mov PrevD,			ZEROS								; Clear PrevD
+
+		ifc cmp.x												; X-Major (PrevD.x >  PrevD.y)
+			mov TMP_2,			 ZEROS
+			cmp TMP_0.x,		 gt, gt,			 TMP_2
+			mov CurrD.y,		 scaleH							; line thickness
+			mov PrevD.y,		 scaleH							; line thickness
+			ifc cmp.x											; ascending X-value
+				mov CurrInfo,		 ONES						;  ONE = X-Major, positive change in X
+			.else												; descending (or static) X-value
+				mov CurrInfo,		-ONES						; -ONE = X-Major, negative (or no) change in X
+			.end
+			max TMP_1.xy,		 SegInfo,			-SegInfo	; TMP_1.x = |PrevInfo|, TMP_1.y = |CurrInfo|
+		.else													; Y-Major (PrevD.x <= PrevD.y)
+			; Is TMP_0.y (inPos.y - PrevPos.y) greater than 0?
+			mov TMP_2,			 ZEROS
+			cmp TMP_0.y,		 gt, gt,			 TMP_2
+			mov CurrD.x,		-scaleW							; line thickness
+			mov PrevD.x,		-scaleW							; line thickness
+			ifc cmp.x											; ascending Y-value
+				mov CurrInfo,		 TWOS						;  TWO = Y-Major, positive change in Y
+			.else												; descending (or static) Y-value
+				mov CurrInfo,		-TWOS						; -TWO = Y-Major, negative (or no) change in Y
+			.end
+			max TMP_1.xy,		 SegInfo,			-SegInfo	; TMP_1.x = |PrevInfo|, TMP_1.y = |CurrInfo|
+		.end
+
+		; Is |PrevInfo| equal to |CurrInfo|?
+		; Is CapStat greater than 0?
+		cmp TMP_1.xz,		eq, gt,				TMP_1.yw
+
+		; If |PrevInfo| != |CurrInfo| OR if CapStat > 0
+		ifc !cmp.x || cmp.y
+			mov outColor,		 PrevClr
+			setemit 0
+			add outPos,			 PrevPos,			 PrevD
+			emit
+			setemit 1
+			emit													; swap back output buffer
+			add outPos,			 PrevPos,			-PrevD
+			setemit 1
+			mov VtxIdx,			 TWOS
+			emit
+		.end
+
+		; Is CurrInfo greater than 0?
+		mov TMP_2,			ZEROS
+		cmp CurrInfo,		gt, gt,				TMP_2
+
+		mov TMP_1,			inPos
+		mov outColor,		inColor
+
+		ifc cmp.x
+			cmp ZERO_ONE,		eq, eq,				VtxIdx
+			add outPos,			TMP_1,				CurrD
+			ifc cmp.x
+				setemit 0,			primitive
+				emit
+				setemit 1,			invert
+				emit												; swap back output buffer
+				add outPos,			TMP_1,				-CurrD
+				setemit	1,			primitive invert
+				mov VtxIdx,			TWOS
+			.else
+				ifc cmp.y
+					setemit 1,			primitive
+					emit
+					setemit 2,			invert
+					emit											; swap back output buffer
+					add outPos,			TMP_1,				-CurrD
+					setemit 2,			primitive invert
+					mov VtxIdx,			ZEROS
+				.else
+					setemit 2,			primitive
+					emit
+					setemit 0,			invert
+					emit											; swap back output buffer
+					add outPos,			TMP_1,				-CurrD
+					setemit 0,			primitive invert
+					mov VtxIdx,			ONES
+				.end
+				nop
+			.end
+			emit
+		.else
+			cmp ZERO_ONE,		eq, eq,				VtxIdx
+			add outPos,			TMP_1,				CurrD
+			ifc cmp.x
+				setemit 0,			primitive invert
+				emit
+				setemit 1
+				emit												; swap back output buffer
+				add outPos,			TMP_1,				-CurrD
+				setemit 1,			primitive
+				mov VtxIdx,			TWOS
+			.else
+				ifc cmp.y
+					setemit 1,			primitive invert
+					emit
+					setemit 2
+					emit											; swap back output buffer
+					add outPos,			TMP_1,				-CurrD
+					setemit 2,			primitive
+					mov VtxIdx,			ZEROS
+				.else
+					setemit 2,			primitive invert
+					emit
+					setemit 0
+					emit											; swap back output buffer
+					add outPos,			TMP_1,				-CurrD
+					setemit 0,			primitive
+					mov VtxIdx,			ONES
+				.end
+				nop
+			.end
+			emit
+		.end
+		mov PrevInfo,		CurrInfo
+	.end
+
+	add VtxCnt,			ONES,				VtxCnt
+	mov PrevPos,		inPos
+
+	cmp TWOS,			eq, eq,				VtxCnt
+
+	mov PrevClr,		inColor
+
+	ifc cmp.x
+		mov VtxCnt,			ZEROS
+	.end
+
+	end
+.end

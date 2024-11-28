@@ -1,0 +1,41 @@
+; background shader for Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;	in vec2 texcoord;
+;
+;	out vec2 Texcoord;
+;
+;	void main() {
+;		Texcoord = texcoord;
+;		gl_Position = vec4(position, 0.0, 1.0);
+;	}
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ONES	 myConst.yyyy
+.alias        HALF	 myConst.wwww
+
+
+; Inputs
+.alias    inPos		v0		; in vec2 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outTcoord	tcoord0	; out vec2 Texcoord
+
+
+; Main
+.entry main
+.proc main
+	mov outTcoord.xy,	 inTcoord
+	mov outPos.xy,		 inPos
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+
+	end
+.end

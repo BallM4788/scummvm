@@ -1,0 +1,241 @@
+; actor shader for Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec3 position;
+;	in vec2 texcoord;
+;	in vec4 color;
+;	in vec3 normal;
+;
+;	uniform highp mat4 modelMatrix;
+;	uniform highp mat4 viewMatrix;
+;	uniform highp mat4 projMatrix;
+;	uniform highp mat4 extraMatrix;
+;	uniform highp mat4 normalMatrix;
+;	uniform highp vec3 cameraPos;
+;	uniform UBOOL textured;
+;	uniform UBOOL useVertexAlpha;
+;	uniform vec4 uniformColor;
+;
+;	struct shadow_info {
+;		UBOOL _active;
+;		vec3 _color;
+;		vec3 _light;
+;		vec3 _point;
+;		vec3 _normal;
+;	};
+;
+;	uniform shadow_info shadow;
+;
+;	out vec2 Texcoord;
+;	out vec4 Color;
+;
+;	void main() {
+;		vec4 pos = vec4(position, 1.0);
+;		pos = modelMatrix * pos;
+;
+;		// See http://en.wikipedia.org/wiki/Line-plane_intersection
+;		if (UBOOL_TEST(shadow._active)) {
+;			pos /= pos.w;
+;			vec3 l = pos.xyz - shadow._light;
+;			float d = dot(shadow._point - shadow._light, shadow._normal) / dot(l, shadow._normal);
+;			vec3 p = shadow._light + d * l;
+;			pos = vec4(p, 1.0);
+;		}
+;
+;		pos -= vec4(cameraPos * pos.w, 0.0);
+;		pos = viewMatrix * pos;
+;		pos /= pos.w;
+;		pos.z *= -1.0;
+;
+;		vec4 projectedPos = projMatrix * pos;
+;
+;		gl_Position = projectedPos;
+;
+;		if (UBOOL_TEST(shadow._active)) {
+;			Color = vec4(shadow._color, 1.0);
+;		} else {
+;			Color = color;
+;		}
+;		if (!UBOOL_TEST(useVertexAlpha))
+;			Color.a = 1.0;
+;		Color *= uniformColor;
+;		if (UBOOL_TEST(textured)) {
+;			Texcoord = texcoord;
+;		} else {
+;			Texcoord = vec2(0.0, 0.0);
+;		}
+;	}
+
+; NOTES:
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias       ZEROS	 myConst.xxxx
+.alias        ONES	 myConst.yyyy
+.alias     NEGONES	-myConst.yyyy
+.alias    ZERO_ONE	 myConst.xyxy
+.alias    ONE_HALF	 myConst.wwww
+
+; end index = 7, start index = 0, step = 1 (loops 8 times)
+.consti	loopParams(7, 0, 1, 0)
+
+
+; Inputs
+.alias    inPos		v0		; in vec3 position
+.alias inTcoord		v1		; in vec2 texcoord
+.alias  inColor		v2		; in vec4 color
+.alias inNormal		v3		; in vec3 normal
+; TODO: CREATE INPUT FOR LOCAL ALPHA
+
+
+; Uniforms
+.fvec  modelMatrix[4]		; mat4  modelMatrix
+.fvec   viewMatrix[4]		; mat4   viewMatrix
+.fvec   projMatrix[4]		; mat4   projMatrix
+																						;.fvec  extraMatrix[4]		; mat4  extraMatrix
+.fvec normalMatrix[4]		; mat4 normalMatrix
+.fvec    cameraPos			; vec3    cameraPos
+.fvec uniformColor			; vec4 uniformColor
+
+.fvec bool_textured			; UBOOL textured
+.fvec bool_useVtxAl			; UBOOL useVertexAlpha
+.alias textured		bool_textured.x
+.alias useVtxAlpha	bool_useVtxAl.x
+
+.fvec shadowActive		; UBOOL shadow._active
+.fvec shadowColor		;  vec3 shadow._color
+.fvec shadowLight		;  vec3 shadow._light
+.fvec shadowPoint		;  vec3 shadow._point
+.fvec shadowNormal		;  vec3 shadow._normal
+.alias shadowOn		shadowActive.x
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outTcoord	tcoord0	; out vec2 Texcoord
+.out outColor	clr		; out vec4 Color
+
+
+; Register Aliases
+.alias TMP_0			r0
+.alias TMP_1			r1
+.alias vec4_pos			r2
+.alias vec3_shPo		r3.xyz	;  vec3 shadowPoint, moved to temp register
+.alias vec3_shNo		r4.xyz	;  vec3 shadowNormal, moved to temp register
+.alias vec3_shLi		r5.xyz	;  vec3 shadowLight, moved to temp register
+.alias vec3_L			r6.xyz	;  vec3 l
+.alias flot_D			r6.w	; float d
+.alias tmpColor			r2		; Since each output register component must be written to EXACTLY ONCE,
+								;	modify the output color here before writing to outColor.
+
+
+; Main
+.entry main
+.proc main
+	; TMP_0 = vec4(inPos, 1.0);
+	mov TMP_0.xyz,		inPos.xyz
+	mov TMP_0.w,		ONES
+
+	; Prepare in TMP_1 for comparison operation
+	mov TMP_1.x,		shadowOn
+	mov TMP_1.y,		textured
+
+	; vec4_pos = modelMatrix (mat4) * TMP_0 (vec4);
+	dp4 vec4_pos.x,		modelMatrix[0],		TMP_0
+	dp4 vec4_pos.y,		modelMatrix[1],		TMP_0
+	dp4 vec4_pos.z,		modelMatrix[2],		TMP_0
+	dp4 vec4_pos.w,		modelMatrix[3],		TMP_0										;	vec4_pos     occupied;	TMP_0        no longer needed
+
+	; Set cmp.x and cmp.y with "shadowOn == 1.0"
+	;	and "textured == 1.0", respectively.
+	cmp ONES,			eq, eq,				TMP_1.xy									;							TMP_1        no longer needed
+
+; TMP_0:     UNOCCUPIED
+; TMP_1:     UNOCCUPIED
+; vec4_pos:    OCCUPIED (r2)
+; outPos:     UNWRITTEN
+; outTcoord:  UNWRITTEN
+; outColor:   UNWRITTEN
+
+	; if (shadowOn)
+	ifc cmp.x
+		rcp TMP_0,			vec4_pos.w													; TMP_0        = (1/vec4_pos.w x4)
+		mov vec3_shPo,		shadowPoint.xyz												; vec3_shPo    = shadowPoint(xyz)
+		mov vec3_shNo,		shadowNormal.xyz											; vec3_shNo    = shadowNormal(xyz)
+		mov vec3_shLi,		shadowLight.xyz												; vec3_shLi    = shadowLight(xyz)
+		mul vec4_pos,		vec4_pos,			 TMP_0									; vec4_pos    *= TMP_0 (1/vec4_pos.w x4)
+		add TMP_1.xyz,		vec3_shPo,			-vec3_shLi								; TMP_1.xyz    = vec3_shPo - vec3_shLi
+		add vec3_L,			vec4_pos.xyz,		-vec3_shLi								; vec3_L       = vec4_pos  - vec3_shLi
+		dp3 flot_D,			TMP_1.xyz,			 vec3_shNo								; flot_D       = dp3(TMP_1.xyz, vec3_shNo)
+		dp3 TMP_0.w,		vec3_L,				 vec3_shNo								; TMP_0.w      = dp3(vec3_L,    vec3_shNo)
+		rcp TMP_1.w,		TMP_0.w														; TMP_1.w      = 1 / TMP_0.w
+		mul flot_D,			flot_D,				 TMP_1.w								; flot_D      *= TMP_1.w
+		mov vec4_pos.w,		ONES														; vec4_pos.w   = 1.0
+		mad vec4_pos.xyz,	vec3_L,				 flot_D,			vec3_shLi			; vec4_pos.xyz = vec3_L * flot_D(www) + vec3_shLi
+	.end
+
+	; vec4_pos -= vec4(cameraPos * vec4_pos.w, 0.0);
+	mov TMP_0.w,		ZEROS
+	mul TMP_0.xyz,		cameraPos.xyz,		 vec4_pos.w
+	add vec4_pos,		vec4_pos,			-TMP_0
+
+	; TMP_0 (vec4) = viewMatrix (mat4) * vec4_pos;
+	dp4 TMP_0.x,		viewMatrix[0],		vec4_pos
+	dp4 TMP_0.y,		viewMatrix[1],		vec4_pos
+	dp4 TMP_0.z,		viewMatrix[2],		vec4_pos
+	dp4 TMP_0.w,		viewMatrix[3],		vec4_pos									;	TMP_0        occupied;
+
+	; vec4_pos = TMP_0 / TMP_0.w;
+	rcp TMP_1,			TMP_0.w
+	mul vec4_pos,		TMP_0,				TMP_1										;							TMP_0        no longer needed
+
+	; vec4_pos.z *= -1.0;
+	mul vec4_pos.z,		NEGONES,			vec4_pos.z
+
+	; outPos = projMatrix (mat4) * vec4_pos;
+	dp4 outPos.x,		projMatrix[0],		vec4_pos
+	dp4 outPos.y,		projMatrix[1],		vec4_pos
+	dp4 outPos.z,		projMatrix[2],		vec4_pos
+	dp4 outPos.w,		projMatrix[3],		vec4_pos									;	outPos        written;	vec4_pos         STILL NEEDED
+
+; TMP_0:        UNOCCUPIED
+; TMP_1:        UNOCCUPIED
+; vec4_pos:       OCCUPIED (r2)
+; outPos:          WRITTEN
+; outTcoord:     UNWRITTEN
+; outColor:      UNWRITTEN
+
+	; if (shadowOn)
+	ifc cmp.x
+		; tmpColor.rgb = shadowColor;
+		; tmpColor.a = 1.0;
+		mov tmpColor.rgb,	shadowColor.rgb
+		mov tmpColor.a,		ONES
+	.else
+		; tmpColor = (1.0, 1.0, 1.0, 1.0);
+		mov tmpColor,		ONES
+	.end																				;	tmpColor     occupied;
+
+	; if (textured)
+	ifc cmp.y
+		; outTcoord = inTcoord;
+		mov outTcoord.xy,	inTcoord.xy
+	.else
+		; outTcoord = vec2(0.0, 0.0)
+		mov outTcoord.xy,	ZEROS
+	.end																				;	outTcoord     written;
+
+	; if (!useVtxAlpha)
+	mov TMP_0.x,		ONES
+	cmp useVtxAlpha,	eq, eq,				TMP_0.x
+	ifc !cmp.x
+		; tmpColor.a = 1.0;
+		mov tmpColor.a,		ONES
+	.end
+
+	; tmpColor *= uniformColor;
+	mul outColor,		uniformColor,		tmpColor									;	outColor      written;
+
+	end
+.end

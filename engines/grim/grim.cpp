@@ -113,6 +113,7 @@ GrimEngine::GrimEngine(OSystem *syst, uint32 gameFlags, GrimGameType gameType, C
 	_showFps = ConfMan.getBool("show_fps");
 
 	_softRenderer = true;
+	_n3dsRenderer = true;
 
 	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType, 192);
 	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
@@ -269,6 +270,9 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
@@ -295,6 +299,8 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 	Graphics::RendererType matchingRendererType = Graphics::Renderer::getBestMatchingType(desiredRendererType, availableRendererTypes);
 
 	_softRenderer = matchingRendererType == Graphics::kRendererTypeTinyGL;
+	_n3dsRenderer = matchingRendererType == Graphics::kRendererTypeN3DS;
+
 	if (!_softRenderer) {
 		initGraphics3d(screenW, screenH);
 	} else {
@@ -310,6 +316,11 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_OPENGL_GAME)
 	if (matchingRendererType == Graphics::kRendererTypeOpenGL) {
 		renderer = CreateGfxOpenGL();
+	}
+#endif
+#if defined(__3DS__)
+	if (matchingRendererType == Graphics::kRendererTypeN3DS) {
+		renderer = CreateGfxN3DS();
 	}
 #endif
 #if defined(USE_TINYGL)
@@ -439,7 +450,7 @@ Common::Error GrimEngine::run() {
 
 	// This flipBuffer() may make the OpenGL renderer show garbage instead of the splash,
 	// while the TinyGL renderer needs it.
-	if (_softRenderer)
+	if (_softRenderer || _n3dsRenderer)
 		g_driver->flipBuffer();
 
 	LuaBase *lua = createLua();

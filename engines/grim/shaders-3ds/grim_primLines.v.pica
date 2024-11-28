@@ -1,0 +1,55 @@
+; primitive line shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; This 3DS shader program replicates the functionality of GL_LINES. The code in this
+; file is run in the vertex shader, and its outputs are sent to the geometry shader.
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;
+;	uniform vec2 scaleWH;
+;
+;	void main() {
+;		// Coordinates are [0.0;1.0], transform to [-1.0; 1.0]
+;		vec2 pos = position * scaleWH;
+;		pos.x = pos.x * 2.0 - 1.0;
+;		pos.y = -1.0 * (pos.y * 2.0 - 1.0);
+;
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+
+; Constants
+.constf myConstV(0.0, 1.0, 2.0, 0.5)
+.alias ONES			 myConstV.yyyy
+.alias TWOS			 myConstV.zzzz
+.alias HALF			 myConstV.wwww
+.alias NEGONES		-myConstV.yyyy
+
+
+; Inputs
+.alias inPos		v0		; in vec2 position
+.alias inColor		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec scaleWH				; vec2 scaleWH
+
+
+; Outputs
+.out outPos			pos		; gl_Position
+.out outColor		clr		; pass color to the geometry shader
+.out passScale		dummy	; to pass scaleWH to the geometry shader
+
+
+.proc main
+	mul r0.xy,			 scaleWH.xy,		inPos.xy
+	mov r1.xy,			 TWOS
+	mad outPos.xy,		 r0.xy,				r1.xy,				NEGONES
+	mov outColor,		 inColor
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov passScale.xy,	 scaleWH.xy
+	mov outPos.w,		 ONES
+	end
+.end

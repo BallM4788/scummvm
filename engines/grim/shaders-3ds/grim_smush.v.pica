@@ -1,0 +1,92 @@
+; smush shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;	in vec2 texcoord;
+;	uniform vec2 scale;
+;	uniform vec2 offset;
+;
+;	uniform vec2 texcrop;
+;
+;	out vec2 Texcoord;
+;
+;	void main() {
+;		Texcoord = texcoord * texcrop;
+;
+;		vec2 pos = scale * position + offset;
+;		// Coordinates are [0.0;1.0], transform [-1.0; 1.0] and flip Y
+;		pos.x = (pos.x * 2.0 - 1.0);
+;		pos.y = -1.0 * (pos.y * 2.0 - 1.0);
+;
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+; FRAGMENT SHADER CODE
+;	in vec2 Texcoord;
+;
+;	OUTPUT
+;
+;	uniform sampler2D tex;
+;	uniform UBOOL swap;
+;	uniform UBOOL swizzle;
+;
+;	void main() {
+;		vec4 color = texture(tex, Texcoord);
+;		if (UBOOL_TEST(swap)) {
+;			color.rgba = color.abgr;
+;		}
+;		if (UBOOL_TEST(swizzle)) {
+;			color.rgba = color.bgra;
+;		}
+;		outColor = vec4(color.rgb, 1.0);
+;	}
+
+; NOTES
+;	- Since the 3DS doesn't support custom fragment shaders,
+;		we're doing fragment stuff via the texture environment.
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ONES	 myConst.yyyy
+.alias        TWOS	 myConst.zzzz
+.alias        HALF	 myConst.wwww
+.alias     NEGONES	-myConst.yyyy
+
+
+; Inputs
+.alias    inPos		v0		; in vec2 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec scale			; vec2 scale
+.fvec offset		; vec2 offset
+.fvec texcrop		; vec2 texcrop
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outTcoord	tcoord0	; out vec2 Texcoord
+.out outColor	clr		; outColor
+
+
+; Main
+.entry main
+.proc main
+	mul outTcoord.xy,	texcrop.xy,			inTcoord.xy
+	mov r0.xy,			scale.xy
+	mad r1.xy,			inPos.xy,			r0.xy,				offset.xy
+	mov r2.xy,			TWOS
+	mad r3.xy,			r2.xy,				r1.xy,				NEGONES
+	mul r3.y,			NEGONES,			r3.y
+	mov outPos.xy,		r3.xy
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+	; We need a 1.0 in GPU_PRIMARY_COLOR's alpha component for the texture environment
+	mov outColor,		 ONES
+
+	end
+.end
