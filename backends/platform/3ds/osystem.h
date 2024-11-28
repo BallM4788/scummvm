@@ -73,9 +73,10 @@ enum TransactionState {
 
 
 struct TransactionDetails {
-	bool formatChanged, modeChanged;
+	bool sizeChanged, formatChanged, modeChanged;
 
 	TransactionDetails() {
+		sizeChanged = false;
 		formatChanged = false;
 		modeChanged = false;
 	}
@@ -89,12 +90,17 @@ typedef struct TexMode {
 
 struct GfxState {
 	bool setup;
+	u16 gameWidth, gameHeight;
+	Graphics::PixelFormat gameFormat;
 	TexModeID texModeID;
 	const TexMode *texMode;
 
 	GfxState() {
 		setup = false;
+		gameWidth = 320;
+		gameHeight = 240;
 		texModeID = CLUT8;
+		gameFormat = Graphics::PixelFormat::createFormatCLUT8();
 	}
 };
 
@@ -141,7 +147,7 @@ public:
 	void addSysArchivesToSearchSet(Common::SearchSet &s, int priority) override;
 
 	// Graphics
-	inline Graphics::PixelFormat getScreenFormat() const { return _pfGame; }
+	inline Graphics::PixelFormat getScreenFormat() const { return _gfxState.gameFormat; }
 	virtual Common::List<Graphics::PixelFormat> getSupportedFormats() const;
 	void initSize(uint width, uint height,
 	              const Graphics::PixelFormat *format = NULL);
@@ -151,8 +157,8 @@ public:
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
-	int16 getHeight(){ return _gameHeight; }
-	int16 getWidth(){ return _gameWidth; }
+	int16 getHeight(){ return _gfxState.gameHeight; }
+	int16 getWidth(){ return _gfxState.gameWidth; }
 	float getScaleRatio() const;
 	void setPalette(const byte *colors, uint start, uint num);
 	void grabPalette(byte *colors, uint start, uint num) const;
@@ -218,7 +224,6 @@ protected:
 	Backends::Log::Log *_logger;
 
 private:
-	u16 _gameWidth, _gameHeight;
 	u16 _gameTopX, _gameTopY;
 	u16 _gameBottomX, _gameBottomY;
 
@@ -232,7 +237,6 @@ private:
 
 	GfxState _gfxState, _oldGfxState;
 	Graphics::PixelFormat _pfDefaultTexture;
-	Graphics::PixelFormat _pfGame, _oldPfGame;
 	Graphics::PixelFormat _pfCursor;
 	byte _palette[3 * 256];
 	byte _cursorPalette[3 * 256];

@@ -40,15 +40,15 @@
 		 GX_TRANSFER_OUT_FORMAT(out) | GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 #define DEFAULT_MODE _texmodeRGBA8
 
-#define GAME_FORMAT _pfGame
-#define GAME_WIDTH  _gameWidth
-#define GAME_HEIGHT _gameHeight
+#define GAME_FORMAT _gfxState.gameFormat
+#define GAME_WIDTH  _gfxState.gameWidth
+#define GAME_HEIGHT _gfxState.gameHeight
 #define TEXMODE_ID  _gfxState.texModeID
 #define TEXMODE     _gfxState.texMode
 //#define RENDER_MODE _gfxState.renderMode
-#define OLD_GAME_FORMAT _oldPfGame
-//#define OLD_GAME_WIDTH  _oldGfxState.gameWidth
-//#define OLD_GAME_HEIGHT _oldGfxState.gameHeight
+#define OLD_GAME_FORMAT _oldGfxState.gameFormat
+#define OLD_GAME_WIDTH  _oldGfxState.gameWidth
+#define OLD_GAME_HEIGHT _oldGfxState.gameHeight
 #define OLD_TEXMODE_ID  _oldGfxState.texModeID
 #define OLD_TEXMODE     _oldGfxState.texMode
 //#define OLD_RENDER_MODE _oldGfxState.renderMode
@@ -218,8 +218,10 @@ void OSystem_3DS::initSize(uint width, uint height,
 	GAME_HEIGHT = height;
 	_magCenterX = _magWidth / 2;
 	_magCenterY = _magHeight / 2;
+	if ((GAME_WIDTH != OLD_GAME_WIDTH) || (GAME_HEIGHT != OLD_GAME_HEIGHT))
+		_transactionDetails.sizeChanged = true;
 
-	OLD_GAME_FORMAT = GAME_FORMAT;
+//	debug("3d state: %d", RENDER_MODE);
 	if (!format) {
 		GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
 	} else {
@@ -232,17 +234,10 @@ void OSystem_3DS::initSize(uint width, uint height,
 	assert(GAME_FORMAT.bytesPerPixel > 0);
 	if (GAME_FORMAT != OLD_GAME_FORMAT) {
 		assert(_transactionState == kTransactionActive);
-		TEXMODE_ID = chooseTexModeID(&GAME_FORMAT);
 		_transactionDetails.formatChanged = true;
 	}
 
-	_gameTopTexture.create(width, height, TEXMODE, true);
-	_gameScreen.create(width, height, GAME_FORMAT);
-
 	_focusDirty = true;
-	_focusRect = Common::Rect(GAME_WIDTH, GAME_HEIGHT);
-
-	updateSize();
 }
 
 void OSystem_3DS::updateSize() {
@@ -306,6 +301,7 @@ Common::List<Graphics::PixelFormat> OSystem_3DS::getSupportedFormats() const {
 void OSystem_3DS::beginGFXTransaction() {
 	assert(_transactionState == kTransactionNone);
 	_transactionState = kTransactionActive;
+	_transactionDetails.sizeChanged = false;
 	_transactionDetails.formatChanged = false;
 	_oldGfxState = _gfxState;
 }
@@ -317,16 +313,20 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 	if (_transactionState == kTransactionRollback) {
 		if (TEXMODE_ID != OLD_TEXMODE_ID) {
 			errors |= OSystem::kTransactionModeSwitchFailed;
-			_gfxState = _oldGfxState;
 		} else if ((TEXMODE != OLD_TEXMODE) |
 		           (TEXMODE != texmodes[TEXMODE_ID])) {
 			errors |= OSystem::kTransactionFormatNotSupported;
-			_gfxState = _oldGfxState;
+		}
+		if ((GAME_WIDTH != OLD_GAME_WIDTH) |
+		    (GAME_HEIGHT != OLD_GAME_HEIGHT)) {
+			errors |= OSystem::kTransactionSizeChangeFailed;
 		}
 
+		_gfxState = _oldGfxState;
 		_oldGfxState.setup = false;
 	}
-	if (_transactionDetails.formatChanged) {
+	if (_transactionDetails.formatChanged || _transactionDetails.sizeChanged) {
+		TEXMODE_ID = chooseTexModeID(&GAME_FORMAT);
 		if (!setTexMode(TEXMODE_ID)) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
@@ -338,7 +338,11 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 				errors |= endGFXTransaction();
 			}
 		} else {
-			initSize(GAME_WIDTH, GAME_HEIGHT, &GAME_FORMAT);
+			_gameTopTexture.create(GAME_WIDTH, GAME_HEIGHT, TEXMODE, true);	// Sprite
+			_gameScreen.create(GAME_WIDTH, GAME_HEIGHT, GAME_FORMAT);		// Surface
+			_focusRect = Common::Rect(GAME_WIDTH, GAME_HEIGHT);
+			updateSize();
+
 			clearOverlay();
 			_gfxState.setup = true;
 			_screenChangeId++;
