@@ -12,13 +12,19 @@ APP_BANNER_AUDIO:= $(srcdir)/backends/platform/3ds/app/banner.wav
 BANNERTOOL       ?= bannertool
 MAKEROM          ?= makerom
 
+SHADER_GENFILES := \
+	$(wildcard backends/platform/3ds/*_shbin.h) \
+	$(wildcard backends/platform/3ds/*.shbin)
+SHADER_GENFILES += \
+	$(wildcard engines/grim/shaders-3ds/*_shbin.h) \
+	$(wildcard engines/grim/shaders-3ds/*.shbin)
+
 .PHONY: clean_3ds dist_3ds
 
 clean: clean_3ds
 
 clean_3ds:
-	$(RM) backends/platform/3ds/shader.shbin
-	$(RM) backends/platform/3ds/shader_shbin.h
+	$(RM) $(SHADER_GENFILES)
 	$(RM) $(TARGET).smdh
 	$(RM) $(TARGET).3dsx
 	$(RM) $(TARGET).bnr
