@@ -48,7 +48,7 @@ Sprite::~Sprite() {
 	//
 }
 
-void Sprite::create(uint16 width, uint16 height, const GfxMode3DS *mode, bool vram) {
+void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram) {
 	free();
 
 	actualWidth = width;
