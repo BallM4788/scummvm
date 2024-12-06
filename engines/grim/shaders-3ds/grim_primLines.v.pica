@@ -17,6 +17,15 @@
 ;		gl_Position = vec4(pos, 0.0, 1.0);
 ;	}
 
+; FRAGMENT SHADER CODE
+;	OUTPUT
+;
+;	uniform vec3 color;
+;
+;	void main() {
+;		outColor = vec4(color, 1.0);
+;	}
+
 
 ; Constants
 .constf myConstV(0.0, 1.0, 2.0, 0.5)
@@ -28,11 +37,11 @@
 
 ; Inputs
 .alias inPos		v0		; in vec2 position
-.alias inColor		v1		; in vec2 texcoord
 
 
 ; Uniforms
 .fvec scaleWH				; vec2 scaleWH
+.fvec color					; uniform vec3 color
 
 
 ; Outputs
@@ -45,7 +54,7 @@
 	mul r0.xy,			 scaleWH.xy,		inPos.xy
 	mov r1.xy,			 TWOS
 	mad outPos.xy,		 r0.xy,				r1.xy,				NEGONES
-	mov outColor,		 inColor
+	mov outColor,		 color
 	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
 	; z-component 0.0 in openGL -> -0.5 in 3DS
 	mov outPos.z,		-HALF
