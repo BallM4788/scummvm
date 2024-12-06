@@ -92,12 +92,14 @@ void OSystem_3DS::init3DSGraphics() {
 
 	_renderTargetTop =
 	    C3D_RenderTargetCreate(240, topScreenWidth, GPU_RB_RGB8, -1);
+	warning("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * topScreenWidth * 3);
 	C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x0000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
 
 	_renderTargetBottom =
 	    C3D_RenderTargetCreate(240, 320, GPU_RB_RGB8, -1);
+	warning("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * 320 * 3);
 	C3D_RenderTargetClear(_renderTargetBottom, C3D_CLEAR_ALL, 0x00000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
@@ -128,7 +130,7 @@ void OSystem_3DS::init3DSGraphics() {
 	C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
 	C3D_CullFace(GPU_CULL_NONE);
 
-	_overlay.create(320, 240, &DEFAULT_MODE, true);
+	_overlay.create(320, 240, &DEFAULT_MODE);
 }
 
 void OSystem_3DS::destroy3DSGraphics() {

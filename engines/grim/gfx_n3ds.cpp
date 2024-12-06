@@ -325,7 +325,9 @@ GfxN3DS::GfxN3DS() {
 
 	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);					// DEFINITE? - ADDED
 
-	_screenCopySpace = linearAlloc(640 * 480 * 4);																					// DEFINITE? - ADDED
+	warning("GfxN3DS::GfxN3DS - Creating linear alloc (_screenCopySpace)");
+	_screenCopySpace = N3DS_3D::createBuffer(640 * 480 * 4);																					// DEFINITE? - ADDED
+	warning("GfxN3DS::GfxN3DS - Linear alloc created: %u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
 
 	N3D_C3D_TexEnvInit(&envNormal);																										// DEFINITE? - ADDED
 	N3D_C3D_TexEnvFunc(&envNormal, C3D_Both, GPU_MODULATE);																				// DEFINITE? - ADDED
@@ -368,6 +370,35 @@ GfxN3DS::~GfxN3DS() {
 
 	N3D_C3D_RenderTargetDelete(_gameScreenTarget);																						// DEFINITE? - ADDED
 
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blankVBO)", linearGetSize(_blankVBO));
+	N3DS_3D::freeBuffer(_blankVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blankVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_smushVBO)", linearGetSize(_smushVBO));
+	N3DS_3D::freeBuffer(_smushVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_smushVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_quadEBO)", linearGetSize(_quadEBO));
+	N3DS_3D::freeBuffer(_quadEBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_quadEBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
+	N3DS_3D::freeBuffer(_spriteVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_spriteVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_zBuf)", linearGetSize(_zBuf));
+	N3DS_3D::freeBuffer(_zBuf);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_zBuf).");
+
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_irisVBO)", linearGetSize(_irisVBO));
+	N3DS_3D::freeBuffer(_irisVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_irisVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimVBO)", linearGetSize(_dimVBO));
+	N3DS_3D::freeBuffer(_dimVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
+	N3DS_3D::freeBuffer(_dimRegionVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimRegionVBO).");
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blastVBO)", linearGetSize(_blastVBO));
+	N3DS_3D::freeBuffer(_blastVBO);
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blastVBO).");
+
 //	delete _backgroundProgram;
 //	delete _smushProgram;
 //	delete _textProgram;
@@ -391,7 +422,9 @@ GfxN3DS::~GfxN3DS() {
 	delete _programActorLights;																										// DEFINITE?
 	delete _programSprite;																											// DEFINITE?
 	delete _programIris;																											// DEFINITE?
-	linearFree(_primVBOChunk);																										// DEFINITE? - ADDED
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
+	N3DS_3D::freeBuffer(_primVBOChunk);																										// DEFINITE? - ADDED
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_primVBOChunk).");
 	delete _programPrimRect;																										// DEFINITE? - REIMPLEMENTED
 	delete _programPrimLines;																										// DEFINITE? - REIMPLEMENTED
 	delete _programShadowPlane;																										// DEFINITE?
@@ -399,14 +432,16 @@ GfxN3DS::~GfxN3DS() {
 	delete _programDim;																												// DEFINITE?
 	delete _programDimPlane;																										// DEFINITE?
 	delete _programClear;																											// DEFINITE? - ADDED
-	//warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
-	//warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_emergTexture)", _emergTexture->size);
+	warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
+	warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_emergTexture)", _emergTexture->size);
 	N3D_C3D_TexDelete(_storedDisplay);																									// DEFINITE?
-	//warning("GfxN3DS::~GfxN3DS - Tex deleted (_storedDisplay)");
+	warning("GfxN3DS::~GfxN3DS - Tex deleted (_storedDisplay)");
 	N3D_C3D_TexDelete(_emergTexture);																									// DEFINITE?
-	//warning("GfxN3DS::~GfxN3DS - Tex deleted (_emergTexture)");
+	warning("GfxN3DS::~GfxN3DS - Tex deleted (_emergTexture)");
 
-	linearFree(_screenCopySpace);																									// DEFINITE? - ADDED
+	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
+	N3DS_3D::freeBuffer(_screenCopySpace);																									// DEFINITE? - ADDED
+	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_screenCopySpace).");
 
 	N3DS_3D::destroyNative3D();																										// DEFINITE? - ADDED
 }
@@ -426,8 +461,9 @@ void GfxN3DS::setupZBuffer() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexImage2D(GL_TEXTURE_2D, 0, format, nextHigher2((int)width), nextHigher2((int)height), 0, format, ztype, nullptr);	// nullptr means blank tex is created
 //	glActiveTexture(GL_TEXTURE0);
-	_zBuf = linearAlloc(nextHigher2((int)width) * nextHigher2((int)height) * 4);													// DEFINITE
-	memset(_zBuf, 0, nextHigher2((int)width) * nextHigher2((int)height) * 4);														// DEFINITE
+	warning("GfxN3DS::setupZBuffer - Creating linear alloc (_zBuf)");
+	_zBuf = N3DS_3D::createBuffer(nextHigher2((int)width) * nextHigher2((int)height) * 4);													// DEFINITE
+	warning("GfxN3DS::setupZBuffer - Linear alloc created: %u bytes (_zBuf)", linearGetSize(_zBuf));
 
 	//STORE AND WRITE Z-BUFFER ARRAY BEFORE SENDING TO ACTUAL BUFFER
 
@@ -447,11 +483,15 @@ void GfxN3DS::setupQuadEBO() {
 	}
 
 //	_quadEBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_indices), quad_indices, GL_STATIC_DRAW);
-	_quadEBO = N3DS_3D::ShaderObj::createBuffer(sizeof(quad_indices), quad_indices);												// DEFINITE?
+	warning("GfxN3DS::setupQuadEBO - Creating linear alloc (_quadEBO)");
+	_quadEBO = N3DS_3D::createBuffer(sizeof(quad_indices), quad_indices);												// DEFINITE?
+	warning("GfxN3DS::setupQuadEBO - Linear alloc created: %u bytes (_quadEBO)", linearGetSize(_quadEBO));
 }
 
 void GfxN3DS::setupUntexturedQuad() {																								// DEFINITE? - ADDED
-	_blankVBO = N3DS_3D::ShaderObj::createBuffer(sizeof(untextured_quad), untextured_quad);											// DEFINITE? - ADDED
+	warning("GfxN3DS::setupUntexturedQuad - Creating linear alloc (_blankVBO)");
+	_blankVBO = N3DS_3D::createBuffer(sizeof(untextured_quad), untextured_quad);											// DEFINITE? - ADDED
+	warning("GfxN3DS::setupUntexturedQuad - Linear alloc created: %u bytes (_blankVBO)", linearGetSize(_blankVBO));
 	_programClear->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE? - ADDED
 	_programClear->addBufInfo(_blankVBO, 2 * sizeof(float), 1, 0x0);																// DEFINITE? - ADDED
 
@@ -465,7 +505,9 @@ void GfxN3DS::setupTexturedQuad() {
 //	_smushVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(textured_quad), textured_quad, GL_STATIC_DRAW);
 //	_smushProgram->enableVertexAttribute("position", _smushVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 //	_smushProgram->enableVertexAttribute("texcoord", _smushVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 2 * sizeof(float));
-	_smushVBO = N3DS_3D::ShaderObj::createBuffer(sizeof(textured_quad), textured_quad);												// DEFINITE?
+	warning("GfxN3DS::setupTexturedQuad - Creating linear alloc (_smushVBO)");
+	_smushVBO = N3DS_3D::createBuffer(sizeof(textured_quad), textured_quad);												// DEFINITE?
+	warning("GfxN3DS::setupTexturedQuad - Linear alloc created: %u bytes (_smushVBO)", linearGetSize(_smushVBO));
 	_programSmush->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE?
 	_programSmush->addAttrLoader(1, GPU_FLOAT, 2);						// v1 = texcoord											// DEFINITE?
 	_programSmush->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);																// DEFINITE?
@@ -492,7 +534,9 @@ void GfxN3DS::setupTexturedCenteredQuad() {
 //	_spriteProgram->enableVertexAttribute("position", _spriteVBO, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
 //	_spriteProgram->enableVertexAttribute("texcoord", _spriteVBO, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 3 * sizeof(float));
 //	_spriteProgram->disableVertexAttribute("color", Math::Vector4d(1.0f, 1.0f, 1.0f, 1.0f));
-	_spriteVBO = N3DS_3D::ShaderObj::createBuffer(sizeof(textured_quad_centered), textured_quad_centered);							// DEFINITE?
+	warning("GfxN3DS::setupTexturedCenteredQuad - Creating linear alloc (_spriteVBO)");
+	_spriteVBO = N3DS_3D::createBuffer(sizeof(textured_quad_centered), textured_quad_centered);							// DEFINITE?
+	warning("GfxN3DS::setupTexturedCenteredQuad - Linear alloc created: %u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
 	_programSprite->addAttrLoader(0, GPU_FLOAT, 3);						// v0 = position											// DEFINITE?
 	_programSprite->addAttrLoader(1, GPU_FLOAT, 2);						// v1 = texcoord											// DEFINITE?
 	_programSprite->addBufInfo(_spriteVBO, 5 * sizeof(float), 2, 0x10);																// DEFINITE?
@@ -502,8 +546,9 @@ void GfxN3DS::setupPrimitives() {
 #define SIZEOF_PRIMVBO sizeof(float) * 8
 	uint32 numVBOs = ARRAYSIZE(_primitiveVBOs);
 //	glGenBuffers(numVBOs, _primitiveVBOs);
-	_primVBOChunk = (float *)linearAlloc(numVBOs * SIZEOF_PRIMVBO);																	// DEFINITE?
-	memset(_primVBOChunk, 0, numVBOs * SIZEOF_PRIMVBO);																				// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_primVBOChunk)");
+	_primVBOChunk = (float *)N3DS_3D::createBuffer(numVBOs * SIZEOF_PRIMVBO);																	// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
 	_lastPrimitive = 0;																												// DEFINITE? - ADDED
 	_currentPrimitive = 0;
 #undef SIZEOF_PRIMVBO
@@ -528,8 +573,9 @@ void GfxN3DS::setupPrimitives() {
 //	glGenBuffers(1, &_irisVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _irisVBO);
 //	glBufferData(GL_ARRAY_BUFFER, 20 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-	_irisVBO = linearAlloc(20 * sizeof(float));																						// DEFINITE?
-	memset(_irisVBO, 0, 20 * sizeof(float));																						// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_irisVBO)");
+	_irisVBO = N3DS_3D::createBuffer(20 * sizeof(float));																						// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_irisVBO)", linearGetSize(_irisVBO));
 
 //	_irisProgram->enableVertexAttribute("position", _irisVBO, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 	_programIris->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE?
@@ -537,7 +583,9 @@ void GfxN3DS::setupPrimitives() {
 
 //	glGenBuffers(1, &_dimVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _dimVBO);
-	_dimVBO = linearAlloc(12 * sizeof(float));																						// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_dimVBO)");
+	_dimVBO = N3DS_3D::createBuffer(12 * sizeof(float));																						// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimVBO)", linearGetSize(_dimVBO));
 
 	float points[12] = {
 		0.0f, 0.0f,
@@ -560,10 +608,11 @@ void GfxN3DS::setupPrimitives() {
 
 //	glGenBuffers(1, &_dimRegionVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _dimRegionVBO);
-	_dimRegionVBO = linearAlloc(24 * sizeof(float));																				// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_dimRegionVBO)");
+	_dimRegionVBO = N3DS_3D::createBuffer(24 * sizeof(float));																				// DEFINITE?
+	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
 
 //	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-	memset(_dimRegionVBO, 0, 24 * sizeof(float));																					// DEFINITE?
 
 //	_dimRegionProgram->enableVertexAttribute("position", _dimRegionVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 //	_dimRegionProgram->enableVertexAttribute("texcoord", _dimRegionVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 2 * sizeof(float));
@@ -642,7 +691,9 @@ void GfxN3DS::setupShaders() {
 
 	if (!isEMI) {
 //		_blastVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, 128 * 16 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-		_blastVBO = N3DS_3D::ShaderObj::createBuffer(size_t(128 * 16) * sizeof(float), nullptr);									// DEFINITE?
+		warning("GfxN3DS::setupShaders - Creating linear alloc (_blastVBO)");
+		_blastVBO = N3DS_3D::createBuffer(size_t(128 * 16) * sizeof(float));									// DEFINITE?
+		warning("GfxN3DS::setupShaders - Linear alloc created: %u bytes (_blastVBO)", linearGetSize(_blastVBO));
 	}
 }
 
@@ -1304,8 +1355,12 @@ void GfxN3DS::drawShadowPlanes() {
 		sud->_numTriangles = numTriangles;
 //		sud->_verticesVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, 3 * numVertices * sizeof(float), vertBuf, GL_STATIC_DRAW);
 //		sud->_indicesVBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, 3 * numTriangles * sizeof(uint16), idxBuf, GL_STATIC_DRAW);
-		sud->_verticesVBO = N3DS_3D::ShaderObj::createBuffer(3 * numVertices * sizeof(float), vertBuf);								// DEFINITE?
-		sud->_indicesVBO  = N3DS_3D::ShaderObj::createBuffer(3 * numTriangles * sizeof(uint16), idxBuf);							// DEFINITE?
+		warning("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_verticesVBO)");
+		sud->_verticesVBO = N3DS_3D::createBuffer(3 * numVertices * sizeof(float), vertBuf);								// DEFINITE?
+		warning("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
+		warning("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_indicesVBO )");
+		sud->_indicesVBO  = N3DS_3D::createBuffer(3 * numTriangles * sizeof(uint16), idxBuf);							// DEFINITE?
+		warning("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_indicesVBO )", linearGetSize(sud->_indicesVBO ));
 
 		delete[] vertBuf;
 		delete[] idxBuf;
@@ -1389,8 +1444,12 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 	if (sud) {
 //		OpenGL::Shader::freeBuffer(sud->_verticesVBO);
 //		OpenGL::Shader::freeBuffer(sud->_indicesVBO);
-		N3DS_3D::ShaderObj::freeBuffer(sud->_verticesVBO);																			// DEFINITE?
-		N3DS_3D::ShaderObj::freeBuffer(sud->_indicesVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
+		N3DS_3D::freeBuffer(sud->_verticesVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_verticesVBO).");
+		warning("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_indicesVBO)", linearGetSize(sud->_indicesVBO));
+		N3DS_3D::freeBuffer(sud->_indicesVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_indicesVBO).");
 		sud->_verticesVBO = nullptr;
 		sud->_indicesVBO = nullptr;
 		delete sud;
@@ -1793,9 +1852,9 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 		}
 
 //		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture->_width, texture->_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
-		//warning("GfxN3DS::createTexture - Creating tex");
+		warning("GfxN3DS::createTexture - Creating tex");
 		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);												// DEFINITE?
-		//warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
+		warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
 		GSPGPU_FlushDataCache((void *)texdata, texture->_width * texture->_height * bytes);											// DEFINITE?
 		// GX_TRANSFER_FMT_RGBA8 is already 0																						// DEFINITE?
 		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
@@ -1814,9 +1873,9 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			format = GPU_RGB8;																										// DEFINITE?
 			transFmt = GX_TRANSFER_FMT_RGB8;																						// DEFINITE?
 		}																															// DEFINITE?
-		//warning("GfxN3DS::createTexture - Creating tex");
+		warning("GfxN3DS::createTexture - Creating tex");
 		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);													// DEFINITE?
-		//warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
+		warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
 		GSPGPU_FlushDataCache(static_cast<const void *>(data), texture->_width * texture->_height * texture->_bpp);					// DEFINTIE?
 		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
 		N3D_C3D_SyncDisplayTransfer((u32 *)const_cast<uint8 *>(data), (u32)GX_BUFFER_DIM(texture->_width, texture->_height),			// DEFINITE?
@@ -1844,9 +1903,9 @@ void GfxN3DS::destroyTexture(Texture *texture) {
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);																	// DEFINITE?
 	if (textures) {
 //		glDeleteTextures(1, textures);
-		//warning("GfxN3DS::destroyTexture - Deleting tex: -%u bytes", textures->size);
+		warning("GfxN3DS::destroyTexture - Deleting tex: -%u bytes", textures->size);
 		N3D_C3D_TexDelete(textures);																									// DEFINITE?
-		//warning("GfxN3DS::destroyTexture - Tex deleted");
+		warning("GfxN3DS::destroyTexture - Tex deleted");
 		delete[] textures;
 	}
 }
@@ -1951,9 +2010,9 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 //			glTexImage2D(GL_TEXTURE_2D, 0, format, actualWidth, actualHeight, 0, format, btype, nullptr);
 //			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap->_width, bitmap->_height, format, btype, texOut);
 			C3D_Tex *c3dTex = &textures[bitmap->_numTex * pic];																		// DEFINITE?
-			//warning("GfxN3DS::createBitmap - Creating tex");
+			warning("GfxN3DS::createBitmap - Creating tex");
 			N3D_C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);														// DEFINITE?
-			//warning("GfxN3DS::createBitmap - Tex created: %u bytes", c3dTex->size);
+			warning("GfxN3DS::createBitmap - Tex created: %u bytes", c3dTex->size);
 			N3D_C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);																		// DEFINITE?
 			N3D_C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
 			N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(texOut), (u32 *)c3dTex->data, 0, 0,								// DEFINITE?
@@ -1973,7 +2032,9 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 //			GLuint vbo = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc, GL_STATIC_DRAW);
 //			shader->enableVertexAttribute("position", vbo, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 //			shader->enableVertexAttribute("texcoord", vbo, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 2*sizeof(float));
-			void *vbo = N3DS_3D::ShaderObj::createBuffer(bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc);					// DEFINITE?
+			warning("GfxN3DS::createBitmap - Creating linear alloc (void *vbo)");
+			void *vbo = N3DS_3D::createBuffer(bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc);					// DEFINITE?
+			warning("GfxN3DS::createBitmap - Linear alloc created: %u bytes (void *vbo)", linearGetSize(vbo));
 			BufInfo_Init(&shader->_bufInfo);																						// DEFINITE?
 			shader->addBufInfo(vbo, 4 * sizeof(float), 2, 0x10);																	// DEFINITE?
 		}
@@ -2137,9 +2198,9 @@ void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
 	if (textures) {
 //		glDeleteTextures(bitmap->_numTex * bitmap->_numImages, textures);
 		for (int i = 0; i < bitmap->_numTex * bitmap->_numImages; i++) {															// DEFINITE?
-			//warning("GfxN3DS::destroyBitmap - Deleting tex[%d]: -%u bytes", i, (textures + i)->size);
+			warning("GfxN3DS::destroyBitmap - Deleting tex[%d]: -%u bytes", i, (textures + i)->size);
 			N3D_C3D_TexDelete(textures + i);																							// DEFINITE?
-			//warning("GfxN3DS::destroyBitmap - Tex deleted");
+			warning("GfxN3DS::destroyBitmap - Tex deleted");
 		}																															// DEFINITE?
 		delete[] textures;
 		bitmap->_texIds = nullptr;
@@ -2252,9 +2313,9 @@ void GfxN3DS::createFont(Font *f) {
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size * charsWide, size * charsHigh, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp);
 	u32 pixelsWide = charsWide * size;																								// DEFINITE?
 	u32 pixelsHigh = charsHigh * size;																								// DEFINITE?
-	//warning("GfxN3DS::createFont - Creating tex");
+	warning("GfxN3DS::createFont - Creating tex");
 	N3D_C3D_TexInit(userData->texture, (u16)pixelsWide, (u16)pixelsHigh, GPU_RGBA8);													// DEFINITE?
-	//warning("GfxN3DS::createFont - Tex created: %u bytes", userData->texture->size);
+	warning("GfxN3DS::createFont - Tex created: %u bytes", userData->texture->size);
 	N3D_C3D_TexSetFilter(userData->texture, GPU_NEAREST, GPU_NEAREST);																	// DEFINITE?
 	N3D_C3D_TexSetWrap(userData->texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);														// DEFINITE?
 	GSPGPU_FlushDataCache((void *)temp, (u32)arraySize);																			// DEFINITE?
@@ -2272,9 +2333,9 @@ void GfxN3DS::destroyFont(Font *font) {
 		const FontUserData *data = static_cast<const FontUserData *>(static_cast<const BitmapFont *>(font)->getUserData());
 		if (data) {
 //			glDeleteTextures(1, &(data->texture));
-			//warning("GfxN3DS::destroyFont - Deleting tex: -%u bytes", data->texture->size);
+			warning("GfxN3DS::destroyFont - Deleting tex: -%u bytes", data->texture->size);
 			N3D_C3D_TexDelete(data->texture);																							// DEFINITE?
-			//warning("GfxN3DS::destroyFont - Tex deleted");
+			warning("GfxN3DS::destroyFont - Tex deleted");
 			free(data->subTextures);																								// DEFINITE?
 			delete data;
 		}
@@ -2348,7 +2409,9 @@ void GfxN3DS::createTextObject(TextObject *text) {
 		memcpy(vbo, bufData, numCharacters * 16 * sizeof(float));																	// DEFINITE?
 	} else {
 //		vbo = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, numCharacters * 16 * sizeof(float), bufData, GL_STATIC_DRAW);
-		vbo = N3DS_3D::ShaderObj::createBuffer(numCharacters * 16 * sizeof(float), bufData);										// DEFINITE?
+		warning("GfxN3DS::createTextObject - Creating linear alloc (vbo)");
+		vbo = N3DS_3D::createBuffer(numCharacters * 16 * sizeof(float), bufData);										// DEFINITE?
+		warning("GfxN3DS::createTextObject - Linear alloc created: %u bytes (vbo)", linearGetSize(vbo));
 	}
 
 //	OpenGL::Shader * textShader = _textProgram->clone();
@@ -2418,12 +2481,12 @@ void GfxN3DS::storeDisplay() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 //	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, _screenWidth, _screenHeight, 0);
-	//warning("GfxN3DS::storeDisplay - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
+	warning("GfxN3DS::storeDisplay - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
 	N3D_C3D_TexDelete(_storedDisplay);																									// DEFINITE?
-	//warning("GfxN3DS::storeDisplay - Tex deleted (_storedDisplay)");
-	//warning("GfxN3DS::storeDisplay - Creating tex (_storedDisplay)");
+	warning("GfxN3DS::storeDisplay - Tex deleted (_storedDisplay)");
+	warning("GfxN3DS::storeDisplay - Creating tex (_storedDisplay)");
 	N3D_C3D_TexInit(_storedDisplay, (u16)_screenTexWidth, (u16)_screenTexHeight, GPU_RGBA8);											// DEFINITE?
-	//warning("GfxN3DS::storeDisplay - Tex created: %u bytes (_storedDisplay)", _storedDisplay->size);
+	warning("GfxN3DS::storeDisplay - Tex created: %u bytes (_storedDisplay)", _storedDisplay->size);
 	N3D_C3D_TexSetFilter(_storedDisplay, GPU_LINEAR, GPU_LINEAR);																		// DEFINITE?
 	N3D_C3D_SyncTextureCopy(																											// DEFINITE?
 		(u32 *)_gameScreenTex->data, GX_BUFFER_DIM(((u32)_screenTexWidth       * 8 * 4) >> 4, 0),									// DEFINITE?
@@ -2505,12 +2568,12 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	//warning("GfxN3DS::dimRegion - Creating tex (tmpTex)");
+	warning("GfxN3DS::dimRegion - Creating tex (tmpTex)");
 	N3D_C3D_TexInit(&tmpTex,  (u16)nextHigher2(w8), (u16)nextHigher2(h8), GPU_RGBA8);													// DEFINITE?
-	//warning("GfxN3DS::dimRegion - Tex created: %u bytes (tmpTex)", tmpTex.size);
-	//warning("GfxN3DS::dimRegion - Creating tex (texture)");
+	warning("GfxN3DS::dimRegion - Tex created: %u bytes (tmpTex)", tmpTex.size);
+	warning("GfxN3DS::dimRegion - Creating tex (texture)");
 	N3D_C3D_TexInit(&texture, (u16)nextHigher2(w),  (u16)nextHigher2(h),  GPU_RGBA8);													// DEFINITE?
-	//warning("GfxN3DS::dimRegion - Tex created: %u bytes (texture)", texture.size);
+	warning("GfxN3DS::dimRegion - Tex created: %u bytes (texture)", texture.size);
 	N3D_C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);																				// DEFINITE?
 
 //	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xin, yin, w, h, 0);
@@ -2544,9 +2607,9 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 	} else {																														// DEFINITE? - ADDED
 		memcpy(texture.data, tmpTex.data, texture.width * texture.height * 4);														// DEFINITE? - ADDED
 	}																																// DEFINITE? - ADDED
-	//warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (tmptex)", tmpTex.size);
+	warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (tmptex)", tmpTex.size);
 	N3D_C3D_TexDelete(&tmpTex);																											// DEFINITE? - ADDED
-	//warning("GfxN3DS::dimRegion - Tex deleted (tmptex)");
+	warning("GfxN3DS::dimRegion - Tex deleted (tmptex)");
 
 //	float width = w;
 //	float height = h;
@@ -2597,9 +2660,9 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 	N3D_DepthMask(true);																									// DEFINITE?
 
 //	glDeleteTextures(1, &texture);
-	//warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (texture)", texture.size);
+	warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (texture)", texture.size);
 	N3D_C3D_TexDelete(&texture);																										// DEFINITE?
-	//warning("GfxN3DS::dimRegion - Tex deleted (texture)");
+	warning("GfxN3DS::dimRegion - Tex deleted (texture)");
 }
 
 void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
@@ -2731,9 +2794,11 @@ void GfxN3DS::loadEmergFont() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 128, 128, 0, GL_ALPHA, GL_UNSIGNED_BYTE, atlas);
-	//warning("GfxN3DS::loadEmergFont - Creating tex (_emergTexture)");
+	warning("free linear space: %lu bytes", linearSpaceFree());
+	warning("free VRAM space: %lu bytes", vramSpaceFree());
+	warning("GfxN3DS::loadEmergFont - Creating tex (_emergTexture)");
 	N3D_C3D_TexInit(_emergTexture, 128, 128, GPU_A8);																					// DEFINITE?
-	//warning("GfxN3DS::loadEmergFont - Tex created: %u bytes (_emergTexture)", _emergTexture->size);
+	warning("GfxN3DS::loadEmergFont - Tex created: %u bytes (_emergTexture)", _emergTexture->size);
 	N3D_C3D_TexSetFilter(_emergTexture, GPU_LINEAR, GPU_LINEAR);																		// DEFINITE?
 	N3D_C3D_TexSetWrap(_emergTexture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
 	N3D_DataToBlockTex((u32 *)atlas, (u32 *)atlasSwizzle, 0, 0, 128, 128, 128, 128, GPU_A8, 0, false);						// DEFINITE?
@@ -2919,9 +2984,9 @@ void GfxN3DS::prepareMovieFrame(Graphics::Surface* frame) {
 //	if (_smushTexId == 0) {
 //		glGenTextures(1, &_smushTexId);
 	if (_smushTex->size == 0) {																										// DEFINITE?
-		//warning("GfxN3DS::prepareMovieFrame - Creating tex (_smushTex)");
+		warning("GfxN3DS::prepareMovieFrame - Creating tex (_smushTex)");
 		N3D_C3D_TexInit(_smushTex, (u16)nextHigher2(width), (u16)nextHigher2(height), frameFormat);										// DEFINITE?
-		//warning("GfxN3DS::prepareMovieFrame - Tex created: %u bytes (_smushTex)", _smushTex->size);
+		warning("GfxN3DS::prepareMovieFrame - Tex created: %u bytes (_smushTex)", _smushTex->size);
 	}
 //	glBindTexture(GL_TEXTURE_2D, _smushTexId);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2981,9 +3046,9 @@ void GfxN3DS::releaseMovieFrame() {
 //	if (_smushTexId > 0) {
 //		glDeleteTextures(1, &_smushTexId);
 	if (_smushTex->size > 0) {																										// DEFINITE?
-		//warning("GfxN3DS::releaseMovieFrame - Deleting tex: -%u bytes (_smushTex)", _smushTex->size);
+		warning("GfxN3DS::releaseMovieFrame - Deleting tex: -%u bytes (_smushTex)", _smushTex->size);
 		N3D_C3D_TexDelete(_smushTex);																									// DEFINITE?
-		//warning("GfxN3DS::releaseMovieFrame - Tex deleted (_smushTex)");
+		warning("GfxN3DS::releaseMovieFrame - Tex deleted (_smushTex)");
 //		_smushTexId = 0;
 	}
 }
@@ -3011,10 +3076,18 @@ void GfxN3DS::createEMIModel(EMIModel *model) {
 
 //	mud->_colorMapVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, model->_numVertices * 4 * sizeof(byte), model->_colorMap, GL_STATIC_DRAW);
 
-	mud->_verticesVBO  = N3DS_3D::ShaderObj::createBuffer(model->_numVertices * 3 * sizeof(float), model->_vertices);				// DEFINITE?
-	mud->_normalsVBO   = N3DS_3D::ShaderObj::createBuffer(model->_numVertices * 3 * sizeof(float), model->_normals);				// DEFINITE?
-	mud->_texCoordsVBO = N3DS_3D::ShaderObj::createBuffer(model->_numVertices * 2 * sizeof(float), model->_texVerts);				// DEFINITE?
-	mud->_colorMapVBO  = N3DS_3D::ShaderObj::createBuffer(model->_numVertices * 4 * sizeof(byte), model->_colorMap);				// DEFINITE?	// needs to be pre-normalized?
+	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_verticesVBO)");
+	mud->_verticesVBO  = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_vertices);				// DEFINITE?
+	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO ));
+	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_normalsVBO)");
+	mud->_normalsVBO   = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_normals);				// DEFINITE?
+	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO  ));
+	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_texCoordsVBO)");
+	mud->_texCoordsVBO = N3DS_3D::createBuffer(model->_numVertices * 2 * sizeof(float), model->_texVerts);				// DEFINITE?
+	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
+	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_colorMapVBO)");
+	mud->_colorMapVBO  = N3DS_3D::createBuffer(model->_numVertices * 4 * sizeof(byte), model->_colorMap);				// DEFINITE?	// needs to be pre-normalized?
+	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO ));
 
 //	OpenGL::Shader *actorShader = _actorProgram->clone();
 //	actorShader->enableVertexAttribute("position", mud->_verticesVBO, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
@@ -3051,7 +3124,9 @@ void GfxN3DS::createEMIModel(EMIModel *model) {
 	for (uint32 i = 0; i < model->_numFaces; ++i) {
 		EMIMeshFace * face = &model->_faces[i];
 //		face->_indicesEBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, face->_faceLength * 3 * sizeof(uint16), face->_indexes, GL_STATIC_DRAW);
-		face->_indicesEBO = N3DS_3D::ShaderObj::createBuffer(face->_faceLength * 3 * sizeof(uint16), face->_indexes);				// DEFINITE?
+		warning("GfxN3DS::createEMIModel - Creating linear alloc (face->_indicesEBO)");
+		face->_indicesEBO = N3DS_3D::createBuffer(face->_faceLength * 3 * sizeof(uint16), face->_indexes);				// DEFINITE?
+		warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
 	}
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -3062,7 +3137,9 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 		EMIMeshFace *face = &model->_faces[i];
 //		OpenGL::Shader::freeBuffer(face->_indicesEBO);
 //		face->_indicesEBO = 0;
-		N3DS_3D::ShaderObj::freeBuffer(face->_indicesEBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
+		N3DS_3D::freeBuffer(face->_indicesEBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (face->_indicesEBO).");
 		face->_indicesEBO = nullptr;																								// DEFINITE?
 	}
 
@@ -3073,10 +3150,18 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 //		OpenGL::Shader::freeBuffer(mud->_normalsVBO);
 //		OpenGL::Shader::freeBuffer(mud->_texCoordsVBO);
 //		OpenGL::Shader::freeBuffer(mud->_colorMapVBO);
-		N3DS_3D::ShaderObj::freeBuffer(mud->_verticesVBO);																			// DEFINITE?
-		N3DS_3D::ShaderObj::freeBuffer(mud->_normalsVBO);																			// DEFINITE?
-		N3DS_3D::ShaderObj::freeBuffer(mud->_texCoordsVBO);																			// DEFINITE?
-		N3DS_3D::ShaderObj::freeBuffer(mud->_colorMapVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO));
+		N3DS_3D::freeBuffer(mud->_verticesVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_verticesVBO).");
+		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO));
+		N3DS_3D::freeBuffer(mud->_normalsVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_normalsVBO).");
+		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
+		N3DS_3D::freeBuffer(mud->_texCoordsVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_texCoordsVBO).");
+		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO));
+		N3DS_3D::freeBuffer(mud->_colorMapVBO);																			// DEFINITE?
+		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_colorMapVBO).");
 		mud->_verticesVBO = nullptr;																								// DEFINITE?
 		mud->_normalsVBO = nullptr;																									// DEFINITE?
 		mud->_texCoordsVBO = nullptr;																								// DEFINITE?
@@ -3125,7 +3210,9 @@ void GfxN3DS::createMesh(Mesh *mesh) {
 	mesh->_userData = mud;
 
 //	mud->_meshInfoVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, meshInfo.size() * sizeof(GrimVertex), &meshInfo[0], GL_STATIC_DRAW);
-	mud->_meshInfoVBO = N3DS_3D::ShaderObj::createBuffer(meshInfo.size() * sizeof(GrimVertex), &meshInfo[0]);						// DEFINITE?
+	warning("GfxN3DS::createMesh - Creating linear alloc (mud->_meshInfoVBO)");
+	mud->_meshInfoVBO = N3DS_3D::createBuffer(meshInfo.size() * sizeof(GrimVertex), &meshInfo[0]);						// DEFINITE?
+	warning("GfxN3DS::createMesh - Linear alloc created: %u bytes (mud->_meshInfoVBO)", linearGetSize(mud->_meshInfoVBO));
 
 //	OpenGL::Shader *actorShader = _actorProgram->clone();
 //	actorShader->enableVertexAttribute("position", mud->_meshInfoVBO, 3, GL_FLOAT, GL_FALSE, sizeof(GrimVertex), 0);
@@ -3155,7 +3242,9 @@ void GfxN3DS::createMesh(Mesh *mesh) {
 void GfxN3DS::destroyMesh(const Mesh *mesh) {
 	ModelUserData *mud = static_cast<ModelUserData *>(mesh->_userData);
 
-	linearFree(mud->_meshInfoVBO);																									// DEFINITE? - ADDED
+	warning("GfxN3DS::destroyMesh - Deleting linear alloc (mud->_meshInfoVBO): -%u bytes", linearGetSize(mud->_meshInfoVBO));
+	N3DS_3D::freeBuffer(mud->_meshInfoVBO);																									// DEFINITE? - ADDED
+	warning("GfxN3DS::destroyMesh - Linear alloc deleted (mud->_meshInfoVBO).");
 
 	for (int i = 0; i < mesh->_numFaces; ++i) {
 		MeshFace *face = &mesh->_faces[i];

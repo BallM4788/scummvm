@@ -46,6 +46,31 @@
 
 namespace N3DS_3D {
 
+static void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr) {
+	void *ptr;
+
+	// if (!stride) {
+		ptr = linearAlloc(size);
+		if (data == nullptr)
+			memset(ptr, 0, size);
+		else
+			memcpy(ptr, data, size);
+	// } else {
+	//	ptr = calloc(size, stride);
+	//	if (data == nullptr)
+	//		memset(ptr, 0, size * stride);
+	//	else
+	//		memcpy(ptr, data, size * stride);
+	//}
+
+	return ptr;
+}
+
+static void freeBuffer(void *linearBuffer) {
+	linearFree(linearBuffer);
+}
+
+
 typedef void *ContextHandle;
 
 ContextHandle *createContext(ContextHandle *source = nullptr);

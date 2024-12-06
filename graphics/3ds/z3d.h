@@ -325,8 +325,8 @@ public:
 
 
 
-	static void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
-	static void freeBuffer(void *linearBuffer);
+//	static void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
+//	static void freeBuffer(void *linearBuffer);
 
 	// destroy a buffer whose address is stored in one of the shader's stored buffer configurations (usually the first config)
 	void freeAttachedBuffer(/*C3D_BufInfo *bufInfo, bool inLinearMem, */int bufIdx = 0);
