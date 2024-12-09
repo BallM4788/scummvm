@@ -131,12 +131,14 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 	shaderProgramInit(_program);
 	Result vshResult = shaderProgramSetVsh(_program, &_binary->DVLE[0]);
 	Result gshResult = shaderProgramSetGsh(_program, &_binary->DVLE[1], geomStride);
+	_si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
+	debug("setVsh: %ld\tsetGsh: %ld\t_si_flags: %d", vshResult, gshResult, _si_flags);
 //	_attrInfo = new C3D_AttrInfo();
 //	_bufInfo = new C3D_BufInfo();
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
 
-	if (vshResult == 0) {
+	if (_si_flags & SI_VERTEX) {
 		_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
 		if (_vert_numFVecs > 0) {
 			_vert_UniformMap = new UniformsMap();
@@ -145,7 +147,7 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 			_vert_dirtyFVecs = new FVecQueue();
 		}
 	}
-	if (gshResult == 0) {
+	if (_si_flags & SI_GEOM) {
 		_geom_numFVecs = _program->geometryShader->numFloat24Uniforms;
 		if (_geom_numFVecs > 0) {
 			_geom_UniformMap = new UniformsMap();
@@ -170,6 +172,7 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 // cloned shader object
 ShaderObj::ShaderObj(ShaderObj *original) : _binary(original->_binary),
                                             _program(original->_program),
+                                            _si_flags(original->_si_flags),
 //                                            _attrInfo(original->_attrInfo),
 //                                            _bufInfo(original->_bufInfo),
 //                                            _vert_numFVecs(original->_vert_numFVecs),
@@ -312,6 +315,14 @@ void ShaderObj::sendDirtyUniforms() {
 
 	for (int shaderType = 0; shaderType < 2; shaderType++) {
 		shaderEnum = N3DSMACRO_GPUSHADERTYPE_ENUM(shaderType);
+		debug("%d", shaderEnum);
+
+		if (!((shaderEnum + 1) & _si_flags)) {
+			debug("skipping %d", shaderEnum);
+			continue;
+		}
+		if (N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty())
+			continue;
 
 		while (!N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty()) {
 			dirtyFVec temp = N3DSMACRO_DIRTY_FVECS(shaderEnum)->pop();

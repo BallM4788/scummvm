@@ -264,8 +264,46 @@ GfxBase *CreateGfxN3DS() {
 
 GfxN3DS::GfxN3DS() {
 	_backendContext = (N3DS_3D::N3DContext *)N3DS_3D::createContext();																// DEFINITE? - ADDED
-	_grimContext = (N3DS_3D::N3DContext *)N3DS_3D::createOGLContext();																						// DEFINITE? - ADDED
+	_grimContext = (N3DS_3D::N3DContext *)N3DS_3D::createOGLContext();																// DEFINITE? - ADDED
 	_gameScreenTex = N3D_GetGameScreen();																							// DEFINITE? - ADDED
+	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);				// DEFINITE? - ADDED
+	debug("derp");
+	_gameScreenTarget->used = true;
+
+	debug("GfxN3DS::GfxN3DS - Creating linear alloc (_screenCopySpace)");
+	_screenCopySpace = N3DS_3D::createBuffer(640 * 480 * 4);																		// DEFINITE? - ADDED
+	debug("GfxN3DS::GfxN3DS - Linear alloc created: %u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
+
+	N3D_C3D_TexEnvInit(&envNormal);																									// DEFINITE? - ADDED
+	N3D_C3D_TexEnvFunc(&envNormal, C3D_Both, GPU_MODULATE);																			// DEFINITE? - ADDED
+	N3D_C3D_TexEnvColor(&envNormal, 0x00000000);																					// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envNormal, C3D_Both, GPU_TEXTURE0, GPU_PREVIOUS, GPU_CONSTANT);												// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpRgb(&envNormal, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpAlpha(&envNormal, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);							// DEFINITE? - ADDED
+
+	N3D_C3D_TexEnvInit(&envSmush);																									// DEFINITE? - ADDED
+	N3D_C3D_TexEnvFunc(&envSmush, C3D_Both, GPU_REPLACE);																			// DEFINITE? - ADDED
+	N3D_C3D_TexEnvColor(&envSmush, 0x00000000);																						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envSmush, C3D_RGB, GPU_TEXTURE0/*, 0, 0*/);																	// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envSmush, C3D_Alpha, GPU_PRIMARY_COLOR/*, 0, 0*/);															// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpRgb(&envSmush, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpAlpha(&envSmush, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);							// DEFINITE? - ADDED
+
+	N3D_C3D_TexEnvInit(&envText);																									// DEFINITE? - ADDED
+	N3D_C3D_TexEnvFunc(&envText, C3D_Both, GPU_MODULATE);																			// DEFINITE? - ADDED
+	N3D_C3D_TexEnvColor(&envText, 0x00000000);																						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envText, C3D_RGB, GPU_PRIMARY_COLOR, GPU_TEXTURE0/*, 0*/);													// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envText, C3D_Alpha, GPU_PRIMARY_COLOR, GPU_TEXTURE0/*, 0*/);													// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpRgb(&envText, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpAlpha(&envText, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);							// DEFINITE? - ADDED
+
+	N3D_C3D_TexEnvInit(&envEmerg);																									// DEFINITE? - ADDED
+	N3D_C3D_TexEnvFunc(&envEmerg, C3D_Both, GPU_REPLACE);																			// DEFINITE? - ADDED
+	N3D_C3D_TexEnvColor(&envEmerg, 0x00000000);																						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envEmerg, C3D_RGB, GPU_PRIMARY_COLOR/*, 0, 0*/);																// DEFINITE? - ADDED
+	N3D_C3D_TexEnvSrc(&envEmerg, C3D_Alpha, GPU_TEXTURE0/*, 0, 0*/);																// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpRgb(&envEmerg, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);						// DEFINITE? - ADDED
+	N3D_C3D_TexEnvOpAlpha(&envEmerg, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);							// DEFINITE? - ADDED
 
 
 
@@ -279,6 +317,7 @@ GfxN3DS::GfxN3DS() {
 	_fclip = -1;
 	_selectedTexture = nullptr;
 //	_emergTexture = 0;
+	//_emergTexture = nullptr;
 	_maxLights = 8;
 //	_lights = new GLSLight[_maxLights];
 	_lights = new LightObj[_maxLights];																								// DEFINITE?
@@ -323,42 +362,6 @@ GfxN3DS::GfxN3DS() {
 	// color map and the following are using textures.																				// DEFINITE? - MOVED from setupScreen()
 	_depthFunc = (g_grim->getGameType() == GType_MONKEY4) ? GPU_LEQUAL : GPU_LESS;													// DEFINITE? - MOVED from setupScreen(), MODIFIED
 
-	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);					// DEFINITE? - ADDED
-
-	warning("GfxN3DS::GfxN3DS - Creating linear alloc (_screenCopySpace)");
-	_screenCopySpace = N3DS_3D::createBuffer(640 * 480 * 4);																					// DEFINITE? - ADDED
-	warning("GfxN3DS::GfxN3DS - Linear alloc created: %u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
-
-	N3D_C3D_TexEnvInit(&envNormal);																										// DEFINITE? - ADDED
-	N3D_C3D_TexEnvFunc(&envNormal, C3D_Both, GPU_MODULATE);																				// DEFINITE? - ADDED
-	N3D_C3D_TexEnvColor(&envNormal, 0x00000000);																						// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envNormal, C3D_Both, GPU_TEXTURE0, GPU_PREVIOUS, GPU_CONSTANT);													// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpRgb(&envNormal, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpAlpha(&envNormal, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);								// DEFINITE? - ADDED
-
-	N3D_C3D_TexEnvInit(&envSmush);																										// DEFINITE? - ADDED
-	N3D_C3D_TexEnvFunc(&envSmush, C3D_Both, GPU_REPLACE);																				// DEFINITE? - ADDED
-	N3D_C3D_TexEnvColor(&envSmush, 0x00000000);																							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envSmush, C3D_RGB, GPU_TEXTURE0/*, 0, 0*/);																		// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envSmush, C3D_Alpha, GPU_PRIMARY_COLOR/*, 0, 0*/);																// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpRgb(&envSmush, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpAlpha(&envSmush, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);								// DEFINITE? - ADDED
-
-	N3D_C3D_TexEnvInit(&envText);																										// DEFINITE? - ADDED
-	N3D_C3D_TexEnvFunc(&envText, C3D_Both, GPU_MODULATE);																				// DEFINITE? - ADDED
-	N3D_C3D_TexEnvColor(&envText, 0x00000000);																							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envText, C3D_RGB, GPU_PRIMARY_COLOR, GPU_TEXTURE0/*, 0*/);														// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envText, C3D_Alpha, GPU_PRIMARY_COLOR, GPU_TEXTURE0/*, 0*/);														// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpRgb(&envText, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpAlpha(&envText, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);								// DEFINITE? - ADDED
-
-	N3D_C3D_TexEnvInit(&envEmerg);																										// DEFINITE? - ADDED
-	N3D_C3D_TexEnvFunc(&envEmerg, C3D_Both, GPU_REPLACE);																				// DEFINITE? - ADDED
-	N3D_C3D_TexEnvColor(&envEmerg, 0x00000000);																							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envEmerg, C3D_RGB, GPU_PRIMARY_COLOR/*, 0, 0*/);																	// DEFINITE? - ADDED
-	N3D_C3D_TexEnvSrc(&envEmerg, C3D_Alpha, GPU_TEXTURE0/*, 0, 0*/);																	// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpRgb(&envEmerg, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA);							// DEFINITE? - ADDED
-	N3D_C3D_TexEnvOpAlpha(&envEmerg, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);								// DEFINITE? - ADDED
 }
 
 GfxN3DS::~GfxN3DS() {
@@ -368,36 +371,36 @@ GfxN3DS::~GfxN3DS() {
 	}
 	delete[] _lights;
 
-	N3D_C3D_RenderTargetDelete(_gameScreenTarget);																						// DEFINITE? - ADDED
+	N3D_C3D_RenderTargetDelete(_gameScreenTarget);																					// DEFINITE? - ADDED
 
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blankVBO)", linearGetSize(_blankVBO));
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blankVBO)", linearGetSize(_blankVBO));
 	N3DS_3D::freeBuffer(_blankVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blankVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_smushVBO)", linearGetSize(_smushVBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blankVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_smushVBO)", linearGetSize(_smushVBO));
 	N3DS_3D::freeBuffer(_smushVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_smushVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_quadEBO)", linearGetSize(_quadEBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_smushVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_quadEBO)", linearGetSize(_quadEBO));
 	N3DS_3D::freeBuffer(_quadEBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_quadEBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_quadEBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
 	N3DS_3D::freeBuffer(_spriteVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_spriteVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_zBuf)", linearGetSize(_zBuf));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_spriteVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_zBuf)", linearGetSize(_zBuf));
 	N3DS_3D::freeBuffer(_zBuf);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_zBuf).");
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_zBuf).");
 
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_irisVBO)", linearGetSize(_irisVBO));
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_irisVBO)", linearGetSize(_irisVBO));
 	N3DS_3D::freeBuffer(_irisVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_irisVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimVBO)", linearGetSize(_dimVBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_irisVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimVBO)", linearGetSize(_dimVBO));
 	N3DS_3D::freeBuffer(_dimVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
 	N3DS_3D::freeBuffer(_dimRegionVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimRegionVBO).");
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blastVBO)", linearGetSize(_blastVBO));
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_dimRegionVBO).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_blastVBO)", linearGetSize(_blastVBO));
 	N3DS_3D::freeBuffer(_blastVBO);
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blastVBO).");
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_blastVBO).");
 
 //	delete _backgroundProgram;
 //	delete _smushProgram;
@@ -422,9 +425,9 @@ GfxN3DS::~GfxN3DS() {
 	delete _programActorLights;																										// DEFINITE?
 	delete _programSprite;																											// DEFINITE?
 	delete _programIris;																											// DEFINITE?
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
-	N3DS_3D::freeBuffer(_primVBOChunk);																										// DEFINITE? - ADDED
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_primVBOChunk).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
+	N3DS_3D::freeBuffer(_primVBOChunk);																								// DEFINITE? - ADDED
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_primVBOChunk).");
 	delete _programPrimRect;																										// DEFINITE? - REIMPLEMENTED
 	delete _programPrimLines;																										// DEFINITE? - REIMPLEMENTED
 	delete _programShadowPlane;																										// DEFINITE?
@@ -432,16 +435,16 @@ GfxN3DS::~GfxN3DS() {
 	delete _programDim;																												// DEFINITE?
 	delete _programDimPlane;																										// DEFINITE?
 	delete _programClear;																											// DEFINITE? - ADDED
-	warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
-	warning("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_emergTexture)", _emergTexture->size);
-	N3D_C3D_TexDelete(_storedDisplay);																									// DEFINITE?
-	warning("GfxN3DS::~GfxN3DS - Tex deleted (_storedDisplay)");
-	N3D_C3D_TexDelete(_emergTexture);																									// DEFINITE?
-	warning("GfxN3DS::~GfxN3DS - Tex deleted (_emergTexture)");
+	debug("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay.size);
+	debug("GfxN3DS::~GfxN3DS - Deleting tex: -%u bytes (_emergTexture)", _emergTexture.size);
+	N3D_C3D_TexDelete(&_storedDisplay);																								// DEFINITE?
+	debug("GfxN3DS::~GfxN3DS - Tex deleted (_storedDisplay)");
+	N3D_C3D_TexDelete(&_emergTexture);																								// DEFINITE?
+	debug("GfxN3DS::~GfxN3DS - Tex deleted (_emergTexture)");
 
-	warning("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
-	N3DS_3D::freeBuffer(_screenCopySpace);																									// DEFINITE? - ADDED
-	warning("GfxN3DS::~GfxN3DS - Linear alloc deleted (_screenCopySpace).");
+	debug("GfxN3DS::~GfxN3DS - Deleting linear alloc: -%u bytes (_screenCopySpace)", linearGetSize(_screenCopySpace));
+	N3DS_3D::freeBuffer(_screenCopySpace);																							// DEFINITE? - ADDED
+	debug("GfxN3DS::~GfxN3DS - Linear alloc deleted (_screenCopySpace).");
 
 	N3DS_3D::destroyNative3D();																										// DEFINITE? - ADDED
 }
@@ -461,9 +464,9 @@ void GfxN3DS::setupZBuffer() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexImage2D(GL_TEXTURE_2D, 0, format, nextHigher2((int)width), nextHigher2((int)height), 0, format, ztype, nullptr);	// nullptr means blank tex is created
 //	glActiveTexture(GL_TEXTURE0);
-	warning("GfxN3DS::setupZBuffer - Creating linear alloc (_zBuf)");
-	_zBuf = N3DS_3D::createBuffer(nextHigher2((int)width) * nextHigher2((int)height) * 4);													// DEFINITE
-	warning("GfxN3DS::setupZBuffer - Linear alloc created: %u bytes (_zBuf)", linearGetSize(_zBuf));
+	debug("GfxN3DS::setupZBuffer - Creating linear alloc (_zBuf)");
+	_zBuf = N3DS_3D::createBuffer(nextHigher2((int)width) * nextHigher2((int)height) * 4);											// DEFINITE
+	debug("GfxN3DS::setupZBuffer - Linear alloc created: %u bytes (_zBuf)", linearGetSize(_zBuf));
 
 	//STORE AND WRITE Z-BUFFER ARRAY BEFORE SENDING TO ACTUAL BUFFER
 
@@ -483,15 +486,15 @@ void GfxN3DS::setupQuadEBO() {
 	}
 
 //	_quadEBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, sizeof(quad_indices), quad_indices, GL_STATIC_DRAW);
-	warning("GfxN3DS::setupQuadEBO - Creating linear alloc (_quadEBO)");
-	_quadEBO = N3DS_3D::createBuffer(sizeof(quad_indices), quad_indices);												// DEFINITE?
-	warning("GfxN3DS::setupQuadEBO - Linear alloc created: %u bytes (_quadEBO)", linearGetSize(_quadEBO));
+	debug("GfxN3DS::setupQuadEBO - Creating linear alloc (_quadEBO)");
+	_quadEBO = N3DS_3D::createBuffer(sizeof(quad_indices), quad_indices);															// DEFINITE?
+	debug("GfxN3DS::setupQuadEBO - Linear alloc created: %u bytes (_quadEBO)", linearGetSize(_quadEBO));
 }
 
 void GfxN3DS::setupUntexturedQuad() {																								// DEFINITE? - ADDED
-	warning("GfxN3DS::setupUntexturedQuad - Creating linear alloc (_blankVBO)");
-	_blankVBO = N3DS_3D::createBuffer(sizeof(untextured_quad), untextured_quad);											// DEFINITE? - ADDED
-	warning("GfxN3DS::setupUntexturedQuad - Linear alloc created: %u bytes (_blankVBO)", linearGetSize(_blankVBO));
+	debug("GfxN3DS::setupUntexturedQuad - Creating linear alloc (_blankVBO)");
+	_blankVBO = N3DS_3D::createBuffer(sizeof(untextured_quad), untextured_quad);													// DEFINITE? - ADDED
+	debug("GfxN3DS::setupUntexturedQuad - Linear alloc created: %u bytes (_blankVBO)", linearGetSize(_blankVBO));
 	_programClear->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE? - ADDED
 	_programClear->addBufInfo(_blankVBO, 2 * sizeof(float), 1, 0x0);																// DEFINITE? - ADDED
 
@@ -505,9 +508,9 @@ void GfxN3DS::setupTexturedQuad() {
 //	_smushVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(textured_quad), textured_quad, GL_STATIC_DRAW);
 //	_smushProgram->enableVertexAttribute("position", _smushVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 //	_smushProgram->enableVertexAttribute("texcoord", _smushVBO, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 2 * sizeof(float));
-	warning("GfxN3DS::setupTexturedQuad - Creating linear alloc (_smushVBO)");
-	_smushVBO = N3DS_3D::createBuffer(sizeof(textured_quad), textured_quad);												// DEFINITE?
-	warning("GfxN3DS::setupTexturedQuad - Linear alloc created: %u bytes (_smushVBO)", linearGetSize(_smushVBO));
+	debug("GfxN3DS::setupTexturedQuad - Creating linear alloc (_smushVBO)");
+	_smushVBO = N3DS_3D::createBuffer(sizeof(textured_quad), textured_quad);														// DEFINITE?
+	debug("GfxN3DS::setupTexturedQuad - Linear alloc created: %u bytes (_smushVBO)", linearGetSize(_smushVBO));
 	_programSmush->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE?
 	_programSmush->addAttrLoader(1, GPU_FLOAT, 2);						// v1 = texcoord											// DEFINITE?
 	_programSmush->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);																// DEFINITE?
@@ -534,9 +537,9 @@ void GfxN3DS::setupTexturedCenteredQuad() {
 //	_spriteProgram->enableVertexAttribute("position", _spriteVBO, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
 //	_spriteProgram->enableVertexAttribute("texcoord", _spriteVBO, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 3 * sizeof(float));
 //	_spriteProgram->disableVertexAttribute("color", Math::Vector4d(1.0f, 1.0f, 1.0f, 1.0f));
-	warning("GfxN3DS::setupTexturedCenteredQuad - Creating linear alloc (_spriteVBO)");
-	_spriteVBO = N3DS_3D::createBuffer(sizeof(textured_quad_centered), textured_quad_centered);							// DEFINITE?
-	warning("GfxN3DS::setupTexturedCenteredQuad - Linear alloc created: %u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
+	debug("GfxN3DS::setupTexturedCenteredQuad - Creating linear alloc (_spriteVBO)");
+	_spriteVBO = N3DS_3D::createBuffer(sizeof(textured_quad_centered), textured_quad_centered);										// DEFINITE?
+	debug("GfxN3DS::setupTexturedCenteredQuad - Linear alloc created: %u bytes (_spriteVBO)", linearGetSize(_spriteVBO));
 	_programSprite->addAttrLoader(0, GPU_FLOAT, 3);						// v0 = position											// DEFINITE?
 	_programSprite->addAttrLoader(1, GPU_FLOAT, 2);						// v1 = texcoord											// DEFINITE?
 	_programSprite->addBufInfo(_spriteVBO, 5 * sizeof(float), 2, 0x10);																// DEFINITE?
@@ -546,9 +549,9 @@ void GfxN3DS::setupPrimitives() {
 #define SIZEOF_PRIMVBO sizeof(float) * 8
 	uint32 numVBOs = ARRAYSIZE(_primitiveVBOs);
 //	glGenBuffers(numVBOs, _primitiveVBOs);
-	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_primVBOChunk)");
-	_primVBOChunk = (float *)N3DS_3D::createBuffer(numVBOs * SIZEOF_PRIMVBO);																	// DEFINITE?
-	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
+	debug("GfxN3DS::setupPrimitives - Creating linear alloc (_primVBOChunk)");
+	_primVBOChunk = (float *)N3DS_3D::createBuffer(numVBOs * SIZEOF_PRIMVBO);														// DEFINITE?
+	debug("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_primVBOChunk)", linearGetSize(_primVBOChunk));
 	_lastPrimitive = 0;																												// DEFINITE? - ADDED
 	_currentPrimitive = 0;
 #undef SIZEOF_PRIMVBO
@@ -573,9 +576,9 @@ void GfxN3DS::setupPrimitives() {
 //	glGenBuffers(1, &_irisVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _irisVBO);
 //	glBufferData(GL_ARRAY_BUFFER, 20 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_irisVBO)");
-	_irisVBO = N3DS_3D::createBuffer(20 * sizeof(float));																						// DEFINITE?
-	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_irisVBO)", linearGetSize(_irisVBO));
+	debug("GfxN3DS::setupPrimitives - Creating linear alloc (_irisVBO)");
+	_irisVBO = N3DS_3D::createBuffer(20 * sizeof(float));																			// DEFINITE?
+	debug("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_irisVBO)", linearGetSize(_irisVBO));
 
 //	_irisProgram->enableVertexAttribute("position", _irisVBO, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 	_programIris->addAttrLoader(0, GPU_FLOAT, 2);						// v0 = position											// DEFINITE?
@@ -583,9 +586,9 @@ void GfxN3DS::setupPrimitives() {
 
 //	glGenBuffers(1, &_dimVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _dimVBO);
-	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_dimVBO)");
-	_dimVBO = N3DS_3D::createBuffer(12 * sizeof(float));																						// DEFINITE?
-	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimVBO)", linearGetSize(_dimVBO));
+	debug("GfxN3DS::setupPrimitives - Creating linear alloc (_dimVBO)");
+	_dimVBO = N3DS_3D::createBuffer(12 * sizeof(float));																			// DEFINITE?
+	debug("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimVBO)", linearGetSize(_dimVBO));
 
 	float points[12] = {
 		0.0f, 0.0f,
@@ -608,9 +611,9 @@ void GfxN3DS::setupPrimitives() {
 
 //	glGenBuffers(1, &_dimRegionVBO);
 //	glBindBuffer(GL_ARRAY_BUFFER, _dimRegionVBO);
-	warning("GfxN3DS::setupPrimitives - Creating linear alloc (_dimRegionVBO)");
-	_dimRegionVBO = N3DS_3D::createBuffer(24 * sizeof(float));																				// DEFINITE?
-	warning("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
+	debug("GfxN3DS::setupPrimitives - Creating linear alloc (_dimRegionVBO)");
+	_dimRegionVBO = N3DS_3D::createBuffer(24 * sizeof(float));																		// DEFINITE?
+	debug("GfxN3DS::setupPrimitives - Linear alloc created: %u bytes (_dimRegionVBO)", linearGetSize(_dimRegionVBO));
 
 //	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
 
@@ -691,9 +694,9 @@ void GfxN3DS::setupShaders() {
 
 	if (!isEMI) {
 //		_blastVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, 128 * 16 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
-		warning("GfxN3DS::setupShaders - Creating linear alloc (_blastVBO)");
+		debug("GfxN3DS::setupShaders - Creating linear alloc (_blastVBO)");
 		_blastVBO = N3DS_3D::createBuffer(size_t(128 * 16) * sizeof(float));									// DEFINITE?
-		warning("GfxN3DS::setupShaders - Linear alloc created: %u bytes (_blastVBO)", linearGetSize(_blastVBO));
+		debug("GfxN3DS::setupShaders - Linear alloc created: %u bytes (_blastVBO)", linearGetSize(_blastVBO));
 	}
 }
 
@@ -808,13 +811,15 @@ void GfxN3DS::clearScreen() {
 	N3D_StencilTestEnabled(false);																									// DEFINITE?
 	N3D_DepthTestEnabled(true);																										// DEFINITE?
 	N3D_DepthFunc(GPU_ALWAYS);																										// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, 0);																									// DEFINITE?
+	debug("GfxN3DS::clearScreen");
+	N3D_C3D_TexBind(0, nullptr);																							// DEFINITE?
+	debug("GfxN3DS::clearScreen N3DCONTEXT_FROM_HANDLE");
 	N3DCONTEXT_FROM_HANDLE(tmpContext)->changeShader(_programClear);																// DEFINITE?
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 	N3DS_3D::destroyContext(&tmpContext);																							// DEFINITE?
 	N3DS_3D::setContext(&_grimContext);																								// DEFINITE?
@@ -827,13 +832,14 @@ void GfxN3DS::clearDepthBuffer() {
 	N3D_StencilTestEnabled(false);																									// DEFINITE?
 	N3D_DepthTestEnabled(true);																										// DEFINITE?
 	N3D_DepthFunc(GPU_ALWAYS);																										// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, 0);																									// DEFINITE?
+	debug("GfxN3DS::clearDepthBuffer");
+	N3D_C3D_TexBind(0, nullptr);																							// DEFINITE?
 	N3DCONTEXT_FROM_HANDLE(tmpContext)->changeShader(_programClear);																// DEFINITE?
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	N3DS_3D::destroyContext(&tmpContext);																							// DEFINITE?
 	N3DS_3D::setContext(&_grimContext);																								// DEFINITE?
 }
@@ -1059,7 +1065,7 @@ void GfxN3DS::getActorScreenBBox(const Actor *actor, Common::Point &p1, Common::
 void GfxN3DS::startActorDraw(const Actor *actor) {
 	_currentActor = actor;
 ////	glEnable(GL_DEPTH_TEST);
-//	N3D_DepthTestEnabled(true);																							// NOT NEEDED?
+//	N3D_DepthTestEnabled(true);																											// NOT NEEDED?
 
 	const Math::Vector3d &pos = actor->getWorldPos();
 	const Math::Quaternion &quat = actor->getRotationQuat();
@@ -1074,8 +1080,8 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 	if (g_grim->getGameType() == GType_MONKEY4) {
 //		glEnable(GL_CULL_FACE);
 //		glFrontFace(GL_CW);
-		N3D_CullFaceEnabled(true);																							// FINALIZED
-		N3D_FrontFace(N3D_FRONTFACE_CW);																					// FINALIZED
+		N3D_CullFaceEnabled(true);																									// FINALIZED
+		N3D_FrontFace(N3D_FRONTFACE_CW);																							// FINALIZED
 
 		if (actor->isInOverworld())
 			viewMatrix = Math::Matrix4();
@@ -1085,8 +1091,8 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 		const float alpha = actor->getEffectiveAlpha();																				// DEFINITE? - ADDED from "gfx_opengl.cpp"
 		if (alpha < 1.f) {																											// DEFINITE? - ADDED from "gfx_opengl.cpp"
 			_alpha = alpha;																											// DEFINITE? - ADDED from "gfx_opengl.cpp"
-			N3D_BlendEnabled(true);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
-			N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);															// DEFINITE? - ADDED from "gfx_opengl.cpp"
+			N3D_BlendEnabled(true);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
+			N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																	// DEFINITE? - ADDED from "gfx_opengl.cpp"
 		}																															// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 		const Math::Matrix4 &viewRot = _currentRot;
@@ -1099,24 +1105,24 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 		for (int i = 0; i < 3; i++) {
 //			shaders[i]->use();
 //			shaders[i]->setUniform("modelMatrix", modelMatrix);
-			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);									// DEFINITE?
+			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);													// DEFINITE?
 			if (actor->isInOverworld()) {
 //				shaders[i]->setUniform("viewMatrix", viewMatrix);
 //				shaders[i]->setUniform("projMatrix", _overworldProjMatrix);
 //				shaders[i]->setUniform("cameraPos", Math::Vector3d(0,0,0));
-				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewMatrix);									// DEFINITE?
-				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _overworldProjMatrix);						// DEFINITE?
-				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, Math::Vector3d(0,0,0));						// DEFINITE?
+				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewMatrix);												// DEFINITE?
+				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _overworldProjMatrix);										// DEFINITE?
+				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, Math::Vector3d(0,0,0));										// DEFINITE?
 			} else {
 //				shaders[i]->setUniform("viewMatrix", viewRot);
 //				shaders[i]->setUniform("projMatrix", _projMatrix);
 //				shaders[i]->setUniform("cameraPos", _currentPos);
-				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewRot);									// DEFINITE?
-				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);								// DEFINITE?
-				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, _currentPos);									// DEFINITE?
+				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewRot);													// DEFINITE?
+				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);												// DEFINITE?
+				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, _currentPos);												// DEFINITE?
 			}
 //			shaders[i]->setUniform("normalMatrix", normalMatrix);
-			shaders[i]->setUniform("normalMatrix", GPU_VERTEX_SHADER, normalMatrix);									// DEFINITE?
+			shaders[i]->setUniform("normalMatrix", GPU_VERTEX_SHADER, normalMatrix);												// DEFINITE?
 
 //			shaders[i]->setUniform("useVertexAlpha", GL_FALSE);																		// MOVED to drawEMIModelFace() and drawSprite()
 //			shaders[i]->setUniform("uniformColor", color);																			// MOVED to drawEMIModelFace() and drawSprite()
@@ -1145,10 +1151,10 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			shaders[i]->setUniform("texcropZBuf", _zBufTexCrop);																	// CROPS ZBUF TEX FOR SAMPLING  (WE DON'T NEED THIS)
 //			shaders[i]->setUniform("screenSize", Math::Vector2d(_screenWidth, _screenHeight));										// USED IN checkZBuffer         (WE DON'T NEED THIS)
 //			shaders[i]->setUniform1f("alphaRef", 0.5f);																				// glAlphaFunc "ref" EQUIVALENT (WE DON'T NEED THIS)
-			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);									// DEFINITE?
-			shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);									// DEFINITE?
-			shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);									// DEFINITE?
-			shaders[i]->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);									// DEFINITE?
+			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);													// DEFINITE?
+			shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);													// DEFINITE?
+			shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);													// DEFINITE?
+			shaders[i]->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);													// DEFINITE?
 		}
 	}
 
@@ -1172,19 +1178,19 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			shaders[i]->setUniform("shadow._point", shadowSector->getVertices()[0]);
 //			shaders[i]->setUniform("shadow._normal", normal);
 			// avoid using bools																									// FINALIZED
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 1.0f);											// FINALIZED
-			shaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);											// FINALIZED
-			shaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);						// FINALIZED - shadowProjection, PARAM 1   OF 4
-			shaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);				// FINALIZED - shadowProjection, PARAM 2   OF 4
-			shaders[i]->setUniform("shadowNormal", GPU_VERTEX_SHADER, normal);										// FINALIZED - shadowProjection, PARAM 3+4 OF 4
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 1.0f);														// FINALIZED
+			shaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);														// FINALIZED
+			shaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);										// FINALIZED - shadowProjection, PARAM 1   OF 4
+			shaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);								// FINALIZED - shadowProjection, PARAM 2   OF 4
+			shaders[i]->setUniform("shadowNormal", GPU_VERTEX_SHADER, normal);														// FINALIZED - shadowProjection, PARAM 3+4 OF 4
 		}
 
 //		glDepthMask(GL_FALSE);
 //		glDisable(GL_BLEND);
 //		glEnable(GL_POLYGON_OFFSET_FILL);
-		N3D_DepthMask(false);																								// FINALIZED
+		N3D_DepthMask(false);																										// FINALIZED
 		// N3D_BlendEnabled(false);																										// NOT NEEDED?
-		N3D_PolygonOffsetEnabled(true);																					// FINALIZED
+		N3D_PolygonOffsetEnabled(true);																								// FINALIZED
 
 	}
 	else {
@@ -1192,12 +1198,12 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			shaders[i]->use();
 //			shaders[i]->setUniform("shadow._active", false);
 			// avoid using bools																									// FINALIZED
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 0.0f);											// FINALIZED
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 0.0f);														// FINALIZED
 		}
 	}
 
 //	_actorLightsProgram->setUniform("hasAmbient", _hasAmbientLight);
-	_programActorLights->setUniform("hasAmbient", GPU_VERTEX_SHADER, _hasAmbientLight);								// DEFINITE?
+	_programActorLights->setUniform("hasAmbient", GPU_VERTEX_SHADER, _hasAmbientLight);												// DEFINITE?
 
 	if (_lightsEnabled) {
 		// Allocate all variables in one chunk
@@ -1249,8 +1255,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			error("No uniform named '%s'", uniform.c_str());
 //		}
 //		glUniform4fv(uniformPos, _maxLights, &lightsData[0 * uniformSize]);
-		if (!(_programActorLights->setUniform4fv("lightsPosition",													// DEFINITE?
-		                                         GPU_VERTEX_SHADER, &lightsData[0 * uniformSize], _maxLights))) {					// DEFINITE?
+		if (!(_programActorLights->setUniform4fv("lightsPosition", GPU_VERTEX_SHADER, &lightsData[0 * uniformSize], _maxLights))) {	// DEFINITE?
 			error("No uniform named 'lightsPosition'");																				// DEFINITE?
 		}																															// DEFINITE?
 
@@ -1260,8 +1265,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			error("No uniform named '%s'", uniform.c_str());
 //		}
 //		glUniform4fv(uniformPos, _maxLights, &lightsData[1 * uniformSize]);
-		if (!(_programActorLights->setUniform4fv("lightsDirection",													// DEFINITE?
-		                                         GPU_VERTEX_SHADER, &lightsData[1 * uniformSize], _maxLights))) {					// DEFINITE?
+		if (!(_programActorLights->setUniform4fv("lightsDirection", GPU_VERTEX_SHADER, &lightsData[1 * uniformSize], _maxLights))) {// DEFINITE?
 			error("No uniform named 'lightsDirection'");																			// DEFINITE?
 		}																															// DEFINITE?
 
@@ -1271,8 +1275,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			error("No uniform named '%s'", uniform.c_str());
 //		}
 //		glUniform4fv(uniformPos, _maxLights, &lightsData[2 * uniformSize]);
-		if (!(_programActorLights->setUniform4fv("lightsColor",														// DEFINITE?
-		                                         GPU_VERTEX_SHADER, &lightsData[2 * uniformSize], _maxLights))) {					// DEFINITE?
+		if (!(_programActorLights->setUniform4fv("lightsColor", GPU_VERTEX_SHADER, &lightsData[2 * uniformSize], _maxLights))) {	// DEFINITE?
 			error("No uniform named 'lightsColor'");																				// DEFINITE?
 		}																															// DEFINITE?
 
@@ -1282,8 +1285,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //			error("No uniform named '%s'", uniform.c_str());
 //		}
 //		glUniform4fv(uniformPos, _maxLights, &lightsData[3 * uniformSize]);
-		if (!(_programActorLights->setUniform4fv("lightsParams",														// DEFINITE?
-		                                         GPU_VERTEX_SHADER, &lightsData[3 * uniformSize], _maxLights))) {					// DEFINITE?
+		if (!(_programActorLights->setUniform4fv("lightsParams", GPU_VERTEX_SHADER, &lightsData[3 * uniformSize], _maxLights))) {	// DEFINITE?
 			error("No uniform named 'lightsParams'");																				// DEFINITE?
 		}																															// DEFINITE?
 
@@ -1295,17 +1297,17 @@ void GfxN3DS::finishActorDraw() {
 	_currentActor = nullptr;
 
 	if (_alpha < 1.f) {																												// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_BlendEnabled(false);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_BlendEnabled(false);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
 		_alpha = 1.f;																												// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	}																																// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 //	glDisable(GL_POLYGON_OFFSET_FILL);
 	if (_currentShadowArray)																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_PolygonOffsetEnabled(false);																					// FINALIZED
+		N3D_PolygonOffsetEnabled(false);																							// FINALIZED
 
 	if (g_grim->getGameType() == GType_MONKEY4) {
 //		glDisable(GL_CULL_FACE);
-		N3D_CullFaceEnabled(false);																						// FINALIZED
+		N3D_CullFaceEnabled(false);																									// FINALIZED
 	}
 }
 
@@ -1355,12 +1357,12 @@ void GfxN3DS::drawShadowPlanes() {
 		sud->_numTriangles = numTriangles;
 //		sud->_verticesVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, 3 * numVertices * sizeof(float), vertBuf, GL_STATIC_DRAW);
 //		sud->_indicesVBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, 3 * numTriangles * sizeof(uint16), idxBuf, GL_STATIC_DRAW);
-		warning("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_verticesVBO)");
-		sud->_verticesVBO = N3DS_3D::createBuffer(3 * numVertices * sizeof(float), vertBuf);								// DEFINITE?
-		warning("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
-		warning("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_indicesVBO )");
-		sud->_indicesVBO  = N3DS_3D::createBuffer(3 * numTriangles * sizeof(uint16), idxBuf);							// DEFINITE?
-		warning("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_indicesVBO )", linearGetSize(sud->_indicesVBO ));
+		debug("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_verticesVBO)");
+		sud->_verticesVBO = N3DS_3D::createBuffer(3 * numVertices * sizeof(float), vertBuf);										// DEFINITE?
+		debug("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
+		debug("GfxN3DS::drawShadowPlanes - Creating linear alloc (sud->_indicesVBO )");
+		sud->_indicesVBO  = N3DS_3D::createBuffer(3 * numTriangles * sizeof(uint16), idxBuf);										// DEFINITE?
+		debug("GfxN3DS::drawShadowPlanes - Linear alloc created: %u bytes (sud->_indicesVBO )", linearGetSize(sud->_indicesVBO ));
 
 		delete[] vertBuf;
 		delete[] idxBuf;
@@ -1371,8 +1373,8 @@ void GfxN3DS::drawShadowPlanes() {
 //	_shadowPlaneProgram->use();
 //	_shadowPlaneProgram->setUniform("projMatrix", _projMatrix);
 //	_shadowPlaneProgram->setUniform("viewMatrix", _viewMatrix);
-	_programShadowPlane->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);									// DEFINITE?
-	_programShadowPlane->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);									// DEFINITE?
+	_programShadowPlane->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);													// DEFINITE?
+	_programShadowPlane->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);													// DEFINITE?
 
 //	glBindBuffer(GL_ARRAY_BUFFER, sud->_verticesVBO);
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sud->_indicesVBO);
@@ -1381,33 +1383,34 @@ void GfxN3DS::drawShadowPlanes() {
 //	glVertexAttribPointer(attribPos, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), nullptr);
 	// See GfxN3DS::setupShaders()																									// DEFINITE?
 //	glDrawElements(GL_TRIANGLES, 3 * sud->_numTriangles, GL_UNSIGNED_SHORT, nullptr);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-		//~~~clearing stencil buffer - start~~~																							// DEFINITE? - REIMPLEMENTED
-	N3D_C3D_TexBind(GPU_TEXUNIT0, 0);																									// DEFINITE? - REIMPLEMENTED
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programClear);																						// DEFINITE? - REIMPLEMENTED
-	N3D_ColorMask(false, false, false, false);																				// DEFINITE? - REIMPLEMENTED
-	N3D_DepthMask(false);																									// DEFINITE? - REIMPLEMENTED
-	N3D_StencilTestEnabled(true);																							// FINALIZED - REIMPLEMENTED
-	N3D_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);											// FINALIZED - REIMPLEMENTED
-	N3D_StencilFunc(GPU_ALWAYS, (int)~0, (int)~0);																			// FINALIZED - REIMPLEMENTED - ref VALUE ~0 (all "1"s) IS WRITTEN TO STENCIL BUFFER
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE? - REIMPLEMENTED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+		//~~~clearing stencil buffer - start~~~																						// DEFINITE? - REIMPLEMENTED
+	debug("GfxN3DS::DrawShadowPlanes");
+	N3D_C3D_TexBind(0, nullptr);																							// DEFINITE? - REIMPLEMENTED
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programClear);																// DEFINITE? - REIMPLEMENTED
+	N3D_ColorMask(false, false, false, false);																						// DEFINITE? - REIMPLEMENTED
+	N3D_DepthMask(false);																											// DEFINITE? - REIMPLEMENTED
+	N3D_StencilTestEnabled(true);																									// FINALIZED - REIMPLEMENTED
+	N3D_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);													// FINALIZED - REIMPLEMENTED
+	N3D_StencilFunc(GPU_ALWAYS, (int)~0, (int)~0);																					// FINALIZED - REIMPLEMENTED - ref VALUE ~0 (all "1"s) IS WRITTEN TO STENCIL BUFFER
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE? - REIMPLEMENTED
 	//~~~clearing stencil buffer - end~~~																							// DEFINITE? - REIMPLEMENTED
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programShadowPlane);																					// DEFINITE?
-	N3D_StencilFunc(GPU_ALWAYS, 1, (int)~0);																				// FINALIZED - ref VALUE 1 ("1" at bit 0) IS WRITTEN TO STENCIL BUFFER
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 3 * sud->_numTriangles, C3D_UNSIGNED_SHORT, (void *)sud->_indicesVBO);							// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programShadowPlane);														// DEFINITE?
+	N3D_StencilFunc(GPU_ALWAYS, 1, (int)~0);																						// FINALIZED - ref VALUE 1 ("1" at bit 0) IS WRITTEN TO STENCIL BUFFER
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 3 * sud->_numTriangles, C3D_UNSIGNED_SHORT, (void *)sud->_indicesVBO);						// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
 
 //	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	N3D_ColorMask(true, true, true, true);																					// FINALIZED
+	N3D_ColorMask(true, true, true, true);																							// FINALIZED
 
 //	glStencilFunc(GL_EQUAL, 1, (GLuint)~0);
 //	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	N3D_StencilFunc(GPU_EQUAL, 1, (int)~0);																				// FINALIZED
-	N3D_StencilOp(GPU_STENCIL_KEEP, GPU_STENCIL_KEEP, GPU_STENCIL_KEEP);													// FINALIZED
+	N3D_StencilFunc(GPU_EQUAL, 1, (int)~0);																							// FINALIZED
+	N3D_StencilOp(GPU_STENCIL_KEEP, GPU_STENCIL_KEEP, GPU_STENCIL_KEEP);															// FINALIZED
 }
 
 void GfxN3DS::setShadowMode() {
@@ -1419,8 +1422,8 @@ void GfxN3DS::clearShadowMode() {
 
 //	glDisable(GL_STENCIL_TEST);
 //	glDepthMask(GL_TRUE);
-	N3D_StencilTestEnabled(false);																							// DEFINITE?
-	N3D_DepthMask(true);																									// DEFINITE?
+	N3D_StencilTestEnabled(false);																									// DEFINITE?
+	N3D_DepthMask(true);																											// DEFINITE?
 }
 
 bool GfxN3DS::isShadowModeActive() {
@@ -1444,12 +1447,12 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 	if (sud) {
 //		OpenGL::Shader::freeBuffer(sud->_verticesVBO);
 //		OpenGL::Shader::freeBuffer(sud->_indicesVBO);
-		warning("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
-		N3DS_3D::freeBuffer(sud->_verticesVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_verticesVBO).");
-		warning("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_indicesVBO)", linearGetSize(sud->_indicesVBO));
-		N3DS_3D::freeBuffer(sud->_indicesVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_indicesVBO).");
+		debug("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_verticesVBO)", linearGetSize(sud->_verticesVBO));
+		N3DS_3D::freeBuffer(sud->_verticesVBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_verticesVBO).");
+		debug("GfxN3DS::destroyShadow - Deleting linear alloc: -%u bytes (sud->_indicesVBO)", linearGetSize(sud->_indicesVBO));
+		N3DS_3D::freeBuffer(sud->_indicesVBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyShadow - Linear alloc deleted (sud->_indicesVBO).");
 		sud->_verticesVBO = nullptr;
 		sud->_indicesVBO = nullptr;
 		delete sud;
@@ -1460,8 +1463,8 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 
 void GfxN3DS::set3DMode() {
 	// USE MODEL VIEW MATRIX?
-	N3D_DepthTestEnabled(true);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-	N3D_DepthFunc(_depthFunc);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_DepthTestEnabled(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_DepthFunc(_depthFunc);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::translateViewpointStart() {
@@ -1500,8 +1503,8 @@ void GfxN3DS::updateEMIModel(const EMIModel* model) {
 }
 
 void GfxN3DS::drawEMIModelFace(const EMIModel* model, const EMIMeshFace* face) {
-	N3D_DepthTestEnabled(true);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-	N3D_AlphaTestEnabled(false);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_DepthTestEnabled(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_AlphaTestEnabled(false);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 	float alpha = _alpha;																											// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	if (model->_meshAlphaMode == Actor::AlphaReplace) {																				// DEFINITE? - ADDED from "gfx_opengl.cpp"
@@ -1512,7 +1515,7 @@ void GfxN3DS::drawEMIModelFace(const EMIModel* model, const EMIMeshFace* face) {
 //		glEnable(GL_BLEND);
 	if (face->_flags & EMIMeshFace::kAlphaBlend || face->_flags & EMIMeshFace::kUnknownBlend ||										// DEFINITE?
 	    _currentActor->hasLocalAlpha() || _alpha < 1.0f)																			// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_BlendEnabled(true);																							// DEFINITE?
+		N3D_BlendEnabled(true);																										// DEFINITE?
 	const EMIModelUserData *mud = (const EMIModelUserData *)model->_userData;
 //	OpenGL::Shader *actorShader;
 	N3DS_3D::ShaderObj *actorShader;																								// DEFINITE?
@@ -1521,43 +1524,43 @@ void GfxN3DS::drawEMIModelFace(const EMIModel* model, const EMIMeshFace* face) {
 	else
 		actorShader = mud->_shader;
 //	actorShader->use();
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(actorShader);																							// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(actorShader);																// DEFINITE?
 
 	_color.w() = alpha;																												// DEFINITE? - MOVED from StartActorDraw()
-	actorShader->setUniform("uniformColor", GPU_VERTEX_SHADER, _color);												// DEFINITE? - MOVED from StartActorDraw()
+	actorShader->setUniform("uniformColor", GPU_VERTEX_SHADER, _color);																// DEFINITE? - MOVED from StartActorDraw()
 
 	bool textured = face->_hasTexture && !_currentShadowArray;
 //	actorShader->setUniform("textured", textured ? GL_TRUE : GL_FALSE);
 //	actorShader->setUniform("useVertexAlpha", _selectedTexture->_hasAlpha);
 //	actorShader->setUniform1f("meshAlpha", (model->_meshAlphaMode == Actor::AlphaReplace) ? model->_meshAlpha : 1.0f);				// FRAGMENT SHADER UNIFORM
 	// avoid using bools																											// DEFINITE?
-	actorShader->setUniform("textured", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);									// DEFINITE?
-	actorShader->setUniform("useVertexAlpha", GPU_VERTEX_SHADER, _selectedTexture->_hasAlpha ? 1.0f : 0.0f);			// DEFINITE?
+	actorShader->setUniform("textured", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);													// DEFINITE?
+	actorShader->setUniform("useVertexAlpha", GPU_VERTEX_SHADER, _selectedTexture->_hasAlpha ? 1.0f : 0.0f);						// DEFINITE?
 	// actorShader->setUniform("meshAlpha", (model->_meshAlphaMode == Actor::AlphaReplace) ? model->_meshAlpha : 1.0f);	// N3D	avoid using bool uniforms as much as possible
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face->_indicesEBO);
 
 //	glDrawElements(GL_TRIANGLES, 3 * face->_faceLength, GL_UNSIGNED_SHORT, nullptr);
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 3 * face->_faceLength, C3D_UNSIGNED_SHORT, face->_indicesEBO);									// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 3 * face->_faceLength, C3D_UNSIGNED_SHORT, face->_indicesEBO);								// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
-	N3D_DepthTestEnabled(true);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-	N3D_AlphaTestEnabled(true);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-	N3D_BlendEnabled(false);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_DepthTestEnabled(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_AlphaTestEnabled(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_BlendEnabled(false);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 	if (!_currentShadowArray)																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_DepthMask(true);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_DepthMask(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 }
 
 void GfxN3DS::drawMesh(const Mesh *mesh) {
-	N3D_AlphaFunc(GPU_GREATER, 128);																						// FINALIZED - ADDED from "gfx_opengl.cpp"	128 = 0.5f converted to 0-255 int
-	N3D_AlphaTestEnabled(true);																							// FINALIZED - ADDED from "gfx_opengl.cpp"
+	N3D_AlphaFunc(GPU_GREATER, 128);																								// FINALIZED - ADDED from "gfx_opengl.cpp"	128 = 0.5f converted to 0-255 int
+	N3D_AlphaTestEnabled(true);																										// FINALIZED - ADDED from "gfx_opengl.cpp"
 
 	const ModelUserData *mud = (const ModelUserData *)mesh->_userData;
 	if (!mud)
@@ -1571,12 +1574,12 @@ void GfxN3DS::drawMesh(const Mesh *mesh) {
 
 //	actorShader->use();
 //	actorShader->setUniform("extraMatrix", _matrixStack.top());
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(actorShader);																							// DEFINITE?
-	actorShader->setUniform("extraMatrix", GPU_VERTEX_SHADER, _matrixStack.top());									// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(actorShader);																// DEFINITE?
+	actorShader->setUniform("extraMatrix", GPU_VERTEX_SHADER, _matrixStack.top());													// DEFINITE?
 
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
 	const Material *curMaterial = nullptr;
 	for (int i = 0; i < mesh->_numFaces;) {
 		const MeshFace *face = &mesh->_faces[i];
@@ -1595,17 +1598,16 @@ void GfxN3DS::drawMesh(const Mesh *mesh) {
 //		actorShader->setUniform("textured", textured ? GL_TRUE : GL_FALSE);
 //		actorShader->setUniform("texScale", Math::Vector2d(_selectedTexture->_width, _selectedTexture->_height));
 		// avoid using bools																										// DEFINITE?
-		actorShader->setUniform("texturedBool", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);							// DEFINITE?
-		actorShader->setUniform("texScale", GPU_VERTEX_SHADER,														// DEFINITE?
-		                        Math::Vector2d(_selectedTexture->_width, _selectedTexture->_height));								// DEFINITE?
+		actorShader->setUniform("texturedBool", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);											// DEFINITE?
+		actorShader->setUniform("texScale", GPU_VERTEX_SHADER, Math::Vector2d(_selectedTexture->_width, _selectedTexture->_height));// DEFINITE?
 
 //		glDrawArrays(GL_TRIANGLES, *(int *)face->_userData, faces);
-		N3D_C3D_DrawArrays(GPU_TRIANGLES, *(int *)face->_userData, faces);																// DEFINITE?
+		N3D_C3D_DrawArrays(GPU_TRIANGLES, *(int *)face->_userData, faces);															// DEFINITE?
 	}
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
-	N3D_AlphaTestEnabled(false);																							// FINALIZED - ADDED from "gfx_opengl.cpp"
+	N3D_AlphaTestEnabled(false);																									// FINALIZED - ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::drawDimPlane() {
@@ -1616,31 +1618,31 @@ void GfxN3DS::drawDimPlane() {
 //	glDepthMask(GL_FALSE);
 //	glEnable(GL_BLEND);
 //	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	N3D_DepthTestEnabled(false);																							// FINALIZED
-	N3D_DepthMask(false);																									// FINALIZED
-	N3D_BlendEnabled(true);																								// FINALIZED
-	N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																	// FINALIZED
+	N3D_DepthTestEnabled(false);																									// FINALIZED
+	N3D_DepthMask(false);																											// FINALIZED
+	N3D_BlendEnabled(true);																											// FINALIZED
+	N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																			// FINALIZED
 
 //	_dimPlaneProgram->use();
 //	_dimPlaneProgram->setUniform1f("dim", _dimLevel);
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDimPlane);																					// DEFINITE?
-	_programDimPlane->setUniform("dim", GPU_VERTEX_SHADER, _dimLevel);												// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDimPlane);															// DEFINITE?
+	_programDimPlane->setUniform("dim", GPU_VERTEX_SHADER, _dimLevel);																// DEFINITE?
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
 //	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
 //	glEnable(GL_DEPTH_TEST);
 //	glDepthMask(GL_TRUE);
-	N3D_DepthTestEnabled(true);																							// FINALIZED
-	N3D_DepthMask(true);																									// FINALIZED
-	N3D_BlendEnabled(false);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_DepthTestEnabled(true);																										// FINALIZED
+	N3D_DepthMask(true);																											// FINALIZED
+	N3D_BlendEnabled(false);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::drawModelFace(const Mesh *mesh, const MeshFace *face) {
@@ -1649,10 +1651,10 @@ void GfxN3DS::drawModelFace(const Mesh *mesh, const MeshFace *face) {
 void GfxN3DS::drawSprite(const Sprite *sprite) {
 	if (g_grim->getGameType() == GType_MONKEY4) {
 //		glDepthMask(GL_TRUE);
-		N3D_DepthMask(true);																								// DEFINTIE?
+		N3D_DepthMask(true);																										// DEFINTIE?
 
 		// avoid using bools																										// DEFINITE? - MOVED from startActorDraw()
-		_programSprite->setUniform("useVertexAlpha", GPU_VERTEX_SHADER, 0.0f);										// DEFINITE? - MOVED from startActorDraw()
+		_programSprite->setUniform("useVertexAlpha", GPU_VERTEX_SHADER, 0.0f);														// DEFINITE? - MOVED from startActorDraw()
 		// FIXME: Currently vertex-specific colors are not supported for sprites.													// DEFINITE? - MOVED from lower down in this function
 		// It is unknown at this time if this is really needed anywhere.															// DEFINITE? - MOVED from lower down in this function
 																																	// FIGURE OUT HOW TO TO DO THIS AS VTXBUF
@@ -1660,18 +1662,18 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 		                     sprite->_green[0] / 255.0f,																			// DEFINITE? - MOVED from lower down in this function
 		                     sprite->_blue[0]  / 255.0f,																			// DEFINITE? - MOVED from lower down in this function
 		                     sprite->_alpha[0] * _alpha / 255.0f);																	// DEFINITE? - MOVED from lower down in this function, MODIFIED from "gfx_opengl.cpp"
-		_programSprite->setUniform("uniformColor", GPU_VERTEX_SHADER, color);										// DEFINITE? - MOVED from lower down in this function
+		_programSprite->setUniform("uniformColor", GPU_VERTEX_SHADER, color);														// DEFINITE? - MOVED from lower down in this function
 	} else {
 //		glDepthMask(GL_FALSE);
-		N3D_DepthMask(false);																								// DEFINTIE?
+		N3D_DepthMask(false);																										// DEFINTIE?
 	}
 
 	if (sprite->_flags1 & Sprite::BlendAdditive) {
 //		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE);																				// DEFINTIE?
+		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE);																						// DEFINTIE?
 	} else {
 //		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																// DEFINTIE?
+		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																		// DEFINTIE?
 	}
 
 	// FIXME: depth test does not work yet because final z coordinates
@@ -1679,14 +1681,14 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 //	if (sprite->_flags2 & Sprite::DepthTest || _currentActor->isInOverworld()) {
 //		glEnable(GL_DEPTH_TEST);
 	if (sprite->_flags2 & Sprite::DepthTest) {																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_DepthTestEnabled(true);																						// DEFINITE?
+		N3D_DepthTestEnabled(true);																									// DEFINITE?
 	} else {
 //		glDisable(GL_DEPTH_TEST);
-		N3D_DepthTestEnabled(false);																						// DEFINITE?
+		N3D_DepthTestEnabled(false);																								// DEFINITE?
 	}
 
 //	_spriteProgram->use();
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programSprite);																						// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programSprite);																// DEFINITE?
 
 	Math::Matrix4 rotateMatrix;
 	rotateMatrix.buildAroundZ(_currentActor->getYaw());
@@ -1700,22 +1702,22 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 	extraMatrix.transpose();
 //	_spriteProgram->setUniform("extraMatrix", extraMatrix);
 //	_spriteProgram->setUniform("textured", GL_TRUE);
-	_programSprite->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);										// DEFINITE?
+	_programSprite->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);														// DEFINITE?
 	// avoid using bools																											// DEFINITE?
-	_programSprite->setUniform("textured", GPU_VERTEX_SHADER, 1.0f);													// DEFINITE?
+	_programSprite->setUniform("textured", GPU_VERTEX_SHADER, 1.0f);																// DEFINITE?
 	if (g_grim->getGameType() == GType_GRIM) {
 //		_spriteProgram->setUniform1f("alphaRef", 0.5f);
 		// 0.5f converted to 0-255 int = 128
-		N3D_AlphaTestEnabled(true);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_AlphaFunc(GPU_GEQUAL, 128);																					// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_AlphaTestEnabled(true);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_AlphaFunc(GPU_GEQUAL, 128);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	} else if (sprite->_flags2 & Sprite::AlphaTest) {
 //		_spriteProgram->setUniform1f("alphaRef", 0.1f);
 		// 0.1f converted to 0-255 int = 26
-		N3D_AlphaTestEnabled(true);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_AlphaFunc(GPU_GEQUAL, 26);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_AlphaTestEnabled(true);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_AlphaFunc(GPU_GEQUAL, 26);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	} else {
 //		_spriteProgram->setUniform1f("alphaRef", 0.0f);
-		N3D_AlphaTestEnabled(false);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_AlphaTestEnabled(false);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	}
 
 //	// FIXME: Currently vertex-specific colors are not supported for sprites.															// MOVED UP
@@ -1729,18 +1731,18 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 //	glEnable(GL_DEPTH_TEST);
 //	glDepthMask(GL_TRUE);
 //	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
-	N3D_DepthMask(true);																									// DEFINITE?
-	N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																	// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
+	N3D_DepthMask(true);																											// DEFINITE?
+	N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																			// DEFINITE?
 
-	N3D_AlphaTestEnabled(false);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-	N3D_BlendEnabled(false);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_AlphaTestEnabled(false);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
+	N3D_BlendEnabled(false);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::enableLights() {
@@ -1817,16 +1819,16 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 	if (g_grim->getGameType() == GType_MONKEY4 && clamp) {
 //		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 //		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		N3D_C3D_TexSetWrap(textures, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);																// DEFINITE?
+		N3D_C3D_TexSetWrap(textures, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
 	} else {
 //		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 //		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		N3D_C3D_TexSetWrap(textures, GPU_REPEAT, GPU_REPEAT);																			// DEFINITE?
+		N3D_C3D_TexSetWrap(textures, GPU_REPEAT, GPU_REPEAT);																		// DEFINITE?
 	}
 
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	N3D_C3D_TexSetFilter(textures, GPU_LINEAR, GPU_LINEAR);																				// DEFINITE?
+	N3D_C3D_TexSetFilter(textures, GPU_LINEAR, GPU_LINEAR);																			// DEFINITE?
 
 	if (cmap != nullptr) { // EMI doesn't have colour-maps
 		int bytes = 4;
@@ -1852,14 +1854,14 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 		}
 
 //		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture->_width, texture->_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
-		warning("GfxN3DS::createTexture - Creating tex");
-		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);												// DEFINITE?
-		warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
+		debug("GfxN3DS::createTexture - Creating tex");
+		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);											// DEFINITE?
+		debug("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
 		GSPGPU_FlushDataCache((void *)texdata, texture->_width * texture->_height * bytes);											// DEFINITE?
 		// GX_TRANSFER_FMT_RGBA8 is already 0																						// DEFINITE?
 		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
-		N3D_C3D_SyncDisplayTransfer((u32 *)texdata,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),						// DEFINITE?
-		                        (u32 *)textures[0].data, (u32)GX_BUFFER_DIM(texture->_width, texture->_height), 3);					// DEFINITE?
+		N3D_C3D_SyncDisplayTransfer((u32 *)texdata,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),					// DEFINITE?
+		                            (u32 *)textures[0].data, (u32)GX_BUFFER_DIM(texture->_width, texture->_height), 3);				// DEFINITE?
 		delete[] texdata;
 	} else {
 //		GLint format = (texture->_bpp == 4) ? GL_RGBA : GL_RGB;
@@ -1873,14 +1875,14 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			format = GPU_RGB8;																										// DEFINITE?
 			transFmt = GX_TRANSFER_FMT_RGB8;																						// DEFINITE?
 		}																															// DEFINITE?
-		warning("GfxN3DS::createTexture - Creating tex");
-		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);													// DEFINITE?
-		warning("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
+		debug("GfxN3DS::createTexture - Creating tex");
+		N3D_C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);												// DEFINITE?
+		debug("GfxN3DS::createTexture - Tex created: %u bytes", textures->size);
 		GSPGPU_FlushDataCache(static_cast<const void *>(data), texture->_width * texture->_height * texture->_bpp);					// DEFINTIE?
 		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
-		N3D_C3D_SyncDisplayTransfer((u32 *)const_cast<uint8 *>(data), (u32)GX_BUFFER_DIM(texture->_width, texture->_height),			// DEFINITE?
-		                        (u32 *)textures[0].data,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),			// DEFINITE?
-		                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt) | 3);							// DEFINITE?
+		N3D_C3D_SyncDisplayTransfer((u32 *)const_cast<uint8 *>(data), (u32)GX_BUFFER_DIM(texture->_width, texture->_height),		// DEFINITE?
+		                            (u32 *)textures[0].data,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),		// DEFINITE?
+		                            GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt) | 3);						// DEFINITE?
 	}
 }
 
@@ -1888,11 +1890,12 @@ void GfxN3DS::selectTexture(const Texture *texture) {
 //	GLuint *textures = (GLuint *)texture->_texture;
 //	glBindTexture(GL_TEXTURE_2D, textures[0]);
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);																	// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, textures);																							// DEFINITE?
+	debug("GfxN3DS::selectTexture");
+	N3D_C3D_TexBind(0, textures);																						// DEFINITE?
 
 	if (texture->_hasAlpha && g_grim->getGameType() == GType_MONKEY4) {
 //		glEnable(GL_BLEND);
-		N3D_BlendEnabled(true);																							// DEFINITE?
+		N3D_BlendEnabled(true);																										// DEFINITE?
 	}
 
 	_selectedTexture = const_cast<Texture *>(texture);
@@ -1903,9 +1906,9 @@ void GfxN3DS::destroyTexture(Texture *texture) {
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);																	// DEFINITE?
 	if (textures) {
 //		glDeleteTextures(1, textures);
-		warning("GfxN3DS::destroyTexture - Deleting tex: -%u bytes", textures->size);
-		N3D_C3D_TexDelete(textures);																									// DEFINITE?
-		warning("GfxN3DS::destroyTexture - Tex deleted");
+		debug("GfxN3DS::destroyTexture - Deleting tex: -%u bytes", textures->size);
+		N3D_C3D_TexDelete(textures);																								// DEFINITE?
+		debug("GfxN3DS::destroyTexture - Tex deleted");
 		delete[] textures;
 	}
 }
@@ -2010,14 +2013,14 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 //			glTexImage2D(GL_TEXTURE_2D, 0, format, actualWidth, actualHeight, 0, format, btype, nullptr);
 //			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap->_width, bitmap->_height, format, btype, texOut);
 			C3D_Tex *c3dTex = &textures[bitmap->_numTex * pic];																		// DEFINITE?
-			warning("GfxN3DS::createBitmap - Creating tex");
-			N3D_C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);														// DEFINITE?
-			warning("GfxN3DS::createBitmap - Tex created: %u bytes", c3dTex->size);
-			N3D_C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);																		// DEFINITE?
-			N3D_C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
-			N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(texOut), (u32 *)c3dTex->data, 0, 0,								// DEFINITE?
-			                            bitmap->_width, bitmap->_height, actualWidth, actualHeight,									// DEFINITE?
-			                            format, 0, false);																			// DEFINITE?
+			debug("GfxN3DS::createBitmap - Creating tex");
+			N3D_C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);													// DEFINITE?
+			debug("GfxN3DS::createBitmap - Tex created: %u bytes", c3dTex->size);
+			N3D_C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);																	// DEFINITE?
+			N3D_C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);														// DEFINITE?
+			N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(texOut), (u32 *)c3dTex->data, 0, 0,										// DEFINITE?
+			                   bitmap->_width, bitmap->_height, actualWidth, actualHeight,											// DEFINITE?
+			                   format, 0, false);																					// DEFINITE?
 		}
 
 		if (texData)
@@ -2032,9 +2035,9 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 //			GLuint vbo = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc, GL_STATIC_DRAW);
 //			shader->enableVertexAttribute("position", vbo, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
 //			shader->enableVertexAttribute("texcoord", vbo, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 2*sizeof(float));
-			warning("GfxN3DS::createBitmap - Creating linear alloc (void *vbo)");
-			void *vbo = N3DS_3D::createBuffer(bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc);					// DEFINITE?
-			warning("GfxN3DS::createBitmap - Linear alloc created: %u bytes (void *vbo)", linearGetSize(vbo));
+			debug("GfxN3DS::createBitmap - Creating linear alloc (void *vbo)");
+			void *vbo = N3DS_3D::createBuffer(bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc);								// DEFINITE?
+			debug("GfxN3DS::createBitmap - Linear alloc created: %u bytes (void *vbo)", linearGetSize(vbo));
 			BufInfo_Init(&shader->_bufInfo);																						// DEFINITE?
 			shader->addBufInfo(vbo, 4 * sizeof(float), 2, 0x10);																	// DEFINITE?
 		}
@@ -2054,39 +2057,40 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		C3D_Tex *textures = static_cast<C3D_Tex *>(bitmap->getTexIds());															// DEFINITE?
 
 //		glDisable(GL_DEPTH_TEST);
-		N3D_DepthTestEnabled(false);																						// DEFINITE?
-		N3D_DepthMask(false);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_DepthTestEnabled(false);																								// DEFINITE?
+		N3D_DepthMask(false);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 //		glEnable(GL_BLEND);
 //		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		N3D_BlendEnabled(true);																							// DEFINITE?
-		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																// DEFINITE?
+		N3D_BlendEnabled(true);																										// DEFINITE?
+		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																		// DEFINITE?
 
 //		shader->use();
 //		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
-		N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(shader);																							// DEFINITE?
-		N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
-		N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
-		N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+		N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(shader);																	// DEFINITE?
+		N3D_C3D_FrameBegin(0);																										// DEFINITE? - ADDED
+		N3D_C3D_SetTexEnv(0, &envNormal);																							// DEFINITE? - ADDED
+		N3D_C3D_FrameDrawOn(_gameScreenTarget);																						// DEFINITE? - ADDED
 		assert(layer < data->_numLayers);
 		uint32 offset = data->_layers[layer]._offset;
 		for (uint32 i = offset; i < offset + data->_layers[layer]._numImages; ++i) {
 //			glBindTexture(GL_TEXTURE_2D, textures[data->_verts[i]._texid]);
-			N3D_C3D_TexBind(GPU_TEXUNIT0, textures + data->_verts[i]._texid);															// DEFINITE?
+			debug("GfxN3DS::drawBitmap");
+			N3D_C3D_TexBind(0, textures + data->_verts[i]._texid);														// DEFINITE?
 
 //			unsigned short startVertex = data->_verts[i]._pos / 4 * 6;
 //			unsigned short numVertices = data->_verts[i]._verts / 4 * 6;
 //			glDrawElements(GL_TRIANGLES, numVertices, GL_UNSIGNED_SHORT, (void *)(startVertex * sizeof(unsigned short)));
 			u16 startVertex = data->_verts[i]._pos / 4 * 6;																			// DEFINITE?
 			int numVertices = data->_verts[i]._verts / 4 * 6;																		// DEFINITE?
-			N3D_C3D_DrawElements(GPU_TRIANGLES, numVertices, C3D_UNSIGNED_SHORT, (void *)((u16 *)_quadEBO + startVertex));				// DEFINITE?
+			N3D_C3D_DrawElements(GPU_TRIANGLES, numVertices, C3D_UNSIGNED_SHORT, (void *)((u16 *)_quadEBO + startVertex));			// DEFINITE?
 		}
-		N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
+		N3D_C3D_FrameSplit(0);																										// DEFINITE? - ADDED
 		_gameScreenDirty = true;																									// DEFINITE? - ADDED
 
-		N3D_BlendEnabled(false);																							// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_DepthMask(true);																								// DEFINITE? - ADDED from "gfx_opengl.cpp"
-		N3D_DepthTestEnabled(true);																						// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_BlendEnabled(false);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_DepthMask(true);																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
+		N3D_DepthTestEnabled(true);																									// DEFINITE? - ADDED from "gfx_opengl.cpp"
 
 		return;
 	}
@@ -2102,11 +2106,11 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		if (bitmap->getFormat() == 1 && bitmap->getHasTransparency()) {
 //			glEnable(GL_BLEND);
 //			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			N3D_BlendEnabled(true);																						// DEFINITE?
-			N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);															// DEFINITE?
+			N3D_BlendEnabled(true);																									// DEFINITE?
+			N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																	// DEFINITE?
 		} else {
 //			glDisable(GL_BLEND);
-			N3D_BlendEnabled(false);																						// DEFINITE?
+			N3D_BlendEnabled(false);																								// DEFINITE?
 		}
 
 //		OpenGL::Shader *shader = (OpenGL::Shader *)bitmap->_data->_userData;
@@ -2114,52 +2118,52 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 //		glDisable(GL_DEPTH_TEST);
 //		glDepthMask(GL_FALSE);
 		N3DS_3D::ShaderObj *shader = static_cast<N3DS_3D::ShaderObj *>(bitmap->_data->_userData);									// DEFINITE?
-		N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(shader);																							// DEFINITE?
-		N3D_DepthTestEnabled(false);																						// DEFINITE?
-		N3D_DepthMask(false);																								// DEFINITE?
+		N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(shader);																	// DEFINITE?
+		N3D_DepthTestEnabled(false);																								// DEFINITE?
+		N3D_DepthMask(false);																										// DEFINITE?
 
 //		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
 		int cur_tex_idx = bitmap->getNumTex() * (bitmap->getActiveImage() - 1);
 //		glBindTexture(GL_TEXTURE_2D, textures[cur_tex_idx]);
-		N3D_C3D_TexBind(GPU_TEXUNIT0, textures + cur_tex_idx);																			// DEFINITE?
+		debug("GfxN3DS::drawBitmap2");
+		N3D_C3D_TexBind(0, textures + cur_tex_idx);																		// DEFINITE?
 		float width = bitmap->getWidth();
 		float height = bitmap->getHeight();
 //		shader->setUniform("offsetXY", Math::Vector2d(float(dx) / _gameWidth, float(dy) / _gameHeight));
 //		shader->setUniform("sizeWH", Math::Vector2d(width / _gameWidth, height / _gameHeight));
 //		shader->setUniform("texcrop", Math::Vector2d(width / nextHigher2((int)width), height / nextHigher2((int)height)));
 //		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
-		shader->setUniform("offsetXY", GPU_VERTEX_SHADER,															// DEFINITE?
-		                   Math::Vector2d(float(dx) / _gameWidth, float(dy) / _gameHeight));										// DEFINITE?
-		shader->setUniform("sizeWH", GPU_VERTEX_SHADER, Math::Vector2d(width / _gameWidth, height / _gameHeight));	// DEFINITE?
-		shader->setUniform("texcrop", GPU_VERTEX_SHADER, Math::Vector2d(width  / nextHigher2((int)width),			// DEFINITE?
-		                                                                               height / nextHigher2((int)height)));			// DEFINITE?
-		N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
-		N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
-		N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
-		N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
-		N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
+		shader->setUniform("offsetXY", GPU_VERTEX_SHADER, Math::Vector2d(float(dx) / _gameWidth, float(dy) / _gameHeight));			// DEFINITE?
+		shader->setUniform("sizeWH",   GPU_VERTEX_SHADER, Math::Vector2d(    width / _gameWidth,    height / _gameHeight));			// DEFINITE?
+		shader->setUniform("texcrop",  GPU_VERTEX_SHADER, Math::Vector2d(width  / nextHigher2((int)width),							// DEFINITE?
+		                                                                 height / nextHigher2((int)height)));						// DEFINITE?
+		N3D_C3D_FrameBegin(0);																										// DEFINITE? - ADDED
+		N3D_C3D_FrameDrawOn(_gameScreenTarget);																						// DEFINITE? - ADDED
+		N3D_C3D_SetTexEnv(0, &envNormal);																							// DEFINITE? - ADDED
+		N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);												// DEFINITE?
+		N3D_C3D_FrameSplit(0);																										// DEFINITE? - ADDED
 		_gameScreenDirty = true;																									// DEFINITE? - ADDED
 
 //		glDisable(GL_BLEND);
 //		glDepthMask(GL_TRUE);
 //		glEnable(GL_DEPTH_TEST);
-		N3D_BlendEnabled(false);																							// DEFINITE?
-		N3D_DepthMask(true);																								// DEFINITE?
-		N3D_DepthTestEnabled(true);																						// DEFINITE?
+		N3D_BlendEnabled(false);																									// DEFINITE?
+		N3D_DepthMask(true);																										// DEFINITE?
+		N3D_DepthTestEnabled(true);																									// DEFINITE?
 	} else {
 		// Only draw the manual zbuffer when enabled
 		if (bitmap->getActiveImage() - 1 < bitmap->getNumImages()) {
 			drawDepthBitmap(bitmap->getId(), dx, dy, bitmap->getWidth(), bitmap->getHeight(),
 			                (char *)const_cast<void *>(bitmap->getData(bitmap->getActiveImage() - 1).getPixels()));
 		} else {
-			warning("zbuffer image has index out of bounds! %d/%d", bitmap->getActiveImage(), bitmap->getNumImages());
+			debug("zbuffer image has index out of bounds! %d/%d", bitmap->getActiveImage(), bitmap->getNumImages());
 		}
 		return;
 	}
 }
 
 void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *data) {
-	N3D_C3D_FrameEnd(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameEnd(0);																											// DEFINITE? - ADDED
 
 	static int prevId = -1;
 	static int prevX = -1, prevY = -1;
@@ -2185,11 +2189,11 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 //	glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, data);
 //	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 //	glActiveTexture(GL_TEXTURE0);
-	N3D_DataToBlockTex((u32 *)data, (u32 *)_zBuf, x, y, w, h, nextHigher2(w), nextHigher2(h), GPU_RGBA8, 0, false);		// DEFINITE?
+	N3D_DataToBlockTex((u32 *)data, (u32 *)_zBuf, x, y, w, h, nextHigher2(w), nextHigher2(h), GPU_RGBA8, 0, false);					// DEFINITE?
 	GSPGPU_FlushDataCache(_zBuf, nextHigher2(w) * nextHigher2(h) * 4);																// DEFINITE?
 	GX_RequestDma((u32 *)_zBuf, (u32 *)_gameScreenTarget->frameBuf.depthBuf, nextHigher2(w) * nextHigher2(h) * 4);					// DEFINITE?
 	gspWaitForDMA();																												// DEFINITE?
-	////_gameScreenDirty = true;																										// DEFINITE? - ADDED
+	////_gameScreenDirty = true;																									// DEFINITE? - ADDED
 }
 
 void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
@@ -2198,9 +2202,9 @@ void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
 	if (textures) {
 //		glDeleteTextures(bitmap->_numTex * bitmap->_numImages, textures);
 		for (int i = 0; i < bitmap->_numTex * bitmap->_numImages; i++) {															// DEFINITE?
-			warning("GfxN3DS::destroyBitmap - Deleting tex[%d]: -%u bytes", i, (textures + i)->size);
-			N3D_C3D_TexDelete(textures + i);																							// DEFINITE?
-			warning("GfxN3DS::destroyBitmap - Tex deleted");
+			debug("GfxN3DS::destroyBitmap - Deleting tex[%d]: -%u bytes", i, (textures + i)->size);
+			N3D_C3D_TexDelete(textures + i);																						// DEFINITE?
+			debug("GfxN3DS::destroyBitmap - Tex deleted");
 		}																															// DEFINITE?
 		delete[] textures;
 		bitmap->_texIds = nullptr;
@@ -2313,15 +2317,15 @@ void GfxN3DS::createFont(Font *f) {
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, size * charsWide, size * charsHigh, 0, GL_RGBA, GL_UNSIGNED_BYTE, temp);
 	u32 pixelsWide = charsWide * size;																								// DEFINITE?
 	u32 pixelsHigh = charsHigh * size;																								// DEFINITE?
-	warning("GfxN3DS::createFont - Creating tex");
-	N3D_C3D_TexInit(userData->texture, (u16)pixelsWide, (u16)pixelsHigh, GPU_RGBA8);													// DEFINITE?
-	warning("GfxN3DS::createFont - Tex created: %u bytes", userData->texture->size);
-	N3D_C3D_TexSetFilter(userData->texture, GPU_NEAREST, GPU_NEAREST);																	// DEFINITE?
-	N3D_C3D_TexSetWrap(userData->texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);														// DEFINITE?
+	debug("GfxN3DS::createFont - Creating tex");
+	N3D_C3D_TexInit(userData->texture, (u16)pixelsWide, (u16)pixelsHigh, GPU_RGBA8);												// DEFINITE?
+	debug("GfxN3DS::createFont - Tex created: %u bytes", userData->texture->size);
+	N3D_C3D_TexSetFilter(userData->texture, GPU_NEAREST, GPU_NEAREST);																// DEFINITE?
+	N3D_C3D_TexSetWrap(userData->texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);													// DEFINITE?
 	GSPGPU_FlushDataCache((void *)temp, (u32)arraySize);																			// DEFINITE?
 	// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3							// DEFINITE?
-	N3D_C3D_SyncDisplayTransfer((u32 *)temp,                    GX_BUFFER_DIM(pixelsWide, pixelsHigh),									// DEFINITE?
-	                        (u32 *)userData->texture->data, GX_BUFFER_DIM(pixelsWide, pixelsHigh), 3);								// DEFINITE?
+	N3D_C3D_SyncDisplayTransfer((u32 *)temp,                    GX_BUFFER_DIM(pixelsWide, pixelsHigh),								// DEFINITE?
+	                            (u32 *)userData->texture->data, GX_BUFFER_DIM(pixelsWide, pixelsHigh), 3);							// DEFINITE?
 
 	delete[] data;
 	delete[] temp;
@@ -2333,9 +2337,9 @@ void GfxN3DS::destroyFont(Font *font) {
 		const FontUserData *data = static_cast<const FontUserData *>(static_cast<const BitmapFont *>(font)->getUserData());
 		if (data) {
 //			glDeleteTextures(1, &(data->texture));
-			warning("GfxN3DS::destroyFont - Deleting tex: -%u bytes", data->texture->size);
-			N3D_C3D_TexDelete(data->texture);																							// DEFINITE?
-			warning("GfxN3DS::destroyFont - Tex deleted");
+			debug("GfxN3DS::destroyFont - Deleting tex: -%u bytes", data->texture->size);
+			N3D_C3D_TexDelete(data->texture);																						// DEFINITE?
+			debug("GfxN3DS::destroyFont - Tex deleted");
 			free(data->subTextures);																								// DEFINITE?
 			delete data;
 		}
@@ -2409,9 +2413,9 @@ void GfxN3DS::createTextObject(TextObject *text) {
 		memcpy(vbo, bufData, numCharacters * 16 * sizeof(float));																	// DEFINITE?
 	} else {
 //		vbo = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, numCharacters * 16 * sizeof(float), bufData, GL_STATIC_DRAW);
-		warning("GfxN3DS::createTextObject - Creating linear alloc (vbo)");
-		vbo = N3DS_3D::createBuffer(numCharacters * 16 * sizeof(float), bufData);										// DEFINITE?
-		warning("GfxN3DS::createTextObject - Linear alloc created: %u bytes (vbo)", linearGetSize(vbo));
+		debug("GfxN3DS::createTextObject - Creating linear alloc (vbo)");
+		vbo = N3DS_3D::createBuffer(numCharacters * 16 * sizeof(float), bufData);													// DEFINITE?
+		debug("GfxN3DS::createTextObject - Linear alloc created: %u bytes (vbo)", linearGetSize(vbo));
 	}
 
 //	OpenGL::Shader * textShader = _textProgram->clone();
@@ -2436,12 +2440,12 @@ void GfxN3DS::createTextObject(TextObject *text) {
 void GfxN3DS::drawTextObject(const TextObject *text) {
 //	glEnable(GL_BLEND);
 //	glDisable(GL_DEPTH_TEST);
-	N3D_BlendEnabled(true);																								// DEFINITE?
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
+	N3D_BlendEnabled(true);																											// DEFINITE?
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
 	const TextUserData * td = (const TextUserData *) text->getUserData();
 	assert(td);
 //	td->shader->use();
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(td->shader);																							// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(td->shader);																	// DEFINITE?
 
 	Math::Vector3d colors(float(td->color.getRed()) / 255.0f,
 	                      float(td->color.getGreen()) / 255.0f,
@@ -2452,15 +2456,16 @@ void GfxN3DS::drawTextObject(const TextObject *text) {
 //	glDrawElements(GL_TRIANGLES, td->characters * 6, GL_UNSIGNED_SHORT, nullptr);
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 //	glEnable(GL_DEPTH_TEST);
-	td->shader->setUniform("color", GPU_VERTEX_SHADER, colors);														// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, td->texture);																							// DEFINITE?
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envText);																										// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, (int)td->characters * 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);									// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	td->shader->setUniform("color", GPU_VERTEX_SHADER, colors);																		// DEFINITE?
+	debug("GfxN3DS::drawTextObject");
+	N3D_C3D_TexBind(0, td->texture);																						// DEFINITE?
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envText);																									// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, (int)td->characters * 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);								// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
 }
 
 void GfxN3DS::destroyTextObject(TextObject *text) {
@@ -2481,17 +2486,17 @@ void GfxN3DS::storeDisplay() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 //	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, _screenWidth, _screenHeight, 0);
-	warning("GfxN3DS::storeDisplay - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay->size);
-	N3D_C3D_TexDelete(_storedDisplay);																									// DEFINITE?
-	warning("GfxN3DS::storeDisplay - Tex deleted (_storedDisplay)");
-	warning("GfxN3DS::storeDisplay - Creating tex (_storedDisplay)");
-	N3D_C3D_TexInit(_storedDisplay, (u16)_screenTexWidth, (u16)_screenTexHeight, GPU_RGBA8);											// DEFINITE?
-	warning("GfxN3DS::storeDisplay - Tex created: %u bytes (_storedDisplay)", _storedDisplay->size);
-	N3D_C3D_TexSetFilter(_storedDisplay, GPU_LINEAR, GPU_LINEAR);																		// DEFINITE?
-	N3D_C3D_SyncTextureCopy(																											// DEFINITE?
+	debug("GfxN3DS::storeDisplay - Deleting tex: -%u bytes (_storedDisplay)", _storedDisplay.size);
+	N3D_C3D_TexDelete(&_storedDisplay);																								// DEFINITE?
+	debug("GfxN3DS::storeDisplay - Tex deleted (_storedDisplay)");
+	debug("GfxN3DS::storeDisplay - Creating tex (_storedDisplay)");
+	N3D_C3D_TexInit(&_storedDisplay, (u16)_screenTexWidth, (u16)_screenTexHeight, GPU_RGBA8);										// DEFINITE?
+	debug("GfxN3DS::storeDisplay - Tex created: %u bytes (_storedDisplay)", _storedDisplay.size);
+	N3D_C3D_TexSetFilter(&_storedDisplay, GPU_LINEAR, GPU_LINEAR);																	// DEFINITE?
+	N3D_C3D_SyncTextureCopy(																										// DEFINITE?
 		(u32 *)_gameScreenTex->data, GX_BUFFER_DIM(((u32)_screenTexWidth       * 8 * 4) >> 4, 0),									// DEFINITE?
-		(u32 *)_storedDisplay->data, GX_BUFFER_DIM(((u32)_storedDisplay->width * 8 * 4) >> 4, 0),									// DEFINITE?
-		_storedDisplay->width * _storedDisplay->height * 4, GX_TRANSFER_RAW_COPY(1)													// DEFINITE?
+		(u32 *)_storedDisplay.data, GX_BUFFER_DIM(((u32)_storedDisplay.width * 8 * 4) >> 4, 0),										// DEFINITE?
+		_storedDisplay.width * _storedDisplay.height * 4, GX_TRANSFER_RAW_COPY(1)													// DEFINITE?
 	);																																// DEFINITE?
 }
 
@@ -2503,33 +2508,34 @@ void GfxN3DS::copyStoredToDisplay() {
 //	_dimProgram->use();
 //	_dimProgram->setUniform("scaleWH", Math::Vector2d(1.f, 1.f));
 //	_dimProgram->setUniform("tex", 0);																					// FRAGMENT SHADER UNIFORM, SAMPLER2D
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDim);																							// DEFINITE?
-	_programDim->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f, 1.f));									// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDim);																// DEFINITE?
+	_programDim->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f, 1.f));												// DEFINITE?
 
 //	glBindTexture(GL_TEXTURE_2D, _storedDisplay);
-	N3D_C3D_TexBind(GPU_TEXUNIT0, _storedDisplay);																						// DEFINITE?
+	debug("GfxN3DS::copyStoredToDisplay");
+	N3D_C3D_TexBind(0, &_storedDisplay);																					// DEFINITE?
 
 //	glDisable(GL_DEPTH_TEST);
 //	glDepthMask(GL_FALSE);
-	N3D_DepthTestEnabled(false);																							// FINALIZED
-	N3D_DepthMask(false);																									// FINALIZED
+	N3D_DepthTestEnabled(false);																									// FINALIZED
+	N3D_DepthMask(false);																											// FINALIZED
 
 //	glDrawArrays(GL_TRIANGLES, 0, 6);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 6);																							// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 6);																						// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
 //	glEnable(GL_DEPTH_TEST);
 //	glDepthMask(GL_TRUE);
-	N3D_DepthTestEnabled(true);																							// FINALIZED
-	N3D_DepthMask(true);																									// FINALIZED
+	N3D_DepthTestEnabled(true);																										// FINALIZED
+	N3D_DepthMask(true);																											// FINALIZED
 }
 
 void GfxN3DS::dimScreen() {
-	u32 *data = (u32 *)_storedDisplay->data;																						// DEFINITE? - MODIFIED from "gfx_opengl.cpp"
+	u32 *data = (u32 *)_storedDisplay.data;																							// DEFINITE? - MODIFIED from "gfx_opengl.cpp"
 	for (int l = 0; l < _screenTexWidth * _screenTexHeight; l++) {																	// DEFINITE? - MODIFIED from "gfx_opengl.cpp"
 		u32 pixel = data[l];																										// DEFINITE? - ADDED from "gfx_opengl.cpp"
 		u8 r = (pixel & 0x000000FF);																								// DEFINITE? - MODIFIED from "gfx_opengl.cpp"
@@ -2541,7 +2547,7 @@ void GfxN3DS::dimScreen() {
 }
 
 void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
-	N3D_C3D_FrameEnd(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameEnd(0);																											// DEFINITE? - ADDED
 
 	// _screenWidth = 640, _screenTexWidth = 1042
 	// _screenHeight = 480, _screenTexHeight = 512
@@ -2568,18 +2574,18 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	warning("GfxN3DS::dimRegion - Creating tex (tmpTex)");
-	N3D_C3D_TexInit(&tmpTex,  (u16)nextHigher2(w8), (u16)nextHigher2(h8), GPU_RGBA8);													// DEFINITE?
-	warning("GfxN3DS::dimRegion - Tex created: %u bytes (tmpTex)", tmpTex.size);
-	warning("GfxN3DS::dimRegion - Creating tex (texture)");
-	N3D_C3D_TexInit(&texture, (u16)nextHigher2(w),  (u16)nextHigher2(h),  GPU_RGBA8);													// DEFINITE?
-	warning("GfxN3DS::dimRegion - Tex created: %u bytes (texture)", texture.size);
-	N3D_C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);																				// DEFINITE?
+	debug("GfxN3DS::dimRegion - Creating tex (tmpTex)");
+	N3D_C3D_TexInit(&tmpTex,  (u16)nextHigher2(w8), (u16)nextHigher2(h8), GPU_RGBA8);												// DEFINITE?
+	debug("GfxN3DS::dimRegion - Tex created: %u bytes (tmpTex)", tmpTex.size);
+	debug("GfxN3DS::dimRegion - Creating tex (texture)");
+	N3D_C3D_TexInit(&texture, (u16)nextHigher2(w),  (u16)nextHigher2(h),  GPU_RGBA8);												// DEFINITE?
+	debug("GfxN3DS::dimRegion - Tex created: %u bytes (texture)", texture.size);
+	N3D_C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);																			// DEFINITE?
 
 //	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, xin, yin, w, h, 0);
 	//???    u8* _dstAddr = ((u8*)dstAddr) + (((destPosX * 8 + destPosY * dstWidth) * pixelSize) >> 3);
 	//???    u8* _scrAddr = ((u8*)srcAddr) + (((sourcePosX * 8 + sourcePosY * srcWidth) * pixelSize) >> 3);
-	N3D_C3D_SyncTextureCopy(																											// DEFINITE? - REIMPLEMENTED
+	N3D_C3D_SyncTextureCopy(																										// DEFINITE? - REIMPLEMENTED
 		(u32 *)_gameScreenTarget->frameBuf.colorBuf + (yin8 * _screenTexWidth + xin8),												// DEFINITE? - REIMPLEMENTED
 		(u32)GX_BUFFER_DIM((w8 * 8 * 4) >> 4, ((_screenTexWidth - w8) * 8 * 4) >> 4),												// DEFINITE? - REIMPLEMENTED
 		(u32 *)tmpTex.data,																											// DEFINITE? - REIMPLEMENTED
@@ -2601,15 +2607,15 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 		}																															// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	}																																// DEFINITE? - ADDED from "gfx_opengl.cpp"
 	if ((xin != xin8) | (yin != yin8) | (w != w8) | (h != h8)) {																	// DEFINITE? - ADDED
-		N3D_ArbDataToArbBlockTexOffset((u32 *)tmpTex.data, (u32 *)texture.data, w, h, (xin - xin8), (yin - yin8),			// DEFINITE? - ADDED
-		                                        tmpTex.width, tmpTex.height, 0, 0, texture.width, texture.height, GPU_RGBA8,		// DEFINITE? - ADDED
-		                                        0, true);																			// DEFINITE? - ADDED
+		N3D_ArbDataToArbBlockTexOffset((u32 *)tmpTex.data, (u32 *)texture.data, w, h, (xin - xin8), (yin - yin8),					// DEFINITE? - ADDED
+		                               tmpTex.width, tmpTex.height, 0, 0, texture.width, texture.height, GPU_RGBA8,					// DEFINITE? - ADDED
+		                               0, true);																					// DEFINITE? - ADDED
 	} else {																														// DEFINITE? - ADDED
 		memcpy(texture.data, tmpTex.data, texture.width * texture.height * 4);														// DEFINITE? - ADDED
 	}																																// DEFINITE? - ADDED
-	warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (tmptex)", tmpTex.size);
-	N3D_C3D_TexDelete(&tmpTex);																											// DEFINITE? - ADDED
-	warning("GfxN3DS::dimRegion - Tex deleted (tmptex)");
+	debug("GfxN3DS::dimRegion - Deleting tex: -%u bytes (tmptex)", tmpTex.size);
+	N3D_C3D_TexDelete(&tmpTex);																										// DEFINITE? - ADDED
+	debug("GfxN3DS::dimRegion - Tex deleted (tmptex)");
 
 //	float width = w;
 //	float height = h;
@@ -2636,33 +2642,34 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 //	_dimRegionProgram->use();
 //	_dimRegionProgram->setUniform("scaleWH", Math::Vector2d(1.f / _screenWidth, 1.f / _screenHeight));
 //	_dimRegionProgram->setUniform("tex", 0);
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDimRegion);																					// DEFINITE?
-	_programDimRegion->setUniform("scaleWH", GPU_VERTEX_SHADER,														// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programDimRegion);															// DEFINITE?
+	_programDimRegion->setUniform("scaleWH", GPU_VERTEX_SHADER,																		// DEFINITE?
 	                              Math::Vector2d(1.f / _screenWidth, 1.f / _screenHeight));											// DEFINITE?
 
 //	glDisable(GL_DEPTH_TEST);
 //	glDepthMask(GL_FALSE);
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
-	N3D_DepthMask(false);																									// DEFINITE?
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
+	N3D_DepthMask(false);																											// DEFINITE?
 
 //	glDrawArrays(GL_TRIANGLES, 0, 6);
-	N3D_C3D_TexBind(GPU_TEXUNIT0, &texture);																							// DEFINITE?
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 6);																							// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	debug("GfxN3DS::dimRegion");
+	N3D_C3D_TexBind(0, &texture);																						// DEFINITE?
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 6);																						// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
 //	glEnable(GL_DEPTH_TEST);
 //	glDepthMask(GL_TRUE);
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
-	N3D_DepthMask(true);																									// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
+	N3D_DepthMask(true);																											// DEFINITE?
 
 //	glDeleteTextures(1, &texture);
-	warning("GfxN3DS::dimRegion - Deleting tex: -%u bytes (texture)", texture.size);
-	N3D_C3D_TexDelete(&texture);																										// DEFINITE?
-	warning("GfxN3DS::dimRegion - Tex deleted (texture)");
+	debug("GfxN3DS::dimRegion - Deleting tex: -%u bytes (texture)", texture.size);
+	N3D_C3D_TexDelete(&texture);																									// DEFINITE?
+	debug("GfxN3DS::dimRegion - Tex deleted (texture)");
 }
 
 void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
@@ -2671,12 +2678,12 @@ void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
 //	_irisProgram->setUniform("scaleWH", Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight));
 
 
-	// 																																								use GPU_SCISSOR_INVERT?
+	// 																																use GPU_SCISSOR_INVERT?
 
 
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programIris);																						// DEFINITE? - CLONE OF PRIMRECT
-	_programIris->setUniform("color", GPU_VERTEX_SHADER, Math::Vector3d(0.0f, 0.0f, 0.0f));							// DEFINITE?
-	_programIris->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight));		// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programIris);																// DEFINITE? - CLONE OF PRIMRECT
+	_programIris->setUniform("color", GPU_VERTEX_SHADER, Math::Vector3d(0.0f, 0.0f, 0.0f));											// DEFINITE?
+	_programIris->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight));					// DEFINITE?
 
 	float fx1 = x1;
 	float fx2 = x2;
@@ -2703,22 +2710,22 @@ void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
 
 //	glDisable(GL_DEPTH_TEST);
 //	glDepthMask(GL_FALSE);
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
-	N3D_DepthMask(false);																									// DEFINITE?
-	N3D_BlendEnabled(false);																								// from "gfx_opengl.cpp"
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
+	N3D_DepthMask(false);																											// DEFINITE?
+	N3D_BlendEnabled(false);																										// from "gfx_opengl.cpp"
 
 //	glDrawArrays(GL_TRIANGLE_STRIP, 0, 10);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 10);																						// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 10);																					// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 
 //	glEnable(GL_DEPTH_TEST);
 //	glDepthMask(GL_TRUE);
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
-	N3D_DepthMask(true);																									// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
+	N3D_DepthMask(true);																											// DEFINITE?
 }
 
 void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgColor) {
@@ -2729,26 +2736,27 @@ void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgCol
 //	glDisable(GL_DEPTH_TEST);
 //	glBindTexture(GL_TEXTURE_2D, _emergTexture);
 //	_emergProgram->use();
-	N3D_BlendEnabled(true);																								// DEFINITE?
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, _emergTexture);																						// DEFINITE?
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programEmerg);																						// DEFINITE?
+	N3D_BlendEnabled(true);																											// DEFINITE?
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
+	debug("GfxN3DS::drawEmergString");
+	N3D_C3D_TexBind(0, &_emergTexture);																					// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programEmerg);																// DEFINITE?
 	Math::Vector3d colors(float(fgColor.getRed()) / 255.0f,
 	                      float(fgColor.getGreen()) / 255.0f,
 	                      float(fgColor.getBlue()) / 255.0f);
 //	_emergProgram->setUniform("color", colors);
 //	_emergProgram->setUniform("sizeWH", Math::Vector2d(float(8) / _gameWidth, float(16) / _gameHeight));
 //	_emergProgram->setUniform("texScale", Math::Vector2d(float(8) / 128, float(16) / 128));
-	_programEmerg->setUniform("color", GPU_VERTEX_SHADER, colors);													// DEFINITE?
-	_programEmerg->setUniform("sizeWHtexScale", GPU_VERTEX_SHADER,													// DEFINITE?
+	_programEmerg->setUniform("color", GPU_VERTEX_SHADER, colors);																	// DEFINITE?
+	_programEmerg->setUniform("sizeWHtexScale", GPU_VERTEX_SHADER,																	// DEFINITE?
 	                          Math::Vector4d(float(8) / _gameWidth,																	// DEFINITE?
 	                                         float(16) / _gameHeight,																// DEFINITE?
 	                                         float(8) / 128,																		// DEFINITE?
 	                                         float(16) / 128));																		// DEFINITE?
 
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envEmerg);																									// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envEmerg);																								// DEFINITE? - ADDED
 	for (; *text; ++text, x+=10) {
 		int blockcol = *text & 0xf;
 		int blockrow = *text / 16;
@@ -2760,9 +2768,9 @@ void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgCol
 		                                         float(blockcol * 8) / 128,															// DEFINITE?
 		                                         float(blockrow * 16) / 128));														// DEFINITE?
 //		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		N3D_C3D_DrawArrays(GPU_TRIANGLE_FAN, 0, 4);																						// DEFINITE?
+		N3D_C3D_DrawArrays(GPU_TRIANGLE_FAN, 0, 4);																					// DEFINITE?
 	}
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 	_gameScreenDirty = true;																										// DEFINITE? - ADDED
 }
 
@@ -2794,17 +2802,17 @@ void GfxN3DS::loadEmergFont() {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 //	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, 128, 128, 0, GL_ALPHA, GL_UNSIGNED_BYTE, atlas);
-	warning("free linear space: %lu bytes", linearSpaceFree());
-	warning("free VRAM space: %lu bytes", vramSpaceFree());
-	warning("GfxN3DS::loadEmergFont - Creating tex (_emergTexture)");
-	N3D_C3D_TexInit(_emergTexture, 128, 128, GPU_A8);																					// DEFINITE?
-	warning("GfxN3DS::loadEmergFont - Tex created: %u bytes (_emergTexture)", _emergTexture->size);
-	N3D_C3D_TexSetFilter(_emergTexture, GPU_LINEAR, GPU_LINEAR);																		// DEFINITE?
-	N3D_C3D_TexSetWrap(_emergTexture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
-	N3D_DataToBlockTex((u32 *)atlas, (u32 *)atlasSwizzle, 0, 0, 128, 128, 128, 128, GPU_A8, 0, false);						// DEFINITE?
-	N3D_C3D_SyncTextureCopy(																											// DEFINITE?
+	debug("free linear space: %lu bytes", linearSpaceFree());
+	debug("free VRAM space: %lu bytes", vramSpaceFree());
+	debug("GfxN3DS::loadEmergFont - Creating tex (_emergTexture)");
+	N3D_C3D_TexInit(&_emergTexture, 128, 128, GPU_A8);																				// DEFINITE?
+	debug("GfxN3DS::loadEmergFont - Tex created: %u bytes (_emergTexture)", _emergTexture.size);
+	N3D_C3D_TexSetFilter(&_emergTexture, GPU_LINEAR, GPU_LINEAR);																	// DEFINITE?
+	N3D_C3D_TexSetWrap(&_emergTexture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);														// DEFINITE?
+	N3D_DataToBlockTex((u32 *)atlas, (u32 *)atlasSwizzle, 0, 0, 128, 128, 128, 128, GPU_A8, 0, false);								// DEFINITE?
+	N3D_C3D_SyncTextureCopy(																										// DEFINITE?
 		(u32 *)atlasSwizzle,        GX_BUFFER_DIM((128 * 8) >> 4, 0),																// DEFINITE?
-		(u32 *)_emergTexture->data, GX_BUFFER_DIM((128 * 8) >> 4, 0),																// DEFINITE?
+		(u32 *)_emergTexture.data, GX_BUFFER_DIM((128 * 8) >> 4, 0),																// DEFINITE?
 		128 * 128, GX_TRANSFER_RAW_COPY(1)																							// DEFINITE?
 	);																																// DEFINITE?
 
@@ -2813,7 +2821,7 @@ void GfxN3DS::loadEmergFont() {
 }
 
 void GfxN3DS::drawGenericPrimitive(const float *vertices, uint32 numVertices, const PrimitiveObject *primitive) {
-	N3D_C3D_FrameEnd(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameEnd(0);																											// DEFINITE? - ADDED
 
 	const Color color(primitive->getColor());
 	const Math::Vector3d colorV =
@@ -2827,8 +2835,8 @@ void GfxN3DS::drawGenericPrimitive(const float *vertices, uint32 numVertices, co
 
 //	glDisable(GL_DEPTH_TEST);
 //	glDepthMask(GL_FALSE);
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
-	N3D_DepthMask(false);																									// DEFINITE?
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
+	N3D_DepthMask(false);																											// DEFINITE?
 
 //	_primitiveProgram->enableVertexAttribute("position", prim, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
 //	_primitiveProgram->use(true);
@@ -2838,35 +2846,35 @@ void GfxN3DS::drawGenericPrimitive(const float *vertices, uint32 numVertices, co
 #define PRIMITIVE_LENGTH 4																											// FINALIZED - ADDED
 #define SET_PRIMITIVE_UNIFORMS(primProg) \
 	primProg->setUniform("color", GPU_VERTEX_SHADER, colorV); \
-	primProg->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight))			// FINALIZED - ADDED
+	primProg->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight))							// FINALIZED - ADDED
 
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envNormal);																									// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envNormal);																								// DEFINITE? - ADDED
 	switch (primitive->getType()) {
 		case PrimitiveObject::RectangleType:
 //			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			SET_PRIMITIVE_UNIFORMS(_programPrimRect);																				// FINALIZED - ADDED
-			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimRect);																			// DEFINITE?
-			N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, (_lastPrimitive * PRIMITIVE_LENGTH), 4);												// DEFINITE?
+			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimRect);													// DEFINITE?
+			N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, (_lastPrimitive * PRIMITIVE_LENGTH), 4);											// DEFINITE?
 			break;
 		case PrimitiveObject::LineType:
 //			glDrawArrays(GL_LINES, 0, 2);
 			SET_PRIMITIVE_UNIFORMS(_programPrimLines);																				// FINALIZED - ADDED
-			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimLines);																			// DEFINITE?
-			N3D_C3D_DrawArrays(GPU_GEOMETRY_PRIM, (_lastPrimitive * PRIMITIVE_LENGTH), 2);												// DEFINITE?
+			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimLines);													// DEFINITE?
+			N3D_C3D_DrawArrays(GPU_GEOMETRY_PRIM, (_lastPrimitive * PRIMITIVE_LENGTH), 2);											// DEFINITE?
 			break;
 		case PrimitiveObject::PolygonType:
 //			glDrawArrays(GL_LINES, 0, 4);
 			SET_PRIMITIVE_UNIFORMS(_programPrimLines);																				// FINALIZED - ADDED
-			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimLines);																			// DEFINITE?
-			N3D_C3D_DrawArrays(GPU_GEOMETRY_PRIM, (_lastPrimitive * PRIMITIVE_LENGTH), 4);												// DEFINITE?
+			N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programPrimLines);													// DEFINITE?
+			N3D_C3D_DrawArrays(GPU_GEOMETRY_PRIM, (_lastPrimitive * PRIMITIVE_LENGTH), 4);											// DEFINITE?
 			break;
 		default:
 			// Impossible
 			break;
 	}
-	N3D_C3D_FrameEnd(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameEnd(0);																											// DEFINITE? - ADDED
 
 #undef PRIMITIVE_LENGTH																												// FINALIZED - ADDED
 #undef SET_PRIMITIVE_UNIFORMS																										// FINALIZED - ADDED
@@ -2875,8 +2883,8 @@ void GfxN3DS::drawGenericPrimitive(const float *vertices, uint32 numVertices, co
 //	glDepthMask(GL_TRUE);
 //	glEnable(GL_DEPTH_TEST);
 	// BufInfo_Init(C3D_GetBufInfo());																						// Citro3D
-	N3D_DepthMask(true);																									// DEFINITE?
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
+	N3D_DepthMask(true);																											// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
 }
 
 void GfxN3DS::drawRectangle(const PrimitiveObject *primitive) {
@@ -2983,10 +2991,10 @@ void GfxN3DS::prepareMovieFrame(Graphics::Surface* frame) {
 	// create texture
 //	if (_smushTexId == 0) {
 //		glGenTextures(1, &_smushTexId);
-	if (_smushTex->size == 0) {																										// DEFINITE?
-		warning("GfxN3DS::prepareMovieFrame - Creating tex (_smushTex)");
-		N3D_C3D_TexInit(_smushTex, (u16)nextHigher2(width), (u16)nextHigher2(height), frameFormat);										// DEFINITE?
-		warning("GfxN3DS::prepareMovieFrame - Tex created: %u bytes (_smushTex)", _smushTex->size);
+	if (_smushTex.size == 0) {																										// DEFINITE?
+		debug("GfxN3DS::prepareMovieFrame - Creating tex (_smushTex)");
+		N3D_C3D_TexInit(&_smushTex, (u16)nextHigher2(width), (u16)nextHigher2(height), frameFormat);								// DEFINITE?
+		debug("GfxN3DS::prepareMovieFrame - Tex created: %u bytes (_smushTex)", _smushTex.size);
 	}
 //	glBindTexture(GL_TEXTURE_2D, _smushTexId);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -2994,14 +3002,14 @@ void GfxN3DS::prepareMovieFrame(Graphics::Surface* frame) {
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 //	glTexImage2D(GL_TEXTURE_2D, 0, frameFormat, nextHigher2(width), nextHigher2(height), 0, frameFormat, frameType, nullptr);
-	N3D_C3D_TexSetFilter(_smushTex, GPU_NEAREST, GPU_NEAREST);																			// DEFINITE?
-	N3D_C3D_TexSetWrap(_smushTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);																// DEFINITE?
+	N3D_C3D_TexSetFilter(&_smushTex, GPU_NEAREST, GPU_NEAREST);																		// DEFINITE?
+	N3D_C3D_TexSetWrap(&_smushTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);															// DEFINITE?
 
 //	glPixelStorei(GL_UNPACK_ALIGNMENT, frame->format.bytesPerPixel);													// !!!!!!!!!!!!
 //	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, frameFormat, frameType, bitmap);								// !!!!!!!!!!!!
 //	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);																				// !!!!!!!!!!!!
-	N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(bitmap), (u32 *)_smushTex->data, 0, 0,									// DEFINITE?
-	                            width, height, (int)_smushTex->width, (int)_smushTex->height, frameFormat, 0, false);				// DEFINITE?
+	N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(bitmap), (u32 *)_smushTex.data, 0, 0,												// DEFINITE?
+	                   width, height, (int)_smushTex.width, (int)_smushTex.height, frameFormat, 0, false);							// DEFINITE?
 
 	_smushWidth = (int)(width);
 	_smushHeight = (int)(height);
@@ -3010,45 +3018,46 @@ void GfxN3DS::prepareMovieFrame(Graphics::Surface* frame) {
 void GfxN3DS::drawMovieFrame(int offsetX, int offsetY) {
 //	_smushProgram->use();
 //	glDisable(GL_DEPTH_TEST);
-	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programSmush);																						// DEFINITE?
-	N3D_DepthTestEnabled(false);																							// DEFINITE?
+	N3DCONTEXT_FROM_HANDLE(_grimContext)->changeShader(_programSmush);																// DEFINITE?
+	N3D_DepthTestEnabled(false);																									// DEFINITE?
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
 //	_smushProgram->setUniform("texcrop", Math::Vector2d(float(_smushWidth) / nextHigher2(_smushWidth), float(_smushHeight) / nextHigher2(_smushHeight)));
 //	_smushProgram->setUniform("scale", Math::Vector2d(float(_smushWidth)/ float(_gameWidth), float(_smushHeight) / float(_gameHeight)));
 //	_smushProgram->setUniform("offset", Math::Vector2d(float(offsetX) / float(_gameWidth), float(offsetY) / float(_gameHeight)));
 //	glBindTexture(GL_TEXTURE_2D, _smushTexId);
-	_programSmush->setUniform("texcrop", GPU_VERTEX_SHADER,															// DEFINITE?
+	_programSmush->setUniform("texcrop", GPU_VERTEX_SHADER,																			// DEFINITE?
 	                          Math::Vector2d(float(_smushWidth)  / nextHigher2(_smushWidth),										// DEFINITE?
 	                                         float(_smushHeight) / nextHigher2(_smushHeight)));										// DEFINITE?
-	_programSmush->setUniform("scale", GPU_VERTEX_SHADER,															// DEFINITE?
+	_programSmush->setUniform("scale", GPU_VERTEX_SHADER,																			// DEFINITE?
 	                          Math::Vector2d(float(_smushWidth)  / float(_gameWidth),												// DEFINITE?
 	                                         float(_smushHeight) / float(_gameHeight)));											// DEFINITE?
-	_programSmush->setUniform("offset", GPU_VERTEX_SHADER,															// DEFINITE?
+	_programSmush->setUniform("offset", GPU_VERTEX_SHADER,																			// DEFINITE?
 	                          Math::Vector2d(float(offsetX) / float(_gameWidth),													// DEFINITE?
 	                                         float(offsetY) / float(_gameHeight)));													// DEFINITE?
-	N3D_C3D_TexBind(GPU_TEXUNIT0, _smushTex);																							// DEFINITE?
+	debug("GfxN3DS::drawMovieFrame");
+	N3D_C3D_TexBind(0, &_smushTex);																						// DEFINITE?
 
 //	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
-	N3D_C3D_FrameBegin(0);																												// DEFINITE? - ADDED
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);																								// DEFINITE? - ADDED
-	N3D_C3D_SetTexEnv(0, &envSmush);																									// DEFINITE? - ADDED
-	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);														// DEFINITE?
-	N3D_C3D_FrameSplit(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameBegin(0);																											// DEFINITE? - ADDED
+	N3D_C3D_FrameDrawOn(_gameScreenTarget);																							// DEFINITE? - ADDED
+	N3D_C3D_SetTexEnv(0, &envSmush);																								// DEFINITE? - ADDED
+	N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);													// DEFINITE?
+	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 //	glEnable(GL_DEPTH_TEST);
-	N3D_DepthTestEnabled(true);																							// DEFINITE?
+	N3D_DepthTestEnabled(true);																										// DEFINITE?
 }
 
 void GfxN3DS::releaseMovieFrame() {
-	N3D_C3D_FrameEnd(0);																												// DEFINITE? - ADDED
+	N3D_C3D_FrameEnd(0);																											// DEFINITE? - ADDED
 //	if (_smushTexId > 0) {
 //		glDeleteTextures(1, &_smushTexId);
-	if (_smushTex->size > 0) {																										// DEFINITE?
-		warning("GfxN3DS::releaseMovieFrame - Deleting tex: -%u bytes (_smushTex)", _smushTex->size);
-		N3D_C3D_TexDelete(_smushTex);																									// DEFINITE?
-		warning("GfxN3DS::releaseMovieFrame - Tex deleted (_smushTex)");
+	if (_smushTex.size > 0) {																										// DEFINITE?
+		debug("GfxN3DS::releaseMovieFrame - Deleting tex: -%u bytes (_smushTex)", _smushTex.size);
+		N3D_C3D_TexDelete(&_smushTex);																								// DEFINITE?
+		debug("GfxN3DS::releaseMovieFrame - Tex deleted (_smushTex)");
 //		_smushTexId = 0;
 	}
 }
@@ -3076,18 +3085,18 @@ void GfxN3DS::createEMIModel(EMIModel *model) {
 
 //	mud->_colorMapVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, model->_numVertices * 4 * sizeof(byte), model->_colorMap, GL_STATIC_DRAW);
 
-	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_verticesVBO)");
-	mud->_verticesVBO  = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_vertices);				// DEFINITE?
-	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO ));
-	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_normalsVBO)");
-	mud->_normalsVBO   = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_normals);				// DEFINITE?
-	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO  ));
-	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_texCoordsVBO)");
-	mud->_texCoordsVBO = N3DS_3D::createBuffer(model->_numVertices * 2 * sizeof(float), model->_texVerts);				// DEFINITE?
-	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
-	warning("GfxN3DS::createEMIModel - Creating linear alloc (mud->_colorMapVBO)");
-	mud->_colorMapVBO  = N3DS_3D::createBuffer(model->_numVertices * 4 * sizeof(byte), model->_colorMap);				// DEFINITE?	// needs to be pre-normalized?
-	warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO ));
+	debug("GfxN3DS::createEMIModel - Creating linear alloc (mud->_verticesVBO)");
+	mud->_verticesVBO  = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_vertices);							// DEFINITE?
+	debug("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO ));
+	debug("GfxN3DS::createEMIModel - Creating linear alloc (mud->_normalsVBO)");
+	mud->_normalsVBO   = N3DS_3D::createBuffer(model->_numVertices * 3 * sizeof(float), model->_normals);							// DEFINITE?
+	debug("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO  ));
+	debug("GfxN3DS::createEMIModel - Creating linear alloc (mud->_texCoordsVBO)");
+	mud->_texCoordsVBO = N3DS_3D::createBuffer(model->_numVertices * 2 * sizeof(float), model->_texVerts);							// DEFINITE?
+	debug("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
+	debug("GfxN3DS::createEMIModel - Creating linear alloc (mud->_colorMapVBO)");
+	mud->_colorMapVBO  = N3DS_3D::createBuffer(model->_numVertices * 4 * sizeof(byte), model->_colorMap);							// DEFINITE?	// needs to be pre-normalized?
+	debug("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO ));
 
 //	OpenGL::Shader *actorShader = _actorProgram->clone();
 //	actorShader->enableVertexAttribute("position", mud->_verticesVBO, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
@@ -3124,9 +3133,9 @@ void GfxN3DS::createEMIModel(EMIModel *model) {
 	for (uint32 i = 0; i < model->_numFaces; ++i) {
 		EMIMeshFace * face = &model->_faces[i];
 //		face->_indicesEBO = OpenGL::Shader::createBuffer(GL_ELEMENT_ARRAY_BUFFER, face->_faceLength * 3 * sizeof(uint16), face->_indexes, GL_STATIC_DRAW);
-		warning("GfxN3DS::createEMIModel - Creating linear alloc (face->_indicesEBO)");
-		face->_indicesEBO = N3DS_3D::createBuffer(face->_faceLength * 3 * sizeof(uint16), face->_indexes);				// DEFINITE?
-		warning("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
+		debug("GfxN3DS::createEMIModel - Creating linear alloc (face->_indicesEBO)");
+		face->_indicesEBO = N3DS_3D::createBuffer(face->_faceLength * 3 * sizeof(uint16), face->_indexes);							// DEFINITE?
+		debug("GfxN3DS::createEMIModel - Linear alloc created: %u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
 	}
 
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -3137,9 +3146,9 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 		EMIMeshFace *face = &model->_faces[i];
 //		OpenGL::Shader::freeBuffer(face->_indicesEBO);
 //		face->_indicesEBO = 0;
-		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
-		N3DS_3D::freeBuffer(face->_indicesEBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (face->_indicesEBO).");
+		debug("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (face->_indicesEBO)", linearGetSize(face->_indicesEBO));
+		N3DS_3D::freeBuffer(face->_indicesEBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyEMIModel - Linear alloc deleted (face->_indicesEBO).");
 		face->_indicesEBO = nullptr;																								// DEFINITE?
 	}
 
@@ -3150,18 +3159,18 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 //		OpenGL::Shader::freeBuffer(mud->_normalsVBO);
 //		OpenGL::Shader::freeBuffer(mud->_texCoordsVBO);
 //		OpenGL::Shader::freeBuffer(mud->_colorMapVBO);
-		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO));
-		N3DS_3D::freeBuffer(mud->_verticesVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_verticesVBO).");
-		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO));
-		N3DS_3D::freeBuffer(mud->_normalsVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_normalsVBO).");
-		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
-		N3DS_3D::freeBuffer(mud->_texCoordsVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_texCoordsVBO).");
-		warning("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO));
-		N3DS_3D::freeBuffer(mud->_colorMapVBO);																			// DEFINITE?
-		warning("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_colorMapVBO).");
+		debug("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_verticesVBO)", linearGetSize(mud->_verticesVBO));
+		N3DS_3D::freeBuffer(mud->_verticesVBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_verticesVBO).");
+		debug("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_normalsVBO)", linearGetSize(mud->_normalsVBO));
+		N3DS_3D::freeBuffer(mud->_normalsVBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_normalsVBO).");
+		debug("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_texCoordsVBO)", linearGetSize(mud->_texCoordsVBO));
+		N3DS_3D::freeBuffer(mud->_texCoordsVBO);																					// DEFINITE?
+		debug("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_texCoordsVBO).");
+		debug("GfxN3DS::destroyEMIModel - Deleting linear alloc: -%u bytes (mud->_colorMapVBO)", linearGetSize(mud->_colorMapVBO));
+		N3DS_3D::freeBuffer(mud->_colorMapVBO);																						// DEFINITE?
+		debug("GfxN3DS::destroyEMIModel - Linear alloc deleted (mud->_colorMapVBO).");
 		mud->_verticesVBO = nullptr;																								// DEFINITE?
 		mud->_normalsVBO = nullptr;																									// DEFINITE?
 		mud->_texCoordsVBO = nullptr;																								// DEFINITE?
@@ -3210,9 +3219,9 @@ void GfxN3DS::createMesh(Mesh *mesh) {
 	mesh->_userData = mud;
 
 //	mud->_meshInfoVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, meshInfo.size() * sizeof(GrimVertex), &meshInfo[0], GL_STATIC_DRAW);
-	warning("GfxN3DS::createMesh - Creating linear alloc (mud->_meshInfoVBO)");
-	mud->_meshInfoVBO = N3DS_3D::createBuffer(meshInfo.size() * sizeof(GrimVertex), &meshInfo[0]);						// DEFINITE?
-	warning("GfxN3DS::createMesh - Linear alloc created: %u bytes (mud->_meshInfoVBO)", linearGetSize(mud->_meshInfoVBO));
+	debug("GfxN3DS::createMesh - Creating linear alloc (mud->_meshInfoVBO)");
+	mud->_meshInfoVBO = N3DS_3D::createBuffer(meshInfo.size() * sizeof(GrimVertex), &meshInfo[0]);									// DEFINITE?
+	debug("GfxN3DS::createMesh - Linear alloc created: %u bytes (mud->_meshInfoVBO)", linearGetSize(mud->_meshInfoVBO));
 
 //	OpenGL::Shader *actorShader = _actorProgram->clone();
 //	actorShader->enableVertexAttribute("position", mud->_meshInfoVBO, 3, GL_FLOAT, GL_FALSE, sizeof(GrimVertex), 0);
@@ -3242,9 +3251,9 @@ void GfxN3DS::createMesh(Mesh *mesh) {
 void GfxN3DS::destroyMesh(const Mesh *mesh) {
 	ModelUserData *mud = static_cast<ModelUserData *>(mesh->_userData);
 
-	warning("GfxN3DS::destroyMesh - Deleting linear alloc (mud->_meshInfoVBO): -%u bytes", linearGetSize(mud->_meshInfoVBO));
-	N3DS_3D::freeBuffer(mud->_meshInfoVBO);																									// DEFINITE? - ADDED
-	warning("GfxN3DS::destroyMesh - Linear alloc deleted (mud->_meshInfoVBO).");
+	debug("GfxN3DS::destroyMesh - Deleting linear alloc (mud->_meshInfoVBO): -%u bytes", linearGetSize(mud->_meshInfoVBO));
+	N3DS_3D::freeBuffer(mud->_meshInfoVBO);																							// DEFINITE? - ADDED
+	debug("GfxN3DS::destroyMesh - Linear alloc deleted (mud->_meshInfoVBO).");
 
 	for (int i = 0; i < mesh->_numFaces; ++i) {
 		MeshFace *face = &mesh->_faces[i];
@@ -3282,8 +3291,8 @@ void GfxN3DS::destroyMesh(const Mesh *mesh) {
 
 void GfxN3DS::makeScreenTextures() {																								// DEFINITE? - ADDED
 	// Copy screen to a buffer																										// DEFINITE? - ADDED
-	N3D_C3D_SyncDisplayTransfer((u32 *)(_gameScreenTarget->frameBuf.colorBuf), GX_BUFFER_DIM(1024, 512),								// DEFINITE? - ADDED
-	                        (u32 *)_screenCopySpace,                       GX_BUFFER_DIM( 640, 480), 5);							// DEFINITE? - ADDED
+	N3D_C3D_SyncDisplayTransfer((u32 *)_gameScreenTarget->frameBuf.colorBuf, GX_BUFFER_DIM(1024, 512),								// DEFINITE? - ADDED
+	                            (u32 *)_screenCopySpace,                     GX_BUFFER_DIM( 640, 480), 5);							// DEFINITE? - ADDED
 
 	// Make a buffer big enough to hold any of the subTextures																		// DEFINITE? - ADDED
 	uint8 *buffer = new uint8[256 * 256 * 4];																						// DEFINITE? - ADDED
@@ -3346,14 +3355,14 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 //		}
 		// Cropping bit is at x << 2																								// DEFINITE? - REIMPLEMENTED
 		// GX_TRANSFER_FLIP_VERT(1) | (1 << 2) = (1 << 0) | (1 << 2) = 0b0001 | 0b0100 = 0b0101 = 5									// DEFINITE? - REIMPLEMENTED
-		N3D_C3D_SyncDisplayTransfer((u32 *)_storedDisplay->data,                 GX_BUFFER_DIM(1024, 512),								// DEFINITE? - REIMPLEMENTED
-		                        (u32 *)_screenCopySpace,                     GX_BUFFER_DIM( 640, 480), 5);							// DEFINITE? - REIMPLEMENTED
+		N3D_C3D_SyncDisplayTransfer((u32 *)_storedDisplay.data, GX_BUFFER_DIM(1024, 512),											// DEFINITE? - REIMPLEMENTED
+		                            (u32 *)_screenCopySpace,    GX_BUFFER_DIM( 640, 480), 5);										// DEFINITE? - REIMPLEMENTED
 	} else {
 //		readPixels(0, 0, _screenWidth, _screenHeight, (uint8 *)src.getPixels());
 		// Cropping bit is at x << 2																								// DEFINITE? - REIMPLEMENTED
 		// GX_TRANSFER_FLIP_VERT(1) | (1 << 2) = (1 << 0) | (1 << 2) = 0b0001 | 0b0100 = 0b0101 = 5									// DEFINITE? - REIMPLEMENTED
-		N3D_C3D_SyncDisplayTransfer((u32 *)_gameScreenTarget->frameBuf.colorBuf, GX_BUFFER_DIM(1024, 512),								// DEFINITE? - REIMPLEMENTED
-		                        (u32 *)_screenCopySpace,                     GX_BUFFER_DIM( 640, 480), 5);							// DEFINITE? - REIMPLEMENTED
+		N3D_C3D_SyncDisplayTransfer((u32 *)_gameScreenTarget->frameBuf.colorBuf, GX_BUFFER_DIM(1024, 512),							// DEFINITE? - REIMPLEMENTED
+		                            (u32 *)_screenCopySpace,                     GX_BUFFER_DIM( 640, 480), 5);						// DEFINITE? - REIMPLEMENTED
 	}
 	bmp = createScreenshotBitmap(&src, w, h, true);
 //	src.free();
@@ -3373,10 +3382,10 @@ void GfxN3DS::createSpecialtyTextureFromScreen(uint id, uint8 *data, int x, int 
 void GfxN3DS::setBlendMode(bool additive) {
 	if (additive) {
 //		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE);																				// DEFINITE?
+		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE);																						// DEFINITE?
 	} else {
 //		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																// DEFINITE?
+		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);																		// DEFINITE?
 	}
 }
 

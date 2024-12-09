@@ -22,14 +22,6 @@
 #ifndef GRAPHICS_3DS_N3DOBJECTS_H
 #define GRAPHICS_3DS_N3DOBJECTS_H
 
-#define N3DSMACRO_SHADER_INSTANCE(shaderEnum) \
-	((shaderEnum == 0) ? (_program->vertexShader) : (_program->geometryShader))
-#define N3DSMACRO_UNIF_MAP(shaderEnum) \
-	((shaderEnum == 0) ? _vert_UniformMap : _geom_UniformMap)
-#define N3DSMACRO_UNIF_FVECS(shaderEnum) \
-	((shaderEnum == 0) ? _vert_unif_FVecs : _geom_unif_FVecs)
-#define N3DSMACRO_DIRTY_FVECS(shaderEnum) \
-	((shaderEnum == 0) ? _vert_dirtyFVecs : _geom_dirtyFVecs)
 #define MAX_TEX_UNITS 3
 
 //#include <3ds.h>
@@ -135,6 +127,20 @@ public:
 extern N3DContext *activeContext;
 N3DContext *getActiveContext();
 
+
+#define N3DSMACRO_SHADER_INSTANCE(shaderEnum) \
+	((shaderEnum == 0) ? (_program->vertexShader) : (_program->geometryShader))
+#define N3DSMACRO_UNIF_MAP(shaderEnum) \
+	((shaderEnum == 0) ? _vert_UniformMap : _geom_UniformMap)
+#define N3DSMACRO_UNIF_FVECS(shaderEnum) \
+	((shaderEnum == 0) ? _vert_unif_FVecs : _geom_unif_FVecs)
+#define N3DSMACRO_DIRTY_FVECS(shaderEnum) \
+	((shaderEnum == 0) ? _vert_dirtyFVecs : _geom_dirtyFVecs)
+
+enum SHADERINSTANCEFLAG {
+	SI_VERTEX = 0x01,
+	SI_GEOM   = 0x10
+};
 
 class ShaderObj {
 public:
@@ -341,6 +347,7 @@ public:
 	// vars
 	DVLB_s             *_binary;
 	shaderProgram_s    *_program;
+	u8                  _si_flags;
 	C3D_AttrInfo        _attrInfo;
 	C3D_BufInfo         _bufInfo;
 

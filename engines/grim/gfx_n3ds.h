@@ -251,7 +251,7 @@ private:
 //	OpenGL::Shader* _primitiveProgram;
 //	OpenGL::Shader* _irisProgram;
 //	OpenGL::Shader* _shadowPlaneProgram;
-	C3D_Tex            *_emergTexture;																					// DEFINITE?
+	C3D_Tex             _emergTexture;																					// DEFINITE?
 	N3DS_3D::ShaderObj *_programEmerg;																					// DEFINITE?
 
 	N3DS_3D::ShaderObj *_programBackground;																				// DEFINITE?
@@ -273,7 +273,7 @@ private:
 	int _smushWidth;
 	int _smushHeight;
 //	GLuint _smushTexId;
-	C3D_Tex *_smushTex;																									// DEFINITE?
+	C3D_Tex _smushTex;																									// DEFINITE?
 	void setupUntexturedQuad();																							// DEFINITE? - ADDED
 	void setupTexturedQuad();
 	void setupQuadEBO();
@@ -332,7 +332,7 @@ private:
 	void    *_dimVBO;																									// DEFINITE?
 	void    *_dimRegionVBO;																								// DEFINITE?
 	void    *_blastVBO;																									// DEFINITE?
-	C3D_Tex *_storedDisplay;																							// DEFINITE?
+	C3D_Tex  _storedDisplay;																							// DEFINITE?
 
 	C3D_Tex          *_gameScreenTex;																					// DEFINITE? - ADDED
 	C3D_RenderTarget *_gameScreenTarget;																				// DEFINITE? - ADDED
