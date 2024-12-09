@@ -92,14 +92,14 @@ void OSystem_3DS::init3DSGraphics() {
 
 	_renderTargetTop =
 	    C3D_RenderTargetCreate(240, topScreenWidth, GPU_RB_RGB8, -1);
-	warning("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * topScreenWidth * 3);
+	debug("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * topScreenWidth * 3);
 	C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x0000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
 
 	_renderTargetBottom =
 	    C3D_RenderTargetCreate(240, 320, GPU_RB_RGB8, -1);
-	warning("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * 320 * 3);
+	debug("OSystem_3DS::init3DSGraphics - new render target: %u bytes", 240 * 320 * 3);
 	C3D_RenderTargetClear(_renderTargetBottom, C3D_CLEAR_ALL, 0x00000000, 0);
 	C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
 	                          DISPLAY_TRANSFER_FLAGS);
@@ -734,7 +734,7 @@ void OSystem_3DS::displayMessageOnOSD(const Common::U32String &msg) {
 	// The font we are going to use:
 	const Graphics::Font *font = FontMan.getFontByUsage(Graphics::FontManager::kLocalizedFont);
 	if (!font) {
-		warning("No available font to render OSD messages");
+		debug("No available font to render OSD messages");
 		return;
 	}
 
@@ -859,7 +859,7 @@ void OSystem_3DS::setMouseCursor(const void *buf, uint w, uint h,
 	_pfCursor = !format ? Graphics::PixelFormat::createFormatCLUT8() : *format;
 
 	if (mask)
-		warning("OSystem_3DS::setMouseCursor: Masks are not supported");
+		debug("OSystem_3DS::setMouseCursor: Masks are not supported");
 
 	if (w != (uint)_cursor.w || h != (uint)_cursor.h || _cursor.format != _pfCursor) {
 		_cursor.create(w, h, _pfCursor);

@@ -63,17 +63,17 @@ void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram)
 	if (width && height) {
 		pixels = linearAlloc(h * pitch);
 		if (vram) {
-			warning("Sprite::create - Creating tex");
+			debug("Sprite::create - Creating tex");
 			if (!C3D_TexInitVRAM(&texture, w, h, mode->textureFormat)){
 				C3D_TexInit(&texture, w, h, mode->textureFormat);
-				warning("Sprite::create - Tex created: %u bytes", texture.size);
+				debug("Sprite::create - Tex created: %u bytes", texture.size);
 			} else {
-				warning("Sprite::create - VRAM tex created: %u bytes", texture.size);
+				debug("Sprite::create - VRAM tex created: %u bytes", texture.size);
 			}
 		} else{
-			warning("Sprite::create - Creating tex");
+			debug("Sprite::create - Creating tex");
 			C3D_TexInit(&texture, w, h, mode->textureFormat);
-			warning("Sprite::create - Tex created: %u bytes", texture.size);
+			debug("Sprite::create - Tex created: %u bytes", texture.size);
 		}
 		assert(pixels && texture.data);
 		clear();
@@ -98,14 +98,14 @@ void Sprite::free() {
 	u32 size = texture.size;
 	if (size > 0) {
 		if (vaddr >= OS_VRAM_VADDR && vaddr < OS_VRAM_VADDR + OS_VRAM_SIZE) {
-			warning("Sprite::free - Deleting VRAM tex: -%lu bytes", size);
+			debug("Sprite::free - Deleting VRAM tex: -%lu bytes", size);
 		} else {
-			warning("Sprite::free - Deleting tex: -%lu bytes", size);
+			debug("Sprite::free - Deleting tex: -%lu bytes", size);
 		}
 	}
 	C3D_TexDelete(&texture);
 	if (size > 0) {
-		warning("Sprite::free - Tex deleted");
+		debug("Sprite::free - Tex deleted");
 	}
 	pixels = 0;
 	w = h = pitch = 0;
