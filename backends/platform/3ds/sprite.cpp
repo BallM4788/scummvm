@@ -69,6 +69,16 @@ void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram)
 				debug("Sprite::create - Tex created: %u bytes", texture.size);
 			} else {
 				debug("Sprite::create - VRAM tex created: %u bytes", texture.size);
+				texaddr = (u32)&texture;
+				debug("sprite texture addr: %lx", texaddr);
+				u32 vaddr = (u32)texture.data;
+				debug("sprite texture->data addr: %lx", vaddr);
+				debug("sprite texture is in vram: %u", (vaddr >= OS_VRAM_VADDR && vaddr < OS_VRAM_VADDR + OS_VRAM_SIZE));
+				if (vaddr >= OS_VRAM_VADDR && vaddr < OS_VRAM_VADDR + OS_VRAM_SIZE) {
+					debug("yay!!!");
+				} else {
+					error("boo!!!");
+				}
 			}
 		} else{
 			debug("Sprite::create - Creating tex");
@@ -172,6 +182,9 @@ C3D_Mtx* Sprite::getMatrix() {
 }
 
 C3D_Tex* Sprite::getTex() {
+	debug("Sprite::getTex - texaddr: %lx", texaddr);
+	debug("Sprite::getTex - texaddress: %lx", (u32)&texture);
+	debug("Sprite::getTex - texdataaddr: %lx", (u32)texture.data);
 	return &texture;
 }
 

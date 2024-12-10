@@ -266,9 +266,16 @@ GfxN3DS::GfxN3DS() {
 	_backendContext = (N3DS_3D::N3DContext *)N3DS_3D::createContext();																// DEFINITE? - ADDED
 	_grimContext = (N3DS_3D::N3DContext *)N3DS_3D::createOGLContext();																// DEFINITE? - ADDED
 	_gameScreenTex = N3D_GetGameScreen();																							// DEFINITE? - ADDED
+	debug("_gstex addr: %lx", (u32)_gameScreenTex);
+	u32 vaddr = (u32)_gameScreenTex->data;
+	debug("_gstex->data addr: %lx", vaddr);
+	debug("_gstex is in vram: %u", (vaddr >= OS_VRAM_VADDR && vaddr < OS_VRAM_VADDR + OS_VRAM_SIZE));
+
+
+
+
 	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);				// DEFINITE? - ADDED
-	debug("derp");
-	_gameScreenTarget->used = true;
+	debug("_gstarg is null: %d", (_gameScreenTarget == NULL));
 
 	debug("GfxN3DS::GfxN3DS - Creating linear alloc (_screenCopySpace)");
 	_screenCopySpace = N3DS_3D::createBuffer(640 * 480 * 4);																		// DEFINITE? - ADDED

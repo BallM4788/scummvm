@@ -927,8 +927,8 @@ void OSystem_3DS::flushCursor() {
 	}
 }
 
-void *OSystem_3DS::getGameSurface() {
-	return (void *)_gameTopTexture.getTex();
+C3D_Tex *OSystem_3DS::getGameSurface() {
+	return _gameTopTexture.getTex();
 }
 
 } // namespace N3DS

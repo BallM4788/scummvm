@@ -207,7 +207,7 @@ public:
 	void updateConfig();
 	void updateSize();
 
-	void *getGameSurface();
+	C3D_Tex *getGameSurface();
 
 private:
 	void init3DSGraphics();
