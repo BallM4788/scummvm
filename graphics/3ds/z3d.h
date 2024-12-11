@@ -52,6 +52,8 @@ struct N3DContext {
 	                   vport_w,
 	                   vport_h;
 
+	//C3D_TexEnv        *texEnv;
+
 	GPU_CULLMODE       cullFace_mode;
 	N3D_CULLFACE       cullFace_faceToCull;
 	N3D_FRONTFACE      cullFace_frontFace;
@@ -118,7 +120,7 @@ private:
 public:
 	void updateEntireContext();
 	void changeShader(ShaderObj *shaderObj);
-#include "graphics/3ds/opinfo.h" // <------------------------------------------------------------------------------------------------
+#include "graphics/3ds/opinfo.h"
 	void init(N3DContext *source = nullptr);
 	void initOGL();
 	void deinit();

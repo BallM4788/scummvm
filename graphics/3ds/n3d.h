@@ -40,9 +40,9 @@
 
 
 #include "graphics/3ds/ngl.h"
-//#include "graphics/3ds/z3d.h"
+#include "graphics/3ds/z3d.h"
 
-#define N3DCONTEXT_FROM_HANDLE(handle) ((N3DS_3D::N3DContext *)handle)
+//#define N3DCONTEXT_FROM_HANDLE(handle) N3DS_3D::getContext(handle)
 
 namespace N3DS_3D {
 
@@ -73,11 +73,13 @@ static void freeBuffer(void *linearBuffer) {
 
 typedef void *ContextHandle;
 
-ContextHandle *createContext(ContextHandle *source = nullptr);
+ContextHandle *createContext();
+ContextHandle *createContext(ContextHandle *source);
 ContextHandle *createOGLContext();
 void destroyNative3D();
 void destroyContext(ContextHandle *handle);
 void setContext(ContextHandle *handle);
+N3DContext *getContext(ContextHandle *handle);
 
 
 } // end of namespace N3DS_3D

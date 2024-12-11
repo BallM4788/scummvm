@@ -24,7 +24,7 @@
 namespace N3DS_3D {
 
 C3D_Tex *N3DContext::opGetGameScreen() {
-	N3DS::OSystem_3DS *gsys3DS = reinterpret_cast<N3DS::OSystem_3DS *>(g_system);
+	N3DS::OSystem_3DS *gsys3DS = dynamic_cast<N3DS::OSystem_3DS *>(g_system);
 	return gsys3DS->getGameSurface();
 }
 

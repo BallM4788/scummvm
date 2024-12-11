@@ -239,30 +239,6 @@ ShaderObj::~ShaderObj() {
 	}
 }
 
-//void *ShaderObj::createBuffer(size_t size/*, size_t stride*/, const void *data) {
-//	void *ptr;
-//
-//	// if (!stride) {
-//		ptr = linearAlloc(size);
-//		if (data == nullptr)
-//			memset(ptr, 0, size);
-//		else
-//			memcpy(ptr, data, size);
-//	// } else {
-//	//	ptr = calloc(size, stride);
-//	//	if (data == nullptr)
-//	//		memset(ptr, 0, size * stride);
-//	//	else
-//	//		memcpy(ptr, data, size * stride);
-//	//}
-//
-//	return ptr;
-//}
-
-//void ShaderObj::freeBuffer(void *linearBuffer) {
-//	linearFree(linearBuffer);
-//}
-
 static u32 convertPhysToVirt(const void *addr) {
 	u32 paddr = (u32)addr;
 	u32 i;

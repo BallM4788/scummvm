@@ -99,6 +99,14 @@ N3DContext *getActiveContext() {
 	return activeContext;
 }
 
+
+
+ContextHandle *createContext() {
+	activeContext = Native3D::instance().createContext();
+	activeContext->init();
+	return (ContextHandle *)activeContext;
+}
+
 ContextHandle *createContext(ContextHandle *source) {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init((N3DContext *)source);
@@ -133,6 +141,14 @@ void setContext(ContextHandle *handle) {
 	}
 	activeContext = ctx;
 	activeContext->updateEntireContext();
+}
+
+N3DContext *getContext(ContextHandle *handle) {
+	N3DContext *ctx = Native3D::instance().getContext(handle);
+	if (ctx == nullptr) {
+		error("N3DS_3D: Context not found");
+	}
+	return ctx;
 }
 
 void N3DContext::init(N3DContext *source) {
@@ -241,6 +257,10 @@ void N3DContext::init(N3DContext *source) {
 		colorLogicOp_op         = GPU_LOGICOP_COPY;
 		colorLogicOp_enabled    = false;
 		fragOpMode              = GPU_FRAGOPMODE_GL;
+		boundTexUnits[0]        = nullptr;
+		boundTexUnits[1]        = nullptr;
+		boundTexUnits[2]        = nullptr;
+		activeShaderObj         = nullptr;
 	}
 }
 

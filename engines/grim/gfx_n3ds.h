@@ -228,7 +228,7 @@ protected:
 private:
 //	N3DS_3D::Native3D *_3dsRendMan;																						// DEFINITE? - ADDED
 //	N3DS_3D::N3DContext _3dsRendCtxt;																					// DEFINITE? - ADDED
-	N3DS_3D::ContextHandle _backendContext, _grimContext;																// DEFINITE? - ADDED
+	N3DS_3D::ContextHandle *_backendContext, *_grimContext;																// DEFINITE? - ADDED
 
 
 	const Actor *_currentActor;
