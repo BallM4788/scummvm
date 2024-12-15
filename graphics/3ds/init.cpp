@@ -204,6 +204,11 @@ void N3DContext::init(N3DContext *source) {
 		colorLogicOp_op         = source->colorLogicOp_op;
 		colorLogicOp_enabled    = source->colorLogicOp_enabled;
 		fragOpMode              = source->fragOpMode;
+		boundTexUnits[0]        = source->boundTexUnits[0];
+		boundTexUnits[1]        = source->boundTexUnits[1];
+		boundTexUnits[2]        = source->boundTexUnits[2];
+		activeShaderObj         = source->activeShaderObj;
+
 	} else {
 		// Citro3D starting values?
 		vport_x                 = 0;
@@ -316,13 +321,16 @@ void N3DContext::initOGL() {
 	colorLogicOp_op         = GPU_LOGICOP_COPY;
 	colorLogicOp_enabled    = false;
 	fragOpMode              = GPU_FRAGOPMODE_GL;
+	boundTexUnits[0]        = nullptr;
+	boundTexUnits[1]        = nullptr;
+	boundTexUnits[2]        = nullptr;
+	activeShaderObj         = nullptr;
 }
 
 void N3DContext::deinit() {
 	boundTexUnits[0] = nullptr;
 	boundTexUnits[1] = nullptr;
 	boundTexUnits[2] = nullptr;
-//	boundTexUnits[3] = nullptr;
 }
 
 } // end of namespace N3DS_3D

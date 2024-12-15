@@ -67,10 +67,12 @@ void N3DContext::updateBlend() {
 }
 
 void N3DContext::updateEntireContext() {
-	C3D_BindProgram(activeShaderObj->_program);
-	C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
-	C3D_SetBufInfo(&activeShaderObj->_bufInfo);
-	activeShaderObj->sendDirtyUniforms();
+	if (activeShaderObj != nullptr) {
+		C3D_BindProgram(activeShaderObj->_program);
+		C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
+		C3D_SetBufInfo(&activeShaderObj->_bufInfo);
+		activeShaderObj->sendDirtyUniforms();
+	}
 
 	// <----------------------------------------------------------------------------------------------------------------------TEXENV
 
@@ -132,11 +134,12 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 	Result vshResult = shaderProgramSetVsh(_program, &_binary->DVLE[0]);
 	Result gshResult = shaderProgramSetGsh(_program, &_binary->DVLE[1], geomStride);
 	_si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
-	debug("setVsh: %ld\tsetGsh: %ld\t_si_flags: %d", vshResult, gshResult, _si_flags);
+//	debug("setVsh: %ld\tsetGsh: %ld\t_si_flags: %d", vshResult, gshResult, _si_flags);
 //	_attrInfo = new C3D_AttrInfo();
 //	_bufInfo = new C3D_BufInfo();
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
+//	debug("_binary: %lx\t_program: %lx", (u32)_binary, (u32)_program);
 
 	if (_si_flags & SI_VERTEX) {
 		_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
@@ -291,10 +294,8 @@ void ShaderObj::sendDirtyUniforms() {
 
 	for (int shaderType = 0; shaderType < 2; shaderType++) {
 		shaderEnum = N3DSMACRO_GPUSHADERTYPE_ENUM(shaderType);
-		debug("%d", shaderEnum);
 
 		if (!((shaderEnum + 1) & _si_flags)) {
-			debug("skipping %d", shaderEnum);
 			continue;
 		}
 		if (N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty())

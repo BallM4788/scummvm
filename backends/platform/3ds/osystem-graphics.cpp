@@ -514,9 +514,9 @@ void OSystem_3DS::updateScreen() {
 		}
 		_osdMessage.transfer();
 		_activityIcon.transfer();
-	C3D_FrameEnd(0);
 
-	C3D_FrameBegin(0);
+		C3D_FrameSplit(0);
+
 		// Render top screen
 		C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x00000000, 0);
 		C3D_FrameDrawOn(_renderTargetTop);

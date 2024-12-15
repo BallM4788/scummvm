@@ -340,7 +340,7 @@ private:
 	C3D_Tex           _previousFrame;																					// FINALIZED - ADDED
 
 	GPU_TESTFUNC _depthFunc;																							// FINALIZED - ADDED
-	bool _gameScreenDirty;																								// DEFINITE? - ADDED
+//	bool _gameScreenDirty;																								// DEFINITE? - ADDED
 
 
 	C3D_TexEnv envNormal, envSmush, envText, envEmerg;																	// DEFINITE? - ADDED
