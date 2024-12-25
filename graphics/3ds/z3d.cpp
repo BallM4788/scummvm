@@ -78,7 +78,7 @@ void N3DContext::updateEntireContext() {
 
 	updateCullMode();
 	updateDepthMap();
-	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
+	//C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
 	C3D_SetScissor(scissor_mode, scissor_x, scissor_y, scissor_w, scissor_h);
 	C3D_AlphaTest(alphaTest_enabled, alphaTest_func, alphaTest_ref);
 	C3D_StencilTest(stencilTest_enabled, stencilTest_func, stencilTest_ref, stencilTest_mask, stencilTest_writeMask);

@@ -22,9 +22,9 @@
 #include "graphics/3ds/z3d.h"
 
 // from "graphics/3ds/ops-gl2citro.cpp"
-void N3D_Viewport(u32 x, u32 y, u32 w, u32 h) {
-	N3DS_3D::getActiveContext()->opViewport(x, y, w, h);
-}
+//void N3D_Viewport(u32 x, u32 y, u32 w, u32 h) {
+//	N3DS_3D::getActiveContext()->opViewport(x, y, w, h);
+//}
 
 void N3D_CullFace(N3D_CULLFACE mode) {
 	N3DS_3D::getActiveContext()->opCullFace(mode);

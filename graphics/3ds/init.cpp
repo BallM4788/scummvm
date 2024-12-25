@@ -153,10 +153,10 @@ N3DContext *getContext(ContextHandle *handle) {
 
 void N3DContext::init(N3DContext *source) {
 	if (source != nullptr) {
-		vport_x                 = source->vport_x;
-		vport_y                 = source->vport_y;
-		vport_w                 = source->vport_w;
-		vport_h                 = source->vport_h;
+//		vport_x                 = source->vport_x;
+//		vport_y                 = source->vport_y;
+//		vport_w                 = source->vport_w;
+//		vport_h                 = source->vport_h;
 		cullFace_mode           = source->cullFace_mode;
 		cullFace_faceToCull     = source->cullFace_faceToCull;
 		cullFace_frontFace      = source->cullFace_frontFace;
@@ -211,10 +211,10 @@ void N3DContext::init(N3DContext *source) {
 
 	} else {
 		// Citro3D starting values?
-		vport_x                 = 0;
-		vport_y                 = 0;
-		vport_w                 = 0;
-		vport_h                 = 0;
+//		vport_x                 = 0;
+//		vport_y                 = 0;
+//		vport_w                 = 0;
+//		vport_h                 = 0;
 		cullFace_mode           = GPU_CULL_BACK_CCW;
 		cullFace_faceToCull     = N3D_CULLFACE_BACK;
 		cullFace_frontFace      = N3D_FRONTFACE_CCW;
@@ -232,7 +232,7 @@ void N3DContext::init(N3DContext *source) {
 		scissor_w               = 0;
 		scissor_h               = 0;
 		alphaTest_func          = GPU_ALWAYS;
-		alphaTest_ref           = 0;
+		alphaTest_ref           = 0x00;
 		alphaTest_enabled       = false;
 		stencilTest_func        = GPU_ALWAYS;
 		stencilTest_ref         = 0x00;
@@ -242,9 +242,9 @@ void N3DContext::init(N3DContext *source) {
 		stencilOp_zfail         = GPU_STENCIL_KEEP;
 		stencilOp_zpass         = GPU_STENCIL_KEEP;
 		stencilTest_enabled     = false;
-		depthTest_func          = GPU_GREATER;
+		depthTest_func          = GPU_GEQUAL;
 		depthTest_writeMask     = GPU_WRITE_ALL;
-		depthTest_enabled       = true;
+		depthTest_enabled       = false;
 		earlyDepthTest_func     = GPU_EARLYDEPTH_GREATER;
 		earlyDepthTest_clear    = 0;
 		earlyDepthTest_enabled  = false;
@@ -270,10 +270,10 @@ void N3DContext::init(N3DContext *source) {
 }
 
 void N3DContext::initOGL() {
-	vport_x                 = 0;
-	vport_y                 = 0;
-	vport_w                 = 0;
-	vport_h                 = 0;
+//	vport_x                 = 0;
+//	vport_y                 = 0;
+//	vport_w                 = 0;
+//	vport_h                 = 0;
 	cullFace_mode           = GPU_CULL_BACK_CCW;
 	cullFace_faceToCull     = N3D_CULLFACE_BACK;
 	cullFace_frontFace      = N3D_FRONTFACE_CCW;
@@ -284,7 +284,7 @@ void N3DContext::initOGL() {
 	depthMap_rangeF         = 1.0f;
 	depthMap_zScale         = -1.0f;
 	depthMap_zOffset        = 0.0f;
-	depthMap_enabled        = true;
+	depthMap_enabled        = false;
 	scissor_mode            = GPU_SCISSOR_DISABLE;
 	scissor_x               = 0;
 	scissor_y               = 0;
@@ -317,7 +317,7 @@ void N3DContext::initOGL() {
 	blend_dstColor          = GPU_ZERO;
 	blend_srcAlpha          = GPU_ONE;
 	blend_dstAlpha          = GPU_ZERO;
-	blend_enabled           = true;
+	blend_enabled           = false;
 	colorLogicOp_op         = GPU_LOGICOP_COPY;
 	colorLogicOp_enabled    = false;
 	fragOpMode              = GPU_FRAGOPMODE_GL;

@@ -47,10 +47,10 @@ typedef Common::Queue<dirtyFVec> FVecQueue;
 class ShaderObj;
 
 struct N3DContext {
-	u32                vport_x,
-	                   vport_y,
-	                   vport_w,
-	                   vport_h;
+//	u32                vport_x,
+//	                   vport_y,
+//	                   vport_w,
+//	                   vport_h;
 
 	//C3D_TexEnv        *texEnv;
 

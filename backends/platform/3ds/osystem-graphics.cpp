@@ -113,10 +113,10 @@ void OSystem_3DS::init3DSGraphics() {
 	_projectionLocation = shaderInstanceGetUniformLocation(_program.vertexShader, "projection");
 	_modelviewLocation = shaderInstanceGetUniformLocation(_program.vertexShader, "modelView");
 
-	C3D_AttrInfo *attrInfo = C3D_GetAttrInfo();
-	AttrInfo_Init(attrInfo);
-	AttrInfo_AddLoader(attrInfo, 0, GPU_FLOAT, 3); // v0=position
-	AttrInfo_AddLoader(attrInfo, 1, GPU_FLOAT, 2); // v1=texcoord
+	AttrInfo_Init(&_defaultAttrInfo);
+	AttrInfo_AddLoader(&_defaultAttrInfo, 0, GPU_FLOAT, 3); // v0=position
+	AttrInfo_AddLoader(&_defaultAttrInfo, 1, GPU_FLOAT, 2); // v1=texcoord
+	C3D_SetAttrInfo(&_defaultAttrInfo);
 
 	Mtx_OrthoTilt(&_projectionTop, 0.0, 400.0, 240.0, 0.0, 0.0, 1.0, true);
 	Mtx_OrthoTilt(&_projectionBottom, 0.0, 320.0, 240.0, 0.0, 0.0, 1.0, true);
@@ -503,8 +503,9 @@ void OSystem_3DS::updateScreen() {
 		if (RENDER_MODE == OSystem::kGfxModeNoFlags) {
 			_gameTopTexture.transfer();
 		} else {
-			C3D_SetTexEnv(0, &_defaultTexEnv);
 			C3D_BindProgram(&_program);
+			C3D_SetAttrInfo(&_defaultAttrInfo);
+			C3D_SetTexEnv(0, &_defaultTexEnv);
 		}
 		if (_overlayVisible) {
 			_overlay.transfer();

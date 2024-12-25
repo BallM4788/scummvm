@@ -236,6 +236,7 @@ private:
 
 	// Graphics
 	C3D_TexEnv _defaultTexEnv;
+	C3D_AttrInfo _defaultAttrInfo;
 	TransactionState _transactionState;
 	TransactionDetails _transactionDetails;
 

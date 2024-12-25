@@ -23,17 +23,17 @@
 
 namespace N3DS_3D {
 
-void N3DContext::opViewport(u32 x, u32 y, u32 w, u32 h) {
-	if ((vport_x == x) && (vport_y == y) && (vport_w == w) && (vport_h == h))
-		return;
-
-	vport_x = x;
-	vport_y = y;
-	vport_w = w;
-	vport_h = h;
-
-	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
-}
+//void N3DContext::opViewport(u32 x, u32 y, u32 w, u32 h) {
+//	if ((vport_x == x) && (vport_y == y) && (vport_w == w) && (vport_h == h))
+//		return;
+//
+//	vport_x = x;
+//	vport_y = y;
+//	vport_w = w;
+//	vport_h = h;
+//
+//	C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
+//}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // culling
