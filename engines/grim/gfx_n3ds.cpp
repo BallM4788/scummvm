@@ -272,6 +272,7 @@ GfxN3DS::GfxN3DS() {
 	_grimContext = N3DS_3D::createOGLContext();
 	_gameScreenTex = N3D_GetGameScreen();
 	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);
+	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0xffffffff, 0);
 
 	debug("GfxN3DS::GfxN3DS - Creating linear alloc (_screenCopySpace)");
 	_screenCopySpace = N3DS_3D::createBuffer(640 * 480 * 4);

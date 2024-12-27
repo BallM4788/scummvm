@@ -24,7 +24,7 @@
 .constf myConst(0.0, 1.0, 2.0, 0.5)
 .alias        ONES	 myConst.yyyy
 .alias        TWOS	 myConst.zzzz
-.alias        HALF	 myConst.wwww
+.alias     NEGHALF	-myConst.wwww
 .alias     NEGONES	-myConst.yyyy
 
 
@@ -56,8 +56,8 @@
 	mov outPos.xy,		r3.xy
 	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
 	; z-component 0.0 in openGL -> -0.5 in 3DS
-	mov outPos.z,		-HALF
-	mov outPos.w,		 ONES
+	mov outPos.z,		NEGHALF
+	mov outPos.w,		ONES
 
 	end
 .end

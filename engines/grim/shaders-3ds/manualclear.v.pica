@@ -5,7 +5,7 @@
 .alias ZEROS		 myConst.xxxx
 .alias ONES			 myConst.yyyy
 .alias TWOS			 myConst.zzzz
-.alias HALF			 myConst.wwww
+.alias NEGHALF		-myConst.wwww
 .alias NEGONES		-myConst.yyyy
 
 
@@ -22,13 +22,13 @@
 .entry main
 .proc main
 	; Coordinates are [0.0; 1.0], transform to [-1.0; 1.0]
-	mov r0.xy,			 inPos.xy
-	mov r1.xy,			 TWOS
-	mad outPos.xy,		 r1.xy,				r0.xy,				NEGONES
-	mov outColor.rgb,	 ZEROS
-	mov outPos.z,		-HALF
-	mov outColor.a,		 ONES
-	mov outPos.w,		 ONES
+	mov r0.xy,			inPos.xy
+	mov r1.xy,			TWOS
+	mad outPos.xy,		r1.xy,				r0.xy,				NEGONES
+	mov outColor.rgb,	ZEROS
+	mov outPos.z,		NEGHALF
+	mov outColor.a,		ONES
+	mov outPos.w,		ONES
 
 	end
 .end
