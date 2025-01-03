@@ -343,7 +343,7 @@ private:
 //	bool _gameScreenDirty;																								// DEFINITE? - ADDED
 
 
-	C3D_TexEnv envNormal, envSmush, envText, envEmerg;																	// DEFINITE? - ADDED
+	C3D_TexEnv envGRIMDefault, envSmush, envText, envEmerg;																// DEFINITE? - ADDED
 
 	void *_screenCopySpace;																								// DEFINITE? - ADDED
 

@@ -104,18 +104,21 @@ N3DContext *getActiveContext() {
 ContextHandle *createContext() {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init();
+	activeContext->updateEntireContext();
 	return (ContextHandle *)activeContext;
 }
 
 ContextHandle *createContext(ContextHandle *source) {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init((N3DContext *)source);
+	activeContext->updateEntireContext();
 	return (ContextHandle *)activeContext;
 }
 
 ContextHandle *createOGLContext() {
 	activeContext = Native3D::instance().createContext();
 	activeContext->initOGL();
+	activeContext->updateEntireContext();
 	return (ContextHandle *)activeContext;
 }
 
@@ -274,6 +277,9 @@ void N3DContext::initOGL() {
 //	vport_y                 = 0;
 //	vport_w                 = 0;
 //	vport_h                 = 0;
+	// clear color
+	// clear depth
+	// clear stencil
 	cullFace_mode           = GPU_CULL_BACK_CCW;
 	cullFace_faceToCull     = N3D_CULLFACE_BACK;
 	cullFace_frontFace      = N3D_FRONTFACE_CCW;
