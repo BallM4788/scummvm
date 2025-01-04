@@ -645,6 +645,8 @@ void GfxN3DS::setupShaders() {
 	debug("void GfxN3DS::setupShaders() {");
 	bool isEMI = g_grim->getGameType() == GType_MONKEY4;
 
+	// !!! see "graphics/3ds/z3d.cpp" and "graphics/3ds/z3d.h" !!!
+
 //	static const char* commonAttributes[] = {"position", "texcoord", nullptr};
 //	_backgroundProgram = OpenGL::Shader::fromFiles(isEMI ? "emi_background" : "grim_background", commonAttributes);
 //	_smushProgram = OpenGL::Shader::fromFiles("grim_smush", commonAttributes);
@@ -854,42 +856,6 @@ Math::Matrix4 GfxN3DS::getProjection() {
 void GfxN3DS::clearScreen() {
 	debug("void GfxN3DS::clearScreen() {");
 
-	C3D_Tex tmp;
-	N3D_C3D_TexInit(&tmp, 1024, 512, GPU_RGBA8);
-	N3D_C3D_SyncTextureCopy(																										// DEFINITE?
-		(u32 *)_gameScreenTex->data, GX_BUFFER_DIM(((u32)_screenTexWidth       * 8 * 4) >> 4, 0),									// DEFINITE?
-		(u32 *)tmp.data, GX_BUFFER_DIM(((u32)_storedDisplay.width * 8 * 4) >> 4, 0),										// DEFINITE?
-		tmp.width * tmp.height * 4, GX_TRANSFER_RAW_COPY(1)													// DEFINITE?
-	);																																// DEFINITE?
-
-	u32 savedcolor;
-	int startindex;
-	for (int i = 0; i < 524288; i++) {
-		if (i == 0) {
-			startindex = 0;
-			savedcolor = *( ((u32 *)tmp.data));
-			continue;
-		} else if (i == 524287) {
-			if (*( ((u32 *)tmp.data) + i ) == savedcolor) {
-				debug("%*lx: %d - %d", 8, savedcolor, startindex, i);
-			} else {
-				debug("%*lx: %d - %d", 8, savedcolor, startindex, i - 1);
-				debug("%*lx: %d", 8, *( ((u32 *)tmp.data) + i ), i);
-			}
-		}
-
-		if (*( ((u32 *)tmp.data) + i ) != savedcolor) {
-			debug("%*lx: %d - %d", 8, savedcolor, startindex, i - 1);
-			startindex = i;
-			savedcolor = *( ((u32 *)tmp.data) + i );
-		}
-	}
-
-
-	N3D_C3D_TexDelete(&tmp);
-
-
-
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// Depth and stencil buffers are interleaved on 3DS. C3D_RenderTargetClear uses GX_MemoryFill,
 	//     which is unaffected by masking.
@@ -946,10 +912,10 @@ void GfxN3DS::clearDepthBuffer() {
 
 void GfxN3DS::flipBuffer(bool opportunistic) {
 	debug("void GfxN3DS::flipBuffer(bool opportunistic) {");
-	C3D_FrameSplit(0);
+//	C3D_FrameSplit(0);
 //	if (opportunistic) {
 //		GLint fbo = 0;
-//		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);				// CHANGE THIS!!!!!!!!!!!!!!!!
+//		glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo);				// CHANGE THIS?
 //		if (fbo == 0) {
 //			// Don't flip if we are not rendering on FBO
 //			// Flipping without any draw is undefined
@@ -958,9 +924,13 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 //		}
 //	}
 
+	// set to 3DS backend settings
 	N3DS_3D::setContext(_backendContext);
+	// do final rendering ( see "backends/platform/3ds/osystem-graphics.cpp")
 	g_system->updateScreen();
+	// set to GRIM settings
 	N3DS_3D::setContext(_grimContext);
+	// set to GRIM texture environment
 	N3D_C3D_SetTexEnv(0, &envGRIMDefault);
 }
 
@@ -2156,6 +2126,7 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			debug("GfxN3DS::createBitmap - Tex created: %u bytes", c3dTex->size);
 			N3D_C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);
 			N3D_C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+			// see "graphics/3ds/ops-custom.cpp"
 			N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(texOut), (u32 *)c3dTex->data, 0, 0,										// DEFINITE?
 			                   bitmap->_width, bitmap->_height, actualWidth, actualHeight,											// DEFINITE?
 			                   format, 0, false);																					// DEFINITE?
@@ -2166,6 +2137,7 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		bitmap->freeData();
 
 //		OpenGL::Shader *shader = _backgroundProgram->clone();
+		// Make a clone of the _programBackground ShaderObj that has its own attribute and buffer info (see "graphics/3ds/z3d.cpp")
 		N3DS_3D::ShaderObj *shader = new N3DS_3D::ShaderObj(_programBackground);
 		bitmap->_userData = shader;
 
@@ -2223,8 +2195,6 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 			int numVertices = data->_verts[i]._verts / 4 * 6;
 			N3D_C3D_DrawElements(GPU_TRIANGLES, numVertices, C3D_UNSIGNED_SHORT, (void *)((u16 *)_quadEBO + startVertex));
 		}
-		N3D_C3D_FrameSplit(0);																										// ADDED
-		//_gameScreenDirty = true;																									// ADDED
 
 		N3D_BlendEnabled(false);																									// ADDED from "gfx_opengl.cpp"
 		N3D_DepthMask(true);																										// ADDED from "gfx_opengl.cpp"
@@ -2276,10 +2246,7 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		                                                                 height / nextHigher2((int)height)));
 		debug("FrameBegin result: %d", N3D_C3D_FrameBegin(C3D_FRAME_SYNCDRAW));														// DEFINITE? - ADDED
 		debug("FrameDrawOn result: %d", N3D_C3D_FrameDrawOn(_gameScreenTarget));													// DEFINITE? - ADDED
-		//N3D_C3D_SetTexEnv(0, &envGRIMDefault);																							// DEFINITE? - ADDED
 		N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-		N3D_C3D_FrameSplit(0);																										// DEFINITE? - ADDED
-		//_gameScreenDirty = true;																									// DEFINITE? - ADDED
 
 //		glDisable(GL_BLEND);
 //		glDepthMask(GL_TRUE);

@@ -24,8 +24,6 @@
 
 #define MAX_TEX_UNITS 3
 
-//#include <3ds.h>
-//#include <citro3d.h>
 #include "graphics/3ds/ngl.h"
 #include "backends/platform/3ds/osystem.h"
 #include "common/system.h"
@@ -47,13 +45,6 @@ typedef Common::Queue<dirtyFVec> FVecQueue;
 class ShaderObj;
 
 struct N3DContext {
-//	u32                vport_x,
-//	                   vport_y,
-//	                   vport_w,
-//	                   vport_h;
-
-	//C3D_TexEnv        *texEnv;
-
 	GPU_CULLMODE       cullFace_mode;
 	N3D_CULLFACE       cullFace_faceToCull;
 	N3D_FRONTFACE      cullFace_frontFace;
@@ -86,7 +77,6 @@ struct N3DContext {
 	GPU_STENCILOP      stencilOp_zpass;
 	bool               stencilTest_enabled;
 
-//	u32                depthTestFlags;
 	GPU_TESTFUNC       depthTest_func;
 	GPU_WRITEMASK      depthTest_writeMask;       // INCLUDES COLOR MASK
 	bool               depthTest_enabled;
@@ -98,9 +88,6 @@ struct N3DContext {
 	GPU_BLENDEQUATION  blend_colorEq,   blend_alphaEq;
 	GPU_BLENDFACTOR    blend_srcColor,  blend_dstColor;
 	GPU_BLENDFACTOR    blend_srcAlpha,  blend_dstAlpha;
-//	GPU_BLENDEQUATION  currentColorEq,  currentAlphaEq;
-//	GPU_BLENDFACTOR    currentSrcColor, currentDstColor;
-//	GPU_BLENDFACTOR    currentSrcAlpha, currentDstAlpha;
 	u8                 blend_color[4];
 	bool               blend_enabled;
 
@@ -330,11 +317,6 @@ public:
 	void addBufInfo(const void* data, ptrdiff_t stride, int attribCount, u64 permutation) {
 		BufInfo_Add(&_bufInfo, data, stride, attribCount, permutation);
 	}
-
-
-
-//	static void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
-//	static void freeBuffer(void *linearBuffer);
 
 	// destroy a buffer whose address is stored in one of the shader's stored buffer configurations (usually the first config)
 	void freeAttachedBuffer(/*C3D_BufInfo *bufInfo, bool inLinearMem, */int bufIdx = 0);

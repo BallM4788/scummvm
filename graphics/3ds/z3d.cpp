@@ -19,8 +19,6 @@
  *
  */
 
-//#include <3ds.h>
-//#include <citro3d.h>
 #include "graphics/3ds/z3d.h"
 
 namespace N3DS_3D {
@@ -78,7 +76,6 @@ void N3DContext::updateEntireContext() {
 
 	updateCullMode();
 	updateDepthMap();
-	//C3D_SetViewport(vport_x, vport_y, vport_w, vport_h);
 	C3D_SetScissor(scissor_mode, scissor_x, scissor_y, scissor_w, scissor_h);
 	C3D_AlphaTest(alphaTest_enabled, alphaTest_func, alphaTest_ref);
 	C3D_StencilTest(stencilTest_enabled, stencilTest_func, stencilTest_ref, stencilTest_mask, stencilTest_writeMask);
@@ -134,12 +131,8 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 	Result vshResult = shaderProgramSetVsh(_program, &_binary->DVLE[0]);
 	Result gshResult = shaderProgramSetGsh(_program, &_binary->DVLE[1], geomStride);
 	_si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
-//	debug("setVsh: %ld\tsetGsh: %ld\t_si_flags: %d", vshResult, gshResult, _si_flags);
-//	_attrInfo = new C3D_AttrInfo();
-//	_bufInfo = new C3D_BufInfo();
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
-//	debug("_binary: %lx\t_program: %lx", (u32)_binary, (u32)_program);
 
 	if (_si_flags & SI_VERTEX) {
 		_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
@@ -176,10 +169,6 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 ShaderObj::ShaderObj(ShaderObj *original) : _binary(original->_binary),
                                             _program(original->_program),
                                             _si_flags(original->_si_flags),
-//                                            _attrInfo(original->_attrInfo),
-//                                            _bufInfo(original->_bufInfo),
-//                                            _vert_numFVecs(original->_vert_numFVecs),
-//                                            _geom_numFVecs(original->_geom_numFVecs),
                                             _vert_UniformMap(original->_vert_UniformMap),
                                             _vert_unif_FVecs(original->_vert_unif_FVecs),
                                             _vert_dirtyFVecs(original->_vert_dirtyFVecs),
@@ -200,8 +189,6 @@ ShaderObj::~ShaderObj() {
 	if (_isClone) {
 		_binary = nullptr;
 		_program = nullptr;
-//		_attrInfo = nullptr;
-//		_bufInfo = nullptr;
 		_vert_UniformMap = _geom_UniformMap = nullptr;
 		_vert_unif_FVecs = _geom_unif_FVecs = nullptr;
 		_vert_dirtyFVecs = _geom_dirtyFVecs = nullptr;
@@ -209,10 +196,6 @@ ShaderObj::~ShaderObj() {
 		_unif_bools = nullptr;
 		_dirtyIVecs = _dirtyBools = nullptr;
 	} else {
-//		delete _attrInfo;
-//		delete _bufInfo;
-//		delete _vert_numFVecs;
-//		delete _geom_numFVecs;
 		if (_program->vertexShader) {
 			delete _vert_unif_FVecs;
 			delete _vert_dirtyFVecs;
@@ -225,15 +208,6 @@ ShaderObj::~ShaderObj() {
 		delete _unif_bools;
 		delete _dirtyIVecs;
 		delete _dirtyBools;
-
-//		for (UniformsMap::iterator it = _vert_UniformMap->begin(); it != _vert_UniformMap->end(); ++it) {
-//			delete it->_value;
-//		}
-//		delete _vert_UniformMap;
-//		for (UniformsMap::iterator it = _geom_UniformMap->begin(); it != _geom_UniformMap->end(); ++it) {
-//			delete it->_value;
-//		}
-//		delete _geom_UniformMap;
 
 		shaderProgramFree(_program);
 		delete _program;
@@ -267,10 +241,7 @@ void ShaderObj::freeAttachedBuffer(/*C3D_BufInfo *bufInfo, bool inLinearMem, */i
 	// get virtual address from physical address
 	u32 vaddr = convertPhysToVirt((void *)paddr);
 
-	// if (inLinearMem)
-		linearFree((void *)vaddr);
-	// else
-	//	free((void *)vaddr);
+	linearFree((void *)vaddr);
 }
 
 int ShaderObj::BufInfo_AddOrModify(const void* data, ptrdiff_t stride, int attribCount, u64 permutation, int id) {
