@@ -87,6 +87,31 @@
 
 namespace Grim {
 
+
+void GfxN3DS::START_DRAW(u8 flags) {
+	if (drawingBool == false) {
+		N3D_C3D_FrameBegin(flags);
+		N3D_C3D_FrameDrawOn(_gameScreenTarget);
+		drawingBool = true;
+	}
+}
+
+void GfxN3DS::SPLIT_DRAW(u8 flags) {
+	if (drawingBool == true) {
+		N3D_C3D_FrameSplit(flags);
+	}
+}
+
+void GfxN3DS::END_DRAW(u8 flags) {
+	if (drawingBool == true) {
+		N3D_C3D_FrameEnd(flags);
+		drawingBool = false;
+	}
+}
+
+
+
+
 template<class T>
 static T nextHigher2(T k) {
 	if (k == 0)
@@ -266,7 +291,8 @@ GfxBase *CreateGfxN3DS() {
 	return new GfxN3DS();
 }
 
-GfxN3DS::GfxN3DS() : _alpha(1.f) {
+GfxN3DS::GfxN3DS() : _alpha(1.f),
+                     drawingBool(false) {
 	debug("GfxN3DS::GfxN3DS() {");
 
 	// Create context that corresponds to the Citro3D setting of the 3DS backend.
@@ -734,14 +760,13 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 	// Create a render target from _gameScreenTex, so we can render onto the texture.
 	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);
 	// Clear the render target.
-	// Color: black, full opacity = 0x000000FF
+	// Color: black, full opacity = 0x000000FF; color currently set to 0xABABABFF for testing purposes
 	// Stencil: 0 = 0x00
 	// Depth: 1.f converted to 24-bit unsigned int = 0xFFFFFF
 	// Stencil + Depth: 0x00 << 24 | 0xFFFFFF = 0x00FFFFFF
-	N3D_C3D_FrameBegin(0);
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);
-	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x000000FF, 0x00FFFFFF);
-	N3D_C3D_FrameEnd(0);
+	START_DRAW();
+	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0xABABABFF, 0x00FFFFFF);
+	END_DRAW();
 
 	N3DS_3D::setContext(_backendContext);
 	g_system->updateScreen();
@@ -866,8 +891,8 @@ void GfxN3DS::clearScreen() {
 	// we want to preserve _grimContext's settings
 	// use a temporary context cloned from _grimContext; tmpContext is automatically set to be the active context
 	N3DS_3D::ContextHandle *tmpContext = N3DS_3D::createContext(_grimContext);
-	// set stencil write mask to all zeros (disables writing)
-//	N3D_StencilMask(0x00);
+	//// set stencil write mask to all zeros (disables writing)
+	//N3D_StencilMask(0x00);
 	// disable stencil testing
 	N3D_StencilTestEnabled(false);
 	// enable depth testing
@@ -876,19 +901,27 @@ void GfxN3DS::clearScreen() {
 	N3D_DepthFunc(GPU_ALWAYS);
 	// unbind any textures at position 0
 	N3D_C3D_TexBind(0, nullptr);
-	// change the current shader (C3D_BindProgram, C3D_SetAttrInfo, C3D_SetBufInfo, send any dirty uniforms (none for this shader))
+	// change the current shader (see "graphics/3ds/z3d.cpp")
 	N3DS_3D::getActiveContext()->changeShader(_programClear);
 	// begin frame if not already in one
-	N3D_C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-	// set Citro3D to draw on the C3D_Tex in the backend
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);
+	START_DRAW();
 	// draw
 	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+
+	END_DRAW();
+
+	N3DS_3D::setContext(_backendContext);
+	g_system->updateScreen();
+	N3DS_3D::setContext(_grimContext);
+	N3D_C3D_SetTexEnv(0, &envGRIMDefault);
+
 
 	// set _grimContext as the active context; its settings are automatically set
 	N3DS_3D::setContext(_grimContext);
 	// destroy tmpContext as it is no longer needed
 	N3DS_3D::destroyContext(tmpContext);
+
+	debug("} (void GfxN3DS::clearScreen)");
 }
 
 void GfxN3DS::clearDepthBuffer() {
@@ -924,6 +957,8 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 //		}
 //	}
 
+	END_DRAW();
+
 	// set to 3DS backend settings
 	N3DS_3D::setContext(_backendContext);
 	// do final rendering ( see "backends/platform/3ds/osystem-graphics.cpp")
@@ -932,6 +967,8 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 	N3DS_3D::setContext(_grimContext);
 	// set to GRIM texture environment
 	N3D_C3D_SetTexEnv(0, &envGRIMDefault);
+
+	debug("} (void GfxN3DS::flipBuffer)");
 }
 
 void GfxN3DS::getScreenBoundingBox(const Mesh *model, int *x1, int *y1, int *x2, int *y2) {
@@ -2022,6 +2059,9 @@ void GfxN3DS::destroyTexture(Texture *texture) {
 
 void GfxN3DS::createBitmap(BitmapData *bitmap) {
 	debug("void GfxN3DS::createBitmap(BitmapData *bitmap) {");
+
+	END_DRAW();
+
 	if (bitmap->_format != 1) {
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
 			uint16 *zbufPtr = reinterpret_cast<uint16 *>(const_cast<void *>(bitmap->getImageData(pic).getPixels()));
@@ -2141,6 +2181,9 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		N3DS_3D::ShaderObj *shader = new N3DS_3D::ShaderObj(_programBackground);
 		bitmap->_userData = shader;
 
+		shader->addAttrLoader(0, GPU_FLOAT, 2);				// v0 = position
+		shader->addAttrLoader(1, GPU_FLOAT, 2);				// v1 = texcoord
+
 		if (g_grim->getGameType() == GType_MONKEY4) {
 //			GLuint vbo = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, bitmap->_numCoords * 4 * sizeof(float), bitmap->_texc, GL_STATIC_DRAW);
 //			shader->enableVertexAttribute("position", vbo, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
@@ -2150,16 +2193,21 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			debug("GfxN3DS::createBitmap - Linear alloc created: %u bytes (void *vbo)", linearGetSize(vbo));
 			BufInfo_Init(&shader->_bufInfo);
 			shader->addBufInfo(vbo, 4 * sizeof(float), 2, 0x10);
+		} else {
+			shader->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);
 		}
 	} else {
 		bitmap->_numTex = 0;
 		bitmap->_texIds = nullptr;
 		bitmap->_userData = nullptr;
 	}
+
+	debug("} (void GfxN3DS::createBitmap)");
 }
 
 void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 	debug("void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {");
+
 	if (g_grim->getGameType() == GType_MONKEY4 && bitmap->_data && bitmap->_data->_texc) {
 		BitmapData *data = bitmap->_data;
 //		OpenGL::Shader *shader = (OpenGL::Shader *)data->_userData;
@@ -2178,10 +2226,9 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 
 //		shader->use();
 //		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _quadEBO);
+		// change the current shader (see "graphics/3ds/z3d.cpp")
 		N3DS_3D::getActiveContext()->changeShader(shader);
-		debug("FrameBegin result: %d", N3D_C3D_FrameBegin(C3D_FRAME_SYNCDRAW));														// ADDED
-		//N3D_C3D_SetTexEnv(0, &envGRIMDefault);																							// ADDED
-		debug("FrameDrawOn result: %d", N3D_C3D_FrameDrawOn(_gameScreenTarget));													// ADDED
+		START_DRAW();
 		assert(layer < data->_numLayers);
 		uint32 offset = data->_layers[layer]._offset;
 		for (uint32 i = offset; i < offset + data->_layers[layer]._numImages; ++i) {
@@ -2200,11 +2247,13 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		N3D_DepthMask(true);																										// ADDED from "gfx_opengl.cpp"
 		N3D_DepthTestEnabled(true);																									// ADDED from "gfx_opengl.cpp"
 
+		debug("} (void GfxN3DS::drawBitmap, g_grim->getGameType() == GType_MONKEY4 && bitmap->_data && bitmap->_data->_texc)");
 		return;
 	}
 
 	int format = bitmap->getFormat();
 	if ((format == 1 && !_renderBitmaps) || (format == 5 && !_renderZBitmaps)) {
+		debug("} (void GfxN3DS::drawBitmap, (format == 1 && !_renderBitmaps) || (format == 5 && !_renderZBitmaps))");
 		return;
 	}
 
@@ -2226,6 +2275,7 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 //		glDisable(GL_DEPTH_TEST);
 //		glDepthMask(GL_FALSE);
 		N3DS_3D::ShaderObj *shader = static_cast<N3DS_3D::ShaderObj *>(bitmap->_data->_userData);
+		// change the current shader (see "graphics/3ds/z3d.cpp")
 		N3DS_3D::getActiveContext()->changeShader(shader);
 		N3D_DepthTestEnabled(false);
 		N3D_DepthMask(false);
@@ -2244,8 +2294,7 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		shader->setUniform("sizeWH",   GPU_VERTEX_SHADER, Math::Vector2d(    width / _gameWidth,    height / _gameHeight));
 		shader->setUniform("texcrop",  GPU_VERTEX_SHADER, Math::Vector2d(width  / nextHigher2((int)width),
 		                                                                 height / nextHigher2((int)height)));
-		debug("FrameBegin result: %d", N3D_C3D_FrameBegin(C3D_FRAME_SYNCDRAW));														// DEFINITE? - ADDED
-		debug("FrameDrawOn result: %d", N3D_C3D_FrameDrawOn(_gameScreenTarget));													// DEFINITE? - ADDED
+		START_DRAW();
 		N3D_C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
 
 //		glDisable(GL_BLEND);
@@ -2262,13 +2311,15 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		} else {
 			debug("zbuffer image has index out of bounds! %d/%d", bitmap->getActiveImage(), bitmap->getNumImages());
 		}
+		debug("} (void GfxN3DS::drawBitmap, format != 1)");
 		return;
 	}
+
+	debug("} (void GfxN3DS::drawBitmap, format == 1)");
 }
 
 void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *data) {
 	debug("void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *data) {");
-	N3D_C3D_FrameSplit(0);																											// DEFINITE? - ADDED
 
 	static int prevId = -1;
 	static int prevX = -1, prevY = -1;
@@ -2298,7 +2349,8 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 	GSPGPU_FlushDataCache(_zBuf, nextHigher2(w) * nextHigher2(h) * 4);																// DEFINITE?
 	GX_RequestDma((u32 *)_zBuf, (u32 *)_gameScreenTarget->frameBuf.depthBuf, nextHigher2(w) * nextHigher2(h) * 4);					// DEFINITE?
 	gspWaitForDMA();																												// DEFINITE?
-	////_gameScreenDirty = true;																									// DEFINITE? - ADDED
+
+	debug("} (void GfxN3DS::drawDepthBitmap)");
 }
 
 void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
@@ -2343,7 +2395,7 @@ void GfxN3DS::createFont(Font *f) {
 	byte *texDataPtr = new byte[dataSize * bpp];
 	byte *data = texDataPtr;
 
-	// DO NOT NEED TO FLIP COLOR COMPONENT ORDER
+	// DO NOT NEED TO FLIP COLOR COMPONENT ORDER?
 	for (uint i = 0; i < dataSize; i++, texDataPtr += bpp, bitmapData++) {
 		byte pixel = *bitmapData;
 		if (pixel == 0x00) {
@@ -2434,8 +2486,6 @@ void GfxN3DS::createFont(Font *f) {
 	// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3							// DEFINITE?
 	N3D_C3D_SyncDisplayTransfer((u32 *)temp,                    GX_BUFFER_DIM(pixelsWide, pixelsHigh),								// DEFINITE?
 	                            (u32 *)userData->texture.data, GX_BUFFER_DIM(pixelsWide, pixelsHigh), 3);							// DEFINITE?
-	//gspWaitForPPF();
-	//C3D_TexFlush(&userData->texture);
 
 	delete[] data;
 //	delete[] temp;

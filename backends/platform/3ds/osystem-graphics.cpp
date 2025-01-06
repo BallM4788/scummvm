@@ -481,6 +481,7 @@ void OSystem_3DS::unlockScreen() {
 }
 
 void OSystem_3DS::updateScreen() {
+	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("void OSystem_3DS::updateScreen() {");
 	if (sleeping || exiting) {
 		return;
 	}
@@ -576,6 +577,7 @@ void OSystem_3DS::updateScreen() {
 			}
 		}
 	C3D_FrameEnd(0);
+	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("} (void OSystem_3DS::updateScreen)");
 }
 
 void OSystem_3DS::setShakePos(int shakeXOffset, int shakeYOffset) {

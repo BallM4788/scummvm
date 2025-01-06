@@ -219,6 +219,10 @@ public:
 
 	void setBlendMode(bool additive) override;
 
+	void START_DRAW(u8 flags = 0);
+	void SPLIT_DRAW(u8 flags = 0);
+	void END_DRAW(u8 flags = 0);
+
 protected:
 	void setupShaders();
 ////	GLuint compileShader(const char *vertex, const char *fragment);
@@ -351,6 +355,8 @@ private:
 
 	int _screenTexWidth;																								// DEFINITE? - ADDED
 	int _screenTexHeight;																								// DEFINITE? - ADDED
+
+	bool drawingBool;
 };
 
 }

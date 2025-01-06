@@ -140,7 +140,7 @@ public:
 	~ShaderObj();
 
 
-	// matrix uniform / vector uniform (Math::Matrix)
+	// matrix uniform / vector uniform (convert from Math::Matrix to Citro3D arrangement)
 	template <int R, int C>
 	bool setUniform(const Common::String &uniform, GPU_SHADER_TYPE shaderEnum, const Math::Matrix<R,C> &svmMtx) {
 //		int columns = C;
@@ -148,6 +148,7 @@ public:
 		if (pos != -1) {
 			if (C > 1) {
 				if (getActiveContext()->activeShaderObj == this) {
+					// if this is the active shader object, go ahead and send to Citro3D
 					C3D_Mtx m;
 					Mtx_Zeros(&m);
 					for (int row = 0; row < R; row++) {
@@ -157,6 +158,7 @@ public:
 					}
 					C3D_FVUnifMtxNx4(shaderEnum, pos, &m, C);
 				} else {
+					// otherwise, queue this up for the next time this ShaderObj is used
 					C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 					for (int row = 0; row < R; row++) {
 						for (int col = 0; col < C; col++) {
@@ -184,8 +186,10 @@ public:
 		int pos = getUniformLocation(uniform, shaderEnum);
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
+				// if this is the active shader object, go ahead and send to Citro3D
 				C3D_FVUnifMtxNx4(shaderEnum, pos, &c3dMtx, rows);
 			} else {
+				// otherwise, queue this up for the next time this ShaderObj is used
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				for (int R = 0; R < rows; R++) {
 					unifPtr[R] = c3dMtx.r[R];
@@ -203,8 +207,10 @@ public:
 		int pos = getUniformLocation(uniform, shaderEnum);
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
+				// if this is the active shader object, go ahead and send to Citro3D
 				C3D_FVUnifSet(shaderEnum, pos, x, y, z, w);
 			} else {
+				// otherwise, queue this up for the next time this ShaderObj is used
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				unifPtr->x = x;
 				unifPtr->y = y;
@@ -228,6 +234,7 @@ public:
 		int pos = getUniformLocation(uniform, shaderEnum);
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
+				// if this is the active shader object, go ahead and send to Citro3D
 				for (int v = 0; v < vecCount; v++) {
 					float temp[4] = {0.0, 0.0, 0.0, 0.0};
 					for (int f = 0; f < floatsPerVec; f++) {
@@ -236,6 +243,7 @@ public:
 					C3D_FVUnifSet(shaderEnum, pos + v, temp[0], temp[1], temp[2], temp[3]);
 				}
 			} else {
+				// otherwise, queue this up for the next time this ShaderObj is used
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				for (int v = 0; v < vecCount; v++) {
 					for (int f = 0; f < floatsPerVec; f++) {
@@ -267,8 +275,10 @@ public:
 		int pos = getUniformLocation(uniform, shaderEnum);
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
+				// if this is the active shader object, go ahead and send to Citro3D
 				C3D_IVUnifSet(shaderEnum, pos, x, y, z, w);
 			} else {
+				// otherwise, save this for the next time this ShaderObj is used
 				int *unifPtr = _unif_IVecs + (pos * 4);
 				unifPtr[0] = x;
 				unifPtr[1] = y;
@@ -287,8 +297,10 @@ public:
 		int pos = getUniformLocation(uniform, shaderEnum);
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
+				// if this is the active shader object, go ahead and send to Citro3D
 				C3D_BoolUnifSet(shaderEnum, pos, boolval);
 			} else {
+				// otherwise, save this for the next time this ShaderObj is used
 				_unif_bools[2 * shaderEnum + pos] = boolval;
 				_dirtyBools[2 * shaderEnum + pos] = true;
 			}
