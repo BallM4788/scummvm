@@ -95,6 +95,8 @@ void N3DContext::updateEntireContext() {
 	}
 
 	C3D_BlendingColor((blend_color[3] << 24) | (blend_color[2] << 16) | (blend_color[1] << 8) | blend_color[0]);
+
+	C3D_TexBind(0, boundTexUnits[0]);
 }
 
 void N3DContext::changeShader(ShaderObj *shaderObj) {
@@ -278,6 +280,10 @@ void ShaderObj::sendDirtyUniforms() {
 				C3D_FVUnifMtxNx4(shaderEnum, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
 			} else {
 				for (int row = 0; row < temp.dirtyRows; row++) {
+					debug("%f,\t%f,\t%f,\t%f", temp.ptr[row].x,
+					                           temp.ptr[row].y,
+					                           temp.ptr[row].z,
+					                           temp.ptr[row].w);
 					C3D_FVUnifSet(shaderEnum, temp.pos, temp.ptr[row].x,
 					                                    temp.ptr[row].y,
 					                                    temp.ptr[row].z,
@@ -288,6 +294,10 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int IV_ID = 0; IV_ID < 4; IV_ID++) {
 			if (_dirtyIVecs[(shaderType * 4) + IV_ID] == true) {
+				debug("%d,\t%d,\t%d,\t%d", N3DSMACRO_IVEC_ID_POS(shaderType, 0),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 1),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 2),
+				                           N3DSMACRO_IVEC_ID_POS(shaderType, 3));
 				C3D_IVUnifSet(shaderEnum, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 1),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 2),
@@ -298,6 +308,7 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int bool_ID = 0; bool_ID < 2; bool_ID++) {
 			if (_dirtyBools[(shaderType * 2) + bool_ID] == true) {
+				debug("%d", _unif_bools[(shaderType * 2) + bool_ID]);
 				C3D_BoolUnifSet(shaderEnum, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
 				_dirtyBools[(shaderType * 2) + bool_ID] = false;
 			}

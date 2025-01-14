@@ -265,9 +265,9 @@ void N3DContext::init(N3DContext *source) {
 		colorLogicOp_op         = GPU_LOGICOP_COPY;
 		colorLogicOp_enabled    = false;								// C3D DEFAULT
 		fragOpMode              = GPU_FRAGOPMODE_GL;					// C3D DEFAULT
-		boundTexUnits[0]        = nullptr;
-		boundTexUnits[1]        = nullptr;
-		boundTexUnits[2]        = nullptr;
+		boundTexUnits[0]        = NULL;
+		boundTexUnits[1]        = NULL;
+		boundTexUnits[2]        = NULL;
 		activeShaderObj         = nullptr;
 	}
 }
@@ -327,16 +327,16 @@ void N3DContext::initOGL() {
 	colorLogicOp_op         = GPU_LOGICOP_COPY;
 	colorLogicOp_enabled    = false;
 	fragOpMode              = GPU_FRAGOPMODE_GL;
-	boundTexUnits[0]        = nullptr;
-	boundTexUnits[1]        = nullptr;
-	boundTexUnits[2]        = nullptr;
+	boundTexUnits[0]        = NULL;
+	boundTexUnits[1]        = NULL;
+	boundTexUnits[2]        = NULL;
 	activeShaderObj         = nullptr;
 }
 
 void N3DContext::deinit() {
-	boundTexUnits[0] = nullptr;
-	boundTexUnits[1] = nullptr;
-	boundTexUnits[2] = nullptr;
+	boundTexUnits[0] = NULL;
+	boundTexUnits[1] = NULL;
+	boundTexUnits[2] = NULL;
 }
 
 } // end of namespace N3DS_3D

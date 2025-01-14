@@ -656,7 +656,10 @@ void N3D_C3D_TexGenerateMipmap(C3D_Tex* tex, GPU_TEXFACE face) {
 }
 
 void N3D_C3D_TexBind(int unitId, C3D_Tex* tex) {
-	C3D_TexBind(unitId, tex);
+	if (N3DS_3D::getActiveContext()->boundTexUnits[unitId] != tex) {
+		C3D_TexBind(unitId, tex);
+		N3DS_3D::getActiveContext()->boundTexUnits[unitId] = tex;
+	}
 }
 
 void N3D_C3D_TexFlush(C3D_Tex* tex) {

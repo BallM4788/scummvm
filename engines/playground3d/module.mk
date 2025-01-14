@@ -7,6 +7,12 @@ MODULE_OBJS := \
 	gfx_opengl_shaders.o \
 	playground3d.o
 
+ifeq ($(BACKEND), 3ds)
+MODULE_OBJS += \
+	shaders-3ds/playground3d_cube.shbin.o \
+	gfx_n3ds.o
+endif
+
 ifdef USE_TINYGL
 MODULE_OBJS += \
 	gfx_tinygl.o
