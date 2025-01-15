@@ -178,6 +178,7 @@ Graphics::Surface *Playground3dEngine::generateRgbaTexture(int width, int height
 
 void Playground3dEngine::drawAndRotateCube() {
 	Math::Vector3d pos = Math::Vector3d(0.0f, 0.0f, 6.0f);
+	debug("_gfx->drawCube((%f, %f, %f), Math::Vector3d(%f, %f, %f));", pos.x(), pos.y(), pos.z(), _rotateAngleX, _rotateAngleY, _rotateAngleZ);
 	_gfx->drawCube(pos, Math::Vector3d(_rotateAngleX, _rotateAngleY, _rotateAngleZ));
 	_rotateAngleX += 0.25f;
 	_rotateAngleY += 0.50f;
@@ -222,14 +223,17 @@ void Playground3dEngine::drawRgbaTexture() {
 }
 
 void Playground3dEngine::drawFrame(int testId) {
+	debug("_gfx->clear(%f, %f, %f, %f);", _clearColor.x(), _clearColor.y(), _clearColor.z(), _clearColor.w());
 	_gfx->clear(_clearColor);
 
 	float pitch = 0.0f;
 	float heading = 0.0f;
 	float fov = 45.0f;
+	debug("_gfx->setupCameraPerspective(%f, %f, %f);", pitch, heading, fov);
 	_gfx->setupCameraPerspective(pitch, heading, fov);
 
 	Common::Rect vp = _gfx->viewport();
+	debug("_gfx->setupViewport(%d, %d, %d, %d);", vp.left, _system->getHeight() - vp.top - vp.height(), vp.width(), vp.height());
 	_gfx->setupViewport(vp.left, _system->getHeight() - vp.top - vp.height(), vp.width(), vp.height());
 
 	switch (testId) {

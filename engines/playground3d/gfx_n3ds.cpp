@@ -198,6 +198,7 @@ void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
 	N3DS_3D::setContext(_p3dContext);
 	N3D_C3D_FrameBegin(0);
 	N3D_C3D_FrameDrawOn(_gameScreenTarget);
+	N3D_C3D_SetViewport(0, 0, 640, 480);
 	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_COLOR, clearcolorint, 0xFFFFFFFF);
 	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x68B0D8FF, 0xFFFFFFFF);
 //	glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());

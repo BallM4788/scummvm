@@ -125,6 +125,7 @@ void Renderer::computeScreenViewport() {
 
 	// Pillarboxing
 	_screenViewport.translate((screenWidth - viewportWidth) / 2, (screenHeight - viewportHeight) / 2);
+	debug("computeScreenViewport results: (%d, %d, %d, %d)", PRINT_RECT(_screenViewport));
 }
 
 Math::Matrix4 Renderer::makeProjectionMatrix(float fov, float nearClip, float farClip) const {
