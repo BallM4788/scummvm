@@ -72,6 +72,7 @@ private:
 	N3DS_3D::ContextHandle *_backendContext, *_p3dContext;
 	C3D_Tex *_gameScreenTex;
 	C3D_RenderTarget *_gameScreenTarget;
+	C3D_TexEnv _p3dTexEnv;
 
 //	OpenGL::Shader *_cubeShader;
 //	OpenGL::Shader *_fadeShader;

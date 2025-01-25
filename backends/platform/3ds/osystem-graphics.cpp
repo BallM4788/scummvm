@@ -225,6 +225,7 @@ bool OSystem_3DS::setGraphicsMode(int mode, uint flags) {
 	assert(_transactionState != kTransactionNone);
 	if (RENDER_MODE != static_cast<OSystem::GfxModeFlags>(flags)) {
 		RENDER_MODE = static_cast<OSystem::GfxModeFlags>(flags);
+//		debug("initSize - _transactionDetails.renderModeChanged = true;");
 		_transactionDetails.renderModeChanged = true;
 	}
 	return (mode == 0);
@@ -235,26 +236,26 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 	updateBacklight();
 	updateConfig();
 
-	debug("initSize - GAME_WIDTH: %d", width);
+//	debug("initSize - GAME_WIDTH: %d", width);
 	GAME_WIDTH = width;
-	debug("initSize - GAME_HEIGHT: %d", height);
+//	debug("initSize - GAME_HEIGHT: %d", height);
 	GAME_HEIGHT = height;
-	debug("initSize - _magCenterX: %d", _magWidth / 2);
+//	debug("initSize - _magCenterX: %d", _magWidth / 2);
 	_magCenterX = _magWidth / 2;
-	debug("initSize - _magCenterY: %d", _magHeight / 2);
+//	debug("initSize - _magCenterY: %d", _magHeight / 2);
 	_magCenterY = _magHeight / 2;
 	if ((GAME_WIDTH != OLD_GAME_WIDTH) || (GAME_HEIGHT != OLD_GAME_HEIGHT)) {
-		debug("initSize - _transactionDetails.sizeChanged = true;");
+//		debug("initSize - _transactionDetails.sizeChanged = true;");
 		_transactionDetails.sizeChanged = true;
 	}
 
 	debug("3d state: %d", RENDER_MODE);
 	if (!format) {
 		if (RENDER_MODE == OSystem::kGfxModeRender3d) {
-			debug("initSize - GAME_FORMAT: RGBA8");
+//			debug("initSize - GAME_FORMAT: RGBA8");
 			GAME_FORMAT = _texmodeRGBA8.surfaceFormat;
 		} else{
-			debug("initSize - GAME_FORMAT: CLUT8");
+//			debug("initSize - GAME_FORMAT: CLUT8");
 			GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
 		}
 	} else {
@@ -267,7 +268,7 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 	assert(GAME_FORMAT.bytesPerPixel > 0);
 	if (GAME_FORMAT != OLD_GAME_FORMAT) {
 		assert(_transactionState == kTransactionActive);
-		debug("initSize - _transactionDetails.formatChanged = true;");
+//		debug("initSize - _transactionDetails.formatChanged = true;");
 		_transactionDetails.formatChanged = true;
 	}
 
@@ -276,49 +277,49 @@ void OSystem_3DS::initSize(uint width, uint height, const Graphics::PixelFormat 
 
 void OSystem_3DS::updateSize() {
 	if (_stretchToFit) {
-		debug("updateSize - _gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;");
+//		debug("updateSize - _gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;");
 		_gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;
-		debug("updateSize - _gameTopTexture scale: (%f, %f)", 400.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
+//		debug("updateSize - _gameTopTexture scale: (%f, %f)", 400.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
 		_gameTopTexture.setScale(400.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
-		debug("updateSize - _gameBottomTexture scale: (%f, %f)", 320.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
+//		debug("updateSize - _gameBottomTexture scale: (%f, %f)", 320.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
 		_gameBottomTexture.setScale(320.f / GAME_WIDTH, 240.f / GAME_HEIGHT);
 	} else {
 		float ratio = static_cast<float>(GAME_WIDTH) / GAME_HEIGHT;
 
 		if (ratio > 400.f / 240.f) {
-			debug("updateSize - %f > 400.f / 240.f", ratio);
+//			debug("updateSize - %f > 400.f / 240.f", ratio);
 			float r = 400.f / GAME_WIDTH;
-			debug("updateSize - _gameTopTexture scale: (%f, %f)", r, r);
+//			debug("updateSize - _gameTopTexture scale: (%f, %f)", r, r);
 			_gameTopTexture.setScale(r, r);
 			_gameTopX = 0;
 			_gameTopY = (240.f / r - GAME_HEIGHT) / 2.f;
 		} else {
-			debug("updateSize - %f < 400.f / 240.f", ratio);
+//			debug("updateSize - %f < 400.f / 240.f", ratio);
 			float r = 240.f / GAME_HEIGHT;
-			debug("updateSize - _gameTopTexture scale: (%f, %f)", r, r);
+//			debug("updateSize - _gameTopTexture scale: (%f, %f)", r, r);
 			_gameTopTexture.setScale(r, r);
 			_gameTopY = 0;
 			_gameTopX = (400.f / r - GAME_WIDTH) / 2.f;
 		}
 		if (ratio > 320.f / 240.f) {
-			debug("updateSize - %f > 320.f / 240.f", ratio);
+//			debug("updateSize - %f > 320.f / 240.f", ratio);
 			float r = 320.f / GAME_WIDTH;
-			debug("updateSize - _gameBottomTexture scale: (%f, %f)", r, r);
+//			debug("updateSize - _gameBottomTexture scale: (%f, %f)", r, r);
 			_gameBottomTexture.setScale(r, r);
 			_gameBottomX = 0;
 			_gameBottomY = (240.f / r - GAME_HEIGHT) / 2.f;
 		} else {
-			debug("updateSize - %f < 320.f / 240.f", ratio);
+//			debug("updateSize - %f < 320.f / 240.f", ratio);
 			float r = 240.f / GAME_HEIGHT;
-			debug("updateSize - _gameBottomTexture scale: (%f, %f)", r, r);
+//			debug("updateSize - _gameBottomTexture scale: (%f, %f)", r, r);
 			_gameBottomTexture.setScale(r, r);
 			_gameBottomY = 0;
 			_gameBottomX = (320.f / r - GAME_WIDTH) / 2.f;
 		}
 	}
-	debug("updateSize - _gameTopTexture coords: (%d, %d)", _gameTopX, _gameTopY);
+//	debug("updateSize - _gameTopTexture coords: (%d, %d)", _gameTopX, _gameTopY);
 	_gameTopTexture.setPosition(_gameTopX, _gameTopY);
-	debug("updateSize - _gameBottomTexture coords: (%d, %d)", _gameTopX, _gameTopY);
+//	debug("updateSize - _gameBottomTexture coords: (%d, %d)", _gameBottomX, _gameBottomY);
 	_gameBottomTexture.setPosition(_gameBottomX, _gameBottomY);
 	_gameTopTexture.setOffset(0, 0);
 	_gameBottomTexture.setOffset(0, 0);
@@ -361,22 +362,32 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 	if (_transactionState == kTransactionRollback) {
 		if (TEXMODE_ID != OLD_TEXMODE_ID) {
 			errors |= OSystem::kTransactionModeSwitchFailed;
+//			debug("GFX TRANSACTION FAIL! TEXMODE_ID (%d) != OLD_TEXMODE_ID (%d)", TEXMODE_ID, OLD_TEXMODE_ID);
 		} else if ((TEXMODE != OLD_TEXMODE) |
 		           (TEXMODE != texmodes[TEXMODE_ID])) {
 			errors |= OSystem::kTransactionFormatNotSupported;
+//			if (TEXMODE != OLD_TEXMODE)
+//				debug("GFX TRANSACTION FAIL! TEXMODE (%x) != OLD_TEXMODE (%x)", TEXMODE, OLD_TEXMODE);
+//			if (TEXMODE != texmodes[TEXMODE_ID])
+//				debug("GFX TRANSACTION FAIL! TEXMODE (%x) != texmodes[TEXMODE_ID] (%x)", TEXMODE, texmodes[TEXMODE_ID]);
 		}
 		if ((GAME_WIDTH != OLD_GAME_WIDTH) |
 		    (GAME_HEIGHT != OLD_GAME_HEIGHT)) {
 			errors |= OSystem::kTransactionSizeChangeFailed;
+//			if (GAME_WIDTH != OLD_GAME_WIDTH)
+//				debug("GFX TRANSACTION FAIL! GAME_WIDTH (%d) != OLD_GAME_WIDTH (%d)", GAME_WIDTH, OLD_GAME_WIDTH);
+//			if (GAME_HEIGHT != OLD_GAME_HEIGHT)
+//				debug("GFX TRANSACTION FAIL! GAME_HEIGHT (%d) != OLD_GAME_HEIGHT (%d)", GAME_HEIGHT, OLD_GAME_HEIGHT);
 		}
 		if (RENDER_MODE != OLD_RENDER_MODE) {
 			errors |= OSystem::kTransactionModeSwitchFailed;
+//			debug("GFX TRANSACTION FAIL! RENDER_MODE (%d) != OLD_RENDER_MODE (%d)", RENDER_MODE, OLD_RENDER_MODE);
 		}
 
 		_gfxState = _oldGfxState;
 		_oldGfxState.setup = false;
 	}
-	if (_transactionDetails.formatChanged || _transactionDetails.sizeChanged) {
+	if (_transactionDetails.formatChanged || _transactionDetails.sizeChanged || _transactionDetails.renderModeChanged) {
 		TEXMODE_ID = chooseTexModeID(&GAME_FORMAT);
 		if (!setTexMode(TEXMODE_ID)) {
 			if (_oldGfxState.setup) {
@@ -390,20 +401,28 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 			}
 		} else {
 			if (_transactionDetails.renderModeChanged) {
-				if (RENDER_MODE == kGfxModeNoFlags) {
+				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d)) {
+//					debug("DISPLAY_TRANSFER_FLAGS");
 					C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
 					                          DISPLAY_TRANSFER_FLAGS);
-					C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_TOP, GFX_LEFT,
+					C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
 					                          DISPLAY_TRANSFER_FLAGS);
-					if (OLD_RENDER_MODE == kGfxModeRender3d) {
+					C3D_BindProgram(&_program);
+					C3D_SetAttrInfo(&_defaultAttrInfo);
+					C3D_SetTexEnv(0, &_defaultTexEnv);
+					/*if (OLD_RENDER_MODE == kGfxModeRender3d) {
+//						debug("bind default program");
 						C3D_BindProgram(&_program);
-					}
-				} else {
+						C3D_SetAttrInfo(&_defaultAttrInfo);
+						C3D_SetTexEnv(0, &_defaultTexEnv);
+					}*/
+				}/* else {
+//					debug("DISPLAY_TRANSFER_FLAGS_3D");
 					C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
 					                          DISPLAY_TRANSFER_FLAGS_3D);
-					C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_TOP, GFX_LEFT,
+					C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
 					                          DISPLAY_TRANSFER_FLAGS_3D);
-				}
+				} */
 			}
 			_gameTopTexture.create(GAME_WIDTH, GAME_HEIGHT, TEXMODE, true);	// Sprite
 			_gameScreen.create(GAME_WIDTH, GAME_HEIGHT, GAME_FORMAT);		// Surface
@@ -413,6 +432,7 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 			clearOverlay();
 			_gfxState.setup = true;
 			_screenChangeId++;
+			debug("_screenChangeId++;");
 		}
 	}
 
@@ -505,7 +525,7 @@ void OSystem_3DS::unlockScreen() {
 }
 
 void OSystem_3DS::updateScreen() {
-	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("void OSystem_3DS::updateScreen() {");
+//	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("void OSystem_3DS::updateScreen() {");
 	if (sleeping || exiting) {
 		return;
 	}
@@ -531,6 +551,8 @@ void OSystem_3DS::updateScreen() {
 			C3D_BindProgram(&_program);
 			C3D_SetAttrInfo(&_defaultAttrInfo);
 			C3D_SetTexEnv(0, &_defaultTexEnv);
+			C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS_3D);
+			C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS_3D);
 		}
 		if (_overlayVisible) {
 			_overlay.transfer();
@@ -541,7 +563,7 @@ void OSystem_3DS::updateScreen() {
 		_osdMessage.transfer();
 		_activityIcon.transfer();
 
-		C3D_FrameSplit(0);
+//		C3D_FrameSplit(0);
 
 		// Render top screen
 		C3D_RenderTargetClear(_renderTargetTop, C3D_CLEAR_ALL, 0x00000000, 0);
@@ -551,6 +573,11 @@ void OSystem_3DS::updateScreen() {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameTopTexture.getMatrix());
 			_gameTopTexture.setFilteringMode(_magnifyMode != MODE_MAGON && _filteringEnabled);
 			_gameTopTexture.render();
+
+			if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+				C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+			}
+
 			if (_overlayVisible && _screen == kScreenTop) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
 				_overlay.render();
@@ -580,6 +607,11 @@ void OSystem_3DS::updateScreen() {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameBottomTexture.getMatrix());
 			_gameTopTexture.setFilteringMode(_filteringEnabled);
 			_gameTopTexture.render();
+
+			if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+				C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
+			}
+
 			if (_overlayVisible) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
 				_overlay.render();
@@ -601,7 +633,7 @@ void OSystem_3DS::updateScreen() {
 			}
 		}
 	C3D_FrameEnd(0);
-	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("} (void OSystem_3DS::updateScreen)");
+//	if (RENDER_MODE != OSystem::kGfxModeNoFlags) debug("} (void OSystem_3DS::updateScreen)");
 }
 
 void OSystem_3DS::setShakePos(int shakeXOffset, int shakeYOffset) {
@@ -957,5 +989,9 @@ void OSystem_3DS::flushCursor() {
 C3D_Tex *OSystem_3DS::getGameSurface() {
 	return _gameTopTexture.getTex();
 }
+
+//shaderProgram_s *OSystem_3DS::backendShaderPgmPtr() {
+//	return &program;
+//}
 
 } // namespace N3DS

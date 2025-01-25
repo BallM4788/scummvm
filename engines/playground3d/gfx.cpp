@@ -36,40 +36,6 @@
 
 namespace Playground3d {
 
-#if defined (__3DS__)
-const CubeVtx Renderer::cubeVertices3DS[] = {
-	//   S     T        X      Y      Z       NX     NY     NZ       R     G     B
-	{{0.0f, 1.0f}, {-1.0f, -1.0f,  1.0f}, { 0.0f,  0.0f,  1.0f}, {0.0f, 0.0f, 1.0f}}, // blue
-	{{1.0f, 1.0f}, { 1.0f, -1.0f,  1.0f}, { 0.0f,  0.0f,  1.0f}, {1.0f, 0.0f, 1.0f}}, // magenta
-	{{0.0f, 0.0f}, {-1.0f,  1.0f,  1.0f}, { 0.0f,  0.0f,  1.0f}, {0.0f, 1.0f, 1.0f}}, // cyan
-	{{1.0f, 0.0f}, { 1.0f,  1.0f,  1.0f}, { 0.0f,  0.0f,  1.0f}, {1.0f, 1.0f, 1.0f}}, // white
-
-	{{0.0f, 1.0f}, { 1.0f, -1.0f, -1.0f}, { 0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}}, // red
-	{{1.0f, 1.0f}, {-1.0f, -1.0f, -1.0f}, { 0.0f,  0.0f, -1.0f}, {0.0f, 0.0f, 0.0f}}, // black
-	{{0.0f, 0.0f}, { 1.0f,  1.0f, -1.0f}, { 0.0f,  0.0f, -1.0f}, {1.0f, 1.0f, 0.0f}}, // yellow
-	{{1.0f, 0.0f}, {-1.0f,  1.0f, -1.0f}, { 0.0f,  0.0f, -1.0f}, {0.0f, 1.0f, 0.0f}}, // green
-
-	{{0.0f, 1.0f}, { 1.0f, -1.0f,  1.0f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 0.0f, 1.0f}}, // magenta
-	{{1.0f, 1.0f}, { 1.0f, -1.0f, -1.0f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 0.0f, 0.0f}}, // red
-	{{0.0f, 0.0f}, { 1.0f,  1.0f,  1.0f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 1.0f, 1.0f}}, // white
-	{{1.0f, 0.0f}, { 1.0f,  1.0f, -1.0f}, { 1.0f,  0.0f,  0.0f}, {1.0f, 1.0f, 0.0f}}, // yellow
-
-	{{0.0f, 1.0f}, {-1.0f, -1.0f, -1.0f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 0.0f, 0.0f}}, // black
-	{{1.0f, 1.0f}, {-1.0f, -1.0f,  1.0f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 0.0f, 1.0f}}, // blue
-	{{0.0f, 0.0f}, {-1.0f,  1.0f, -1.0f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 1.0f, 0.0f}}, // green
-	{{1.0f, 0.0f}, {-1.0f,  1.0f,  1.0f}, {-1.0f,  0.0f,  0.0f}, {0.0f, 1.0f, 1.0f}}, // cyan
-
-	{{0.0f, 1.0f}, {-1.0f,  1.0f,  1.0f}, { 0.0f,  1.0f,  0.0f}, {0.0f, 1.0f, 1.0f}}, // cyan
-	{{1.0f, 1.0f}, { 1.0f,  1.0f,  1.0f}, { 0.0f,  1.0f,  0.0f}, {1.0f, 1.0f, 1.0f}}, // white
-	{{0.0f, 0.0f}, {-1.0f,  1.0f, -1.0f}, { 0.0f,  1.0f,  0.0f}, {0.0f, 1.0f, 0.0f}}, // green
-	{{1.0f, 0.0f}, { 1.0f,  1.0f, -1.0f}, { 0.0f,  1.0f,  0.0f}, {1.0f, 1.0f, 0.0f}}, // yellow
-
-	{{0.0f, 1.0f}, {-1.0f, -1.0f, -1.0f}, { 0.0f, -1.0f,  0.0f}, {0.0f, 0.0f, 0.0f}}, // black
-	{{1.0f, 1.0f}, { 1.0f, -1.0f, -1.0f}, { 0.0f, -1.0f,  0.0f}, {1.0f, 0.0f, 0.0f}}, // red
-	{{0.0f, 0.0f}, {-1.0f, -1.0f,  1.0f}, { 0.0f, -1.0f,  0.0f}, {0.0f, 0.0f, 1.0f}}, // blue
-	{{1.0f, 0.0f}, { 1.0f, -1.0f,  1.0f}, { 0.0f, -1.0f,  0.0f}, {1.0f, 0.0f, 1.0f}}  // magenta
-};
-#endif
 const float Renderer::cubeVertices[] = {
 	// S     T      X      Y      Z      NX    NY     NZ     R     G     B
 	0.0f, 1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, 1.0f, // blue
@@ -125,7 +91,7 @@ void Renderer::computeScreenViewport() {
 
 	// Pillarboxing
 	_screenViewport.translate((screenWidth - viewportWidth) / 2, (screenHeight - viewportHeight) / 2);
-	debug("computeScreenViewport results: (%d, %d, %d, %d)", PRINT_RECT(_screenViewport));
+	//debug("computeScreenViewport results: (%d, %d, %d, %d)", PRINT_RECT(_screenViewport));
 }
 
 Math::Matrix4 Renderer::makeProjectionMatrix(float fov, float nearClip, float farClip) const {
@@ -139,7 +105,10 @@ void Renderer::setupCameraPerspective(float pitch, float heading, float fov) {
 	_projectionMatrix = makeProjectionMatrix(fov, 1.0f, 10000.0f);
 #if defined (__3DS__)
 	Math::Matrix4 n3dsProjAdjust;
-	n3dsProjAdjust(2, 2) = 0.5f;
+	// flip Y
+	n3dsProjAdjust(1, 1) = -1.0f;
+	// adjust Z to fit in range 0 to -1
+	n3dsProjAdjust(2, 2) =  0.5f;
 	n3dsProjAdjust(3, 2) = -0.5f;
 	_projectionMatrix = _projectionMatrix * n3dsProjAdjust;
 #endif
@@ -176,7 +145,7 @@ Renderer *createRenderer(OSystem *system) {
 	uint height = Renderer::kOriginalHeight;
 
 	if (isAccelerated) {
-		debug("initGraphics3d(%d, %d);", width, height);
+//		debug("initGraphics3d(%d, %d);", width, height);
 		initGraphics3d(width, height);
 	} else {
 		initGraphics(width, height, nullptr);

@@ -198,18 +198,19 @@ ShaderObj::~ShaderObj() {
 		_unif_bools = nullptr;
 		_dirtyIVecs = _dirtyBools = nullptr;
 	} else {
+		 // deletes are causing crashes
 		if (_program->vertexShader) {
-			delete _vert_unif_FVecs;
-			delete _vert_dirtyFVecs;
+			delete [] _vert_unif_FVecs; // C3D_FVec array on heap
+			delete _vert_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
 		}
 		if (_program->geometryShader) {
-			delete _geom_unif_FVecs;
-			delete _geom_dirtyFVecs;
+			delete [] _geom_unif_FVecs; // C3D_FVec array on heap
+			delete _geom_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
 		}
-		delete _unif_IVecs;
-		delete _unif_bools;
-		delete _dirtyIVecs;
-		delete _dirtyBools;
+		delete [] _unif_IVecs; // int array on heap
+		delete [] _unif_bools; // bool array on heap
+		delete [] _dirtyIVecs; // bool array on heap
+		delete [] _dirtyBools; // bool array on heap
 
 		shaderProgramFree(_program);
 		delete _program;
@@ -280,10 +281,10 @@ void ShaderObj::sendDirtyUniforms() {
 				C3D_FVUnifMtxNx4(shaderEnum, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
 			} else {
 				for (int row = 0; row < temp.dirtyRows; row++) {
-					debug("%f,\t%f,\t%f,\t%f", temp.ptr[row].x,
-					                           temp.ptr[row].y,
-					                           temp.ptr[row].z,
-					                           temp.ptr[row].w);
+					//debug("%f,\t%f,\t%f,\t%f", temp.ptr[row].x,
+					//                           temp.ptr[row].y,
+					//                           temp.ptr[row].z,
+					//                           temp.ptr[row].w);
 					C3D_FVUnifSet(shaderEnum, temp.pos, temp.ptr[row].x,
 					                                    temp.ptr[row].y,
 					                                    temp.ptr[row].z,
@@ -294,10 +295,10 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int IV_ID = 0; IV_ID < 4; IV_ID++) {
 			if (_dirtyIVecs[(shaderType * 4) + IV_ID] == true) {
-				debug("%d,\t%d,\t%d,\t%d", N3DSMACRO_IVEC_ID_POS(shaderType, 0),
-				                           N3DSMACRO_IVEC_ID_POS(shaderType, 1),
-				                           N3DSMACRO_IVEC_ID_POS(shaderType, 2),
-				                           N3DSMACRO_IVEC_ID_POS(shaderType, 3));
+				//debug("%d,\t%d,\t%d,\t%d", N3DSMACRO_IVEC_ID_POS(shaderType, 0),
+				//                           N3DSMACRO_IVEC_ID_POS(shaderType, 1),
+				//                           N3DSMACRO_IVEC_ID_POS(shaderType, 2),
+				//                           N3DSMACRO_IVEC_ID_POS(shaderType, 3));
 				C3D_IVUnifSet(shaderEnum, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 1),
 				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 2),
@@ -308,7 +309,7 @@ void ShaderObj::sendDirtyUniforms() {
 
 		for (int bool_ID = 0; bool_ID < 2; bool_ID++) {
 			if (_dirtyBools[(shaderType * 2) + bool_ID] == true) {
-				debug("%d", _unif_bools[(shaderType * 2) + bool_ID]);
+				//debug("%d", _unif_bools[(shaderType * 2) + bool_ID]);
 				C3D_BoolUnifSet(shaderEnum, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
 				_dirtyBools[(shaderType * 2) + bool_ID] = false;
 			}

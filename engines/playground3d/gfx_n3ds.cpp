@@ -93,6 +93,20 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 		_cubeShader(nullptr)/*,
 		_fadeShader(nullptr),
 		_bitmapShader(nullptr)*/ {
+	// Create context that corresponds to the Citro3D setting of the 3DS backend.
+	_backendContext = N3DS_3D::createContext();
+	// Create context that corresponds to Open GL settings to be used for Playground3D engine rendering.
+	_p3dContext = N3DS_3D::createOGLContext();
+
+	_gameScreenTex = N3D_GetGameScreen();
+	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+
+	N3D_C3D_TexEnvInit(&_p3dTexEnv);
+	N3D_C3D_TexEnvFunc(&_p3dTexEnv, C3D_Both, GPU_MODULATE);
+	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR);
+	N3D_C3D_TexEnvOpRgb(&_p3dTexEnv, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR);
+	N3D_C3D_TexEnvOpAlpha(&_p3dTexEnv, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA);
+
 }
 
 //ShaderRenderer::~ShaderRenderer() {
@@ -109,23 +123,22 @@ N3DSRenderer::~N3DSRenderer() {
 	// N3DS_3D::freeBuffer(_fadeVBO);
 	// N3DS_3D::freeBuffer(_bitmapVBO);
 
+	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
+
 	delete _cubeShader;
 	// delete _fadeShader;
 	// delete _bitmapShader;
+
+	N3DS_3D::setContext(_backendContext);
+	N3DS_3D::destroyContext(_p3dContext);
+	N3DS_3D::destroyContext(_backendContext);
+	N3DS_3D::destroyNative3D();
 }
 
 //void ShaderRenderer::init() {
 void N3DSRenderer::init() {
 //	debug("Initializing OpenGL Renderer with shaders");
 	debug("Initializing Nintendo 3DS renderer");
-
-	// Create context that corresponds to the Citro3D setting of the 3DS backend.
-	_backendContext = N3DS_3D::createContext();
-	// Create context that corresponds to Open GL settings to be used for Playground3D engine rendering.
-	_p3dContext = N3DS_3D::createOGLContext();
-
-	_gameScreenTex = N3D_GetGameScreen();
-	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH24_STENCIL8);
 
 	computeScreenViewport();
 
@@ -139,9 +152,9 @@ void N3DSRenderer::init() {
 //	_cubeShader->enableVertexAttribute("position", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 8);
 //	_cubeShader->enableVertexAttribute("normal", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 20);
 //	_cubeShader->enableVertexAttribute("color", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 32);
-	// SHOULDN'T BE NORMALIZED
+	// GL_FALSE == SHOULDN'T BE NORMALIZED
 	_cubeShader = new N3DS_3D::ShaderObj(playground3d_cube_shbin, playground3d_cube_shbin_size);
-	_cubeVBO = N3DS_3D::createBuffer(sizeof(cubeVertices3DS), cubeVertices3DS);
+	_cubeVBO = N3DS_3D::createBuffer(sizeof(cubeVertices), cubeVertices);
 	_cubeShader->addAttrLoader(0, GPU_FLOAT, 2);
 	_cubeShader->addAttrLoader(1, GPU_FLOAT, 3);
 	_cubeShader->addAttrLoader(2, GPU_FLOAT, 3);
@@ -184,22 +197,6 @@ void N3DSRenderer::deinit() {
 //	glDeleteTextures(2, _textureRgb565Id);
 //	glDeleteTextures(2, _textureRgba5551Id);
 //	glDeleteTextures(2, _textureRgba4444Id);
-
-	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
-	N3DS_3D::freeBuffer(_cubeVBO);
-	delete _cubeShader;
-	debug("Setting _backendContext...");
-	N3DS_3D::setContext(_backendContext);
-	debug("...Done.");
-	debug("Destroying _p3dContext...");
-	N3DS_3D::destroyContext(_p3dContext);
-	debug("...Done.");
-	debug("Destroying _backendContext...");
-	N3DS_3D::destroyContext(_backendContext);
-	debug("...Done.");
-	debug("Destroying Native3D...");
-	N3DS_3D::destroyNative3D();
-	debug("...Done.");
 }
 
 #define FLOAT_TO_8BIT(fnum)		((u32)(0.5f + (fnum) * (float)255))
@@ -212,13 +209,14 @@ void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
 	                  | FLOAT_TO_8BIT(clearColor.w());
 
 	N3DS_3D::setContext(_p3dContext);
+	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_C3D_FrameBegin(0);
 	N3D_C3D_FrameDrawOn(_gameScreenTarget);
 	N3D_C3D_SetViewport(0, 0, 640, 480);
-	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_COLOR, clearcolorint, 0xFFFFFFFF);
-	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x68B0D8FF, 0xFFFFFFFF);
+	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x68B0D8FF, 0xFFFFFFFF);
 //	glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, clearcolorint, 0xFFFF);
 }
 
 #undef FLOAT_TO_8BIT
@@ -286,7 +284,7 @@ void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &rol
 //	_cubeShader->setUniform("rotateMatrix", rotateMatrix);
 //	_cubeShader->setUniform("modelPos", pos);
 	N3DS_3D::getActiveContext()->changeShader(_cubeShader);
-	_cubeShader->setUniform("textured", GPU_VERTEX_SHADER, 0.0f);
+	// _cubeShader->setUniform("textured", GPU_VERTEX_SHADER, 0.0f);
 	_cubeShader->setUniform("mvpMatrix", GPU_VERTEX_SHADER, _mvpMatrix);
 	_cubeShader->setUniform("rotateMatrix", GPU_VERTEX_SHADER, rotateMatrix);
 	_cubeShader->setUniform("modelPos", GPU_VERTEX_SHADER, pos);

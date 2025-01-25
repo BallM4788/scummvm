@@ -156,9 +156,9 @@ public:
 							m.r[col].c[3-row] = svmMtx(row, col);
 						}
 					}
-					for (int p = 0; p < 4; p++) {
-						debug("%f,\t%f,\t%f,\t%f", m.r[p].x, m.r[p].y, m.r[p].z, m.r[p].w);
-					}
+					//for (int p = 0; p < 4; p++) {
+					//	debug("%f,\t%f,\t%f,\t%f", m.r[p].x, m.r[p].y, m.r[p].z, m.r[p].w);
+					//}
 					C3D_FVUnifMtxNx4(shaderEnum, pos, &m, C);
 				} else {
 					// otherwise, queue this up for the next time this ShaderObj is used
@@ -190,9 +190,9 @@ public:
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
 				// if this is the active shader object, go ahead and send to Citro3D
-				for (int p = 0; p < 4; p++) {
-					debug("%f,\t%f,\t%f,\t%f", c3dMtx.r[p].x, c3dMtx.r[p].y, c3dMtx.r[p].z, c3dMtx.r[p].w);
-				}
+				//for (int p = 0; p < 4; p++) {
+				//	debug("%f,\t%f,\t%f,\t%f", c3dMtx.r[p].x, c3dMtx.r[p].y, c3dMtx.r[p].z, c3dMtx.r[p].w);
+				//}
 				C3D_FVUnifMtxNx4(shaderEnum, pos, &c3dMtx, rows);
 			} else {
 				// otherwise, queue this up for the next time this ShaderObj is used
@@ -214,7 +214,7 @@ public:
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
 				// if this is the active shader object, go ahead and send to Citro3D
-				debug("%f,\t%f,\t%f,\t%f", x, y, z, w);
+				//debug("%f,\t%f,\t%f,\t%f", x, y, z, w);
 				C3D_FVUnifSet(shaderEnum, pos, x, y, z, w);
 			} else {
 				// otherwise, queue this up for the next time this ShaderObj is used
@@ -247,7 +247,7 @@ public:
 					for (int f = 0; f < floatsPerVec; f++) {
 						temp[f] = dataPtr[(v*floatsPerVec+f)];
 					}
-					debug("%f,\t%f,\t%f,\t%f", temp[0], temp[1], temp[2], temp[3]);
+					//debug("%f,\t%f,\t%f,\t%f", temp[0], temp[1], temp[2], temp[3]);
 					C3D_FVUnifSet(shaderEnum, pos + v, temp[0], temp[1], temp[2], temp[3]);
 				}
 			} else {
@@ -284,7 +284,7 @@ public:
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
 				// if this is the active shader object, go ahead and send to Citro3D
-				debug("%d,\t%d,\t%d,\t%d", x, y, z, w);
+				//debug("%d,\t%d,\t%d,\t%d", x, y, z, w);
 				C3D_IVUnifSet(shaderEnum, pos, x, y, z, w);
 			} else {
 				// otherwise, save this for the next time this ShaderObj is used
@@ -307,7 +307,7 @@ public:
 		if (pos != -1) {
 			if (getActiveContext()->activeShaderObj == this) {
 				// if this is the active shader object, go ahead and send to Citro3D
-				debug("%d", boolval);
+				//debug("%d", boolval);
 				C3D_BoolUnifSet(shaderEnum, pos, boolval);
 			} else {
 				// otherwise, save this for the next time this ShaderObj is used
