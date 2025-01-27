@@ -39,6 +39,7 @@
 #include "engines/playground3d/gfx.h"
 //#include "engines/playground3d/gfx_opengl_shaders.h"
 #include "engines/playground3d/shaders-3ds/playground3d_cube_shbin.h"
+#include "engines/playground3d/shaders-3ds/playground3d_fade_shbin.h"
 #include "engines/playground3d/gfx_n3ds.h"
 
 namespace Playground3d {
@@ -50,12 +51,12 @@ namespace Playground3d {
 //	-0.5f, -0.5f,
 //	 0.5f, -0.5f,
 //};
-static const Vtx dimRegionVertices[] = {
-	//    X      Y
-	{{-0.5f,  0.5f}},
-	{{ 0.5f,  0.5f}},
-	{{-0.5f, -0.5f}},
-	{{ 0.5f, -0.5f}},
+static const float dimRegionVertices[] = {
+	//  X      Y
+	-0.5f,  0.5f,
+	 0.5f,  0.5f,
+	-0.5f, -0.5f,
+	 0.5f, -0.5f,
 };
 
 //static const GLfloat bitmapVertices[] = {
@@ -65,12 +66,12 @@ static const Vtx dimRegionVertices[] = {
 //	-0.2f, -0.2f, 0.0f, 1.0f,
 //	 0.2f, -0.2f, 1.0f, 1.0f,
 //};
-static const VtxTex bitmapVertices[] = {
-	//    X      Y       S     T
-	{{-0.2f,  0.2f}, {0.0f, 0.0f}},
-	{{ 0.2f,  0.2f}, {1.0f, 0.0f}},
-	{{-0.2f, -0.2f}, {0.0f, 1.0f}},
-	{{ 0.2f, -0.2f}, {1.0f, 1.0f}},
+static const float bitmapVertices[] = {
+	//  X      Y     S     T
+	-0.2f,  0.2f, 0.0f, 0.0f,
+	 0.2f,  0.2f, 1.0f, 0.0f,
+	-0.2f, -0.2f, 0.0f, 1.0f,
+	 0.2f, -0.2f, 1.0f, 1.0f,
 };
 
 Renderer *CreateGfxN3DS(OSystem *system) {
@@ -90,8 +91,8 @@ Renderer *CreateGfxN3DS(OSystem *system) {
 N3DSRenderer::N3DSRenderer(OSystem *system) :
 		Renderer(system),
 		_currentViewport(kOriginalWidth, kOriginalHeight),
-		_cubeShader(nullptr)/*,
-		_fadeShader(nullptr),
+		_cubeShader(nullptr),
+		_fadeShader(nullptr)/*,
 		_bitmapShader(nullptr)*/ {
 	// Create context that corresponds to the Citro3D setting of the 3DS backend.
 	_backendContext = N3DS_3D::createContext();
@@ -120,13 +121,13 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 //}
 N3DSRenderer::~N3DSRenderer() {
 	N3DS_3D::freeBuffer(_cubeVBO);
-	// N3DS_3D::freeBuffer(_fadeVBO);
+	N3DS_3D::freeBuffer(_fadeVBO);
 	// N3DS_3D::freeBuffer(_bitmapVBO);
 
 	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
 
 	delete _cubeShader;
-	// delete _fadeShader;
+	delete _fadeShader;
 	// delete _bitmapShader;
 
 	N3DS_3D::setContext(_backendContext);
@@ -165,11 +166,11 @@ void N3DSRenderer::init() {
 //	_fadeShader = OpenGL::Shader::fromFiles("playground3d_fade", fadeAttributes);
 //	_fadeVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(dimRegionVertices), dimRegionVertices);
 //	_fadeShader->enableVertexAttribute("position", _fadeVBO, 2, GL_FLOAT, GL_TRUE, 2 * sizeof(float), 0);
-	// // SHOULD BE NORMALIZED
-	// _fadeShader = new N3DS_3D::ShaderObj(playground3d_fade_shbin, playground3d_fade_shbin_size);
-	// _fadeVBO = N3DS_3D::createBuffer(sizeof(dimRegionVertices), dimRegionVertices);
-	// _fadeShader->addAttrLoader(0, GPU_FLOAT, 2);
-	// _fadeShader->addBufInfo(_fadeVBO, sizeof(Vtx), 1, 0x0);
+	// GL_TRUE = SHOULD BE NORMALIZED
+	_fadeShader = new N3DS_3D::ShaderObj(playground3d_fade_shbin, playground3d_fade_shbin_size);
+	_fadeVBO = N3DS_3D::createBuffer(sizeof(dimRegionVertices), dimRegionVertices);
+	_fadeShader->addAttrLoader(0, GPU_FLOAT, 2);
+	_fadeShader->addBufInfo(_fadeVBO, 2 * sizeof(float), 1, 0x0);
 
 //	static const char *bitmapAttributes[] = { "position", "texcoord", nullptr };
 //	_bitmapShader = OpenGL::Shader::fromFiles("playground3d_bitmap", bitmapAttributes);
@@ -212,7 +213,6 @@ void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
 	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_C3D_FrameBegin(0);
 	N3D_C3D_FrameDrawOn(_gameScreenTarget);
-	N3D_C3D_SetViewport(0, 0, 640, 480);
 	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x68B0D8FF, 0xFFFFFFFF);
 //	glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -268,7 +268,7 @@ void N3DSRenderer::loadTextureRGBA4444(Graphics::Surface *texture) {
 //void ShaderRenderer::setupViewport(int x, int y, int width, int height) {
 void N3DSRenderer::setupViewport(int x, int y, int width, int height) {
 //	glViewport(x, y, width, height);
-	// DO VIEWPORT THINGS?
+	N3D_C3D_SetViewport(0, 0, 640, 480);
 }
 
 //void ShaderRenderer::enableFog(const Math::Vector4d &fogColor) {
@@ -320,11 +320,18 @@ void N3DSRenderer::dimRegionInOut(float fade) {
 //	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 //	glDisable(GL_DEPTH_TEST);
 //	glDepthMask(GL_FALSE);
-//
+	N3D_BlendEnabled(true);
+	N3D_BlendFunc(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+	N3D_DepthTestEnabled(false);
+	N3D_DepthMask(false);
+
 //	_fadeShader->use();
 //	_fadeShader->setUniform1f("alphaLevel", 1.0 - fade);
 //	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 //	_fadeShader->unbind();
+	N3DS_3D::getActiveContext()->changeShader(_fadeShader);
+	_fadeShader->setUniform("alphaLevel", GPU_VERTEX_SHADER, 1.0f - fade);
+	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 }
 
 //void ShaderRenderer::drawInViewport() {

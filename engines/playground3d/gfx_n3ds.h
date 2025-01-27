@@ -33,14 +33,14 @@
 
 namespace Playground3d {
 
-typedef struct {
-	float position[2];
-} Vtx;
-
-typedef struct {
-	float position[2];
-	float texcoord[2];
-} VtxTex;
+//typedef struct {
+//	float position[2];
+//} Vtx;
+//
+//typedef struct {
+//	float position[2];
+//	float texcoord[2];
+//} VtxTex;
 
 class N3DSRenderer : public Renderer {
 public:
@@ -78,14 +78,14 @@ private:
 //	OpenGL::Shader *_fadeShader;
 //	OpenGL::Shader *_bitmapShader;
 	N3DS_3D::ShaderObj *_cubeShader;
-	// N3DS_3D::ShaderObj *_fadeShader;
+	N3DS_3D::ShaderObj *_fadeShader;
 	// N3DS_3D::ShaderObj *_bitmapShader;
 
 //	GLuint _cubeVBO;
 //	GLuint _fadeVBO;
 //	GLuint _bitmapVBO;
 	void *_cubeVBO;
-	// void *_fadeVBO;
+	void *_fadeVBO;
 	// void *_bitmapVBO;
 
 	Common::Rect _currentViewport;
