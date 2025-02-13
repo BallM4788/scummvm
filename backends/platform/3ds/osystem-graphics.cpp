@@ -27,6 +27,9 @@
 #include "graphics/blit.h"
 #include "graphics/fontman.h"
 #include "gui/gui-manager.h"
+#include "backends/platform/3ds/shaders/playground3d/playground3d_cube_shbin.h"
+#include "backends/platform/3ds/shaders/playground3d/playground3d_offset_shbin.h"
+#include "backends/platform/3ds/shaders/playground3d/playground3d_fade_shbin.h"
 
 // Used to transfer the final rendered display to the framebuffer
 #define DISPLAY_TRANSFER_FLAGS                                                    \
@@ -131,6 +134,14 @@ void OSystem_3DS::init3DSGraphics() {
 	C3D_CullFace(GPU_CULL_NONE);
 
 	_overlay.create(320, 240, &DEFAULT_MODE);
+
+	// If any 3D engines are included in the build, put them into "shaderDataMap"
+#ifdef ENABLE_PLAYGROUND3D
+	shaderDataMap.setVal("playground3d_cube", ShaderData((u32*)const_cast<u8 *>(playground3d_cube_shbin), playground3d_cube_shbin_size));
+	shaderDataMap.setVal("playground3d_offset", ShaderData((u32*)const_cast<u8 *>(playground3d_offset_shbin), playground3d_offset_shbin_size));
+	shaderDataMap.setVal("playground3d_fade", ShaderData((u32*)const_cast<u8 *>(playground3d_fade_shbin), playground3d_fade_shbin_size));
+#endif
+
 }
 
 void OSystem_3DS::destroy3DSGraphics() {

@@ -29,6 +29,8 @@
 //#include "graphics/opengl/shader.h"
 //#include "graphics/opengl/system_headers.h"
 
+#include "graphics/3ds/n3d.h"
+
 #include "engines/playground3d/gfx.h"
 
 namespace Playground3d {
@@ -78,6 +80,7 @@ private:
 //	OpenGL::Shader *_fadeShader;
 //	OpenGL::Shader *_bitmapShader;
 	N3DS_3D::ShaderObj *_cubeShader;
+	N3DS_3D::ShaderObj *_offsetShader;
 	N3DS_3D::ShaderObj *_fadeShader;
 	// N3DS_3D::ShaderObj *_bitmapShader;
 
@@ -85,6 +88,7 @@ private:
 //	GLuint _fadeVBO;
 //	GLuint _bitmapVBO;
 	void *_cubeVBO;
+	void *_offsetVBO;
 	void *_fadeVBO;
 	// void *_bitmapVBO;
 

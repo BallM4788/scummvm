@@ -9,8 +9,6 @@ MODULE_OBJS := \
 
 ifeq ($(BACKEND), 3ds)
 MODULE_OBJS += \
-	shaders-3ds/playground3d_cube.shbin.o \
-	shaders-3ds/playground3d_fade.shbin.o \
 	gfx_n3ds.o
 endif
 

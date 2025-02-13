@@ -289,8 +289,8 @@ void N3DContext::initOGL() {
 	depthMap_rangeN         = 1.0f;
 	depthMap_rangeF         = 0.0f;
 	depthMap_zScale         = 1.0f;
-	depthMap_zOffset        = 0.0f;
-	depthMap_enabled        = false;
+	depthMap_zOffset        = 1.0f;
+	depthMap_enabled        = true;
 	scissor_mode            = GPU_SCISSOR_DISABLE;
 	scissor_x               = 0;
 	scissor_y               = 0;

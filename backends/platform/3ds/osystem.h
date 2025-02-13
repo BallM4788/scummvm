@@ -35,6 +35,7 @@
 #include "common/queue.h"
 #include "common/ustr.h"
 #include "engines/engine.h"
+#include "common/hashmap.h"
 
 #define TICKS_PER_MSEC 268123
 
@@ -106,6 +107,57 @@ struct GfxState {
 		renderMode = OSystem::kGfxModeNoFlags;
 	}
 };
+
+// TRACKING SHADERS FOR ALL INCLUDED GAMES
+struct ShaderData {
+	u32 *shbinData;
+	u32 shbinSize;
+	DVLB_s *dvlb;
+	shaderProgram_s program;
+	bool isLoaded;
+
+	ShaderData()
+			: shbinData(nullptr),
+			  shbinSize(0),
+			  dvlb(nullptr),
+			  isLoaded(false) {
+	}
+
+	ShaderData(u32 *data, u32 size)
+			: shbinData(data),
+			  shbinSize(size),
+			  dvlb(nullptr),
+			  isLoaded(false) {
+	}
+
+	~ShaderData() {
+		if (isLoaded) {
+			shaderProgramFree(&program);
+			DVLB_Free(dvlb);
+		}
+	}
+
+	shaderProgram_s *loadData(u8 *si_flags, u8 geomStride = 0) {
+		dvlb = DVLB_ParseFile(shbinData, shbinSize);
+		shaderProgramInit(&program);
+		Result vshResult = shaderProgramSetVsh(&program, &dvlb->DVLE[0]);
+		Result gshResult = shaderProgramSetGsh(&program, &dvlb->DVLE[1], geomStride);
+		*si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
+		isLoaded = true;
+		return &program;
+	}
+
+	void releaseData() {
+		if (isLoaded) {
+			shaderProgramFree(&program);
+			DVLB_Free(dvlb);
+			isLoaded = false;
+		}
+	}
+};
+typedef Common::HashMap<Common::String, ShaderData> ShaderDataMap;
+
+
 
 
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager, public Common::EventObserver {
@@ -275,6 +327,8 @@ private:
 	C3D_Mtx _projectionBottom;
 	C3D_RenderTarget* _renderTargetTop;
 	C3D_RenderTarget* _renderTargetBottom;
+
+	ShaderDataMap shaderDataMap;
 
 	// Focus
 	Common::Rect _focusRect;

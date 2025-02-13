@@ -202,10 +202,12 @@ ShaderObj::~ShaderObj() {
 		if (_program->vertexShader) {
 			delete [] _vert_unif_FVecs; // C3D_FVec array on heap
 			delete _vert_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
+			delete _vert_UniformMap;
 		}
 		if (_program->geometryShader) {
 			delete [] _geom_unif_FVecs; // C3D_FVec array on heap
 			delete _geom_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
+			delete _geom_UniformMap;
 		}
 		delete [] _unif_IVecs; // int array on heap
 		delete [] _unif_bools; // bool array on heap

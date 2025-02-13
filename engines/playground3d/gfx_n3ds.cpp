@@ -22,7 +22,7 @@
 //#if defined(USE_OPENGL_SHADERS)
 #if defined(__3DS__)
 #include "graphics/3ds/n3d.h"
-#include "graphics/3ds/z3d.h"
+//#include "graphics/3ds/z3d.h"
 
 #include "common/rect.h"
 #include "common/textconsole.h"
@@ -38,11 +38,20 @@
 
 #include "engines/playground3d/gfx.h"
 //#include "engines/playground3d/gfx_opengl_shaders.h"
-#include "engines/playground3d/shaders-3ds/playground3d_cube_shbin.h"
-#include "engines/playground3d/shaders-3ds/playground3d_fade_shbin.h"
 #include "engines/playground3d/gfx_n3ds.h"
 
 namespace Playground3d {
+
+static const float triOffsetVertices[] =
+{
+	//  X      Y     Z
+	-1.0f,  1.0f, 0.0f,
+	 1.0f,  1.0f, 0.0f,
+	 0.0f, -1.0f, 0.0f,
+	-0.5f,  0.5f, 0.0f,
+	 0.5f,  0.5f, 0.0f,
+	 0.0f, -0.5f, 0.0f,
+};
 
 //static const GLfloat dimRegionVertices[] = {
 //	//  X      Y
@@ -92,6 +101,7 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 		Renderer(system),
 		_currentViewport(kOriginalWidth, kOriginalHeight),
 		_cubeShader(nullptr),
+		_offsetShader(nullptr),
 		_fadeShader(nullptr)/*,
 		_bitmapShader(nullptr)*/ {
 	// Create context that corresponds to the Citro3D setting of the 3DS backend.
@@ -121,12 +131,14 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 //}
 N3DSRenderer::~N3DSRenderer() {
 	N3DS_3D::freeBuffer(_cubeVBO);
+	N3DS_3D::freeBuffer(_offsetVBO);
 	N3DS_3D::freeBuffer(_fadeVBO);
 	// N3DS_3D::freeBuffer(_bitmapVBO);
 
 	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
 
 	delete _cubeShader;
+	delete _offsetShader;
 	delete _fadeShader;
 	// delete _bitmapShader;
 
@@ -161,6 +173,11 @@ void N3DSRenderer::init() {
 	_cubeShader->addAttrLoader(2, GPU_FLOAT, 3);
 	_cubeShader->addAttrLoader(3, GPU_FLOAT, 3);
 	_cubeShader->addBufInfo(_cubeVBO, 11 * sizeof(float), 4, 0x3210);
+
+	_offsetShader = new N3DS_3D::ShaderObj(playground3d_offset_shbin, playground3d_offset_shbin_size);
+	_offsetVBO = N3DS_3D::createBuffer(sizeof(triOffsetVertices), triOffsetVertices);
+	_offsetShader->addAttrLoader(0, GPU_FLOAT, 3);
+	_offsetShader->addBufInfo(_offsetVBO, 3 * sizeof(float), 1, 0x0);
 
 //	static const char *fadeAttributes[] = { "position", nullptr };
 //	_fadeShader = OpenGL::Shader::fromFiles("playground3d_fade", fadeAttributes);
@@ -204,10 +221,6 @@ void N3DSRenderer::deinit() {
 
 //void ShaderRenderer::clear(const Math::Vector4d &clearColor) {
 void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
-	u32 clearcolorint = FLOAT_TO_8BIT(clearColor.x()) << 24
-	                  | FLOAT_TO_8BIT(clearColor.y()) << 16
-	                  | FLOAT_TO_8BIT(clearColor.z()) << 8
-	                  | FLOAT_TO_8BIT(clearColor.w());
 
 	N3DS_3D::setContext(_p3dContext);
 	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
@@ -216,6 +229,10 @@ void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
 	//N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0x68B0D8FF, 0xFFFFFFFF);
 //	glClearColor(clearColor.x(), clearColor.y(), clearColor.z(), clearColor.w());
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	u32 clearcolorint = FLOAT_TO_8BIT(clearColor.x()) << 24
+	                  | FLOAT_TO_8BIT(clearColor.y()) << 16
+	                  | FLOAT_TO_8BIT(clearColor.z()) << 8
+	                  | FLOAT_TO_8BIT(clearColor.w());
 	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, clearcolorint, 0xFFFF);
 }
 
@@ -277,6 +294,13 @@ void N3DSRenderer::enableFog(const Math::Vector4d &fogColor) {
 
 //void ShaderRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &roll) {
+	N3D_DepthTestEnabled(true);
+	N3D_BlendEnabled(false);
+	N3D_BlendFunc(GPU_ONE, GPU_ZERO);
+//	Math::Quaternion quat = Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ);
+//	debug("fromEuler: %f\t%f\t%f\t%f", quat.x(), quat.y(), quat.z(), quat.w());
+//	Math::Quaternion quat2 = quat.inverse();
+//	debug("inverse: %f\t%f\t%f\t%f", quat2.x(), quat2.y(), quat2.z(), quat2.w());
 	auto rotateMatrix = (Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ)).inverse().toMatrix();
 //	_cubeShader->use();
 //	_cubeShader->setUniform("textured", false);
@@ -307,6 +331,49 @@ void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &rol
 //void ShaderRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 //	error("Polygon offset test not implemented yet");
+	N3D_DepthTestEnabled(true);
+	N3D_BlendEnabled(false);
+	N3D_BlendFunc(GPU_ONE, GPU_ZERO);
+
+	//glMatrixMode(GL_PROJECTION);
+	//glLoadMatrixf(_projectionMatrix.getData());
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadMatrixf(_modelViewMatrix.getData());
+	//glTranslatef(pos.x(), pos.y(), pos.z());
+	//glRotatef(roll.y(), 0.0f, 1.0f, 0.0f);
+	//glColor3f(0.0f, 1.0f, 0.0f);
+	//glBegin(GL_TRIANGLES);
+	//glVertex3f(-1.0f,  1.0, 0.0f);
+	//glVertex3f( 1.0f,  1.0, 0.0f);
+	//glVertex3f( 0.0f, -1.0, 0.0f);
+	//glEnd();
+	//glPolygonOffset(-1.0f, 0.0f);
+	//glEnable(GL_POLYGON_OFFSET_FILL);
+	//glColor3f(1.0f, 1.0f, 1.0f);
+	//glBegin(GL_TRIANGLES);
+	//glVertex3f(-0.5f,  0.5, 0.0f);
+	//glVertex3f( 0.5f,  0.5, 0.0f);
+	//glVertex3f( 0.0f, -0.5, 0.0f);
+	//glEnd();
+	//glDisable(GL_POLYGON_OFFSET_FILL);
+
+	auto rotateMatrix = (Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ)).inverse().toMatrix();
+	Math::Vector3d colorVec = Math::Vector3d(0.0f, 1.0f, 0.0f);
+
+	N3DS_3D::getActiveContext()->changeShader(_offsetShader);
+
+	_offsetShader->setUniform("mvpMatrix", GPU_VERTEX_SHADER, _mvpMatrix);
+	_offsetShader->setUniform("rotateMatrix", GPU_VERTEX_SHADER, rotateMatrix);
+	_offsetShader->setUniform("modelPos", GPU_VERTEX_SHADER, pos);
+	_offsetShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
+	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 3);
+
+	N3D_PolygonOffsetEnabled(true);
+	N3D_PolygonOffset(-1000.f);
+	colorVec = Math::Vector3d(1.0f, 1.0f, 1.0f);
+	_offsetShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
+	N3D_C3D_DrawArrays(GPU_TRIANGLES, 3, 3);
+	N3D_PolygonOffsetEnabled(false);
 }
 
 void N3DSRenderer::flipBuffer() {

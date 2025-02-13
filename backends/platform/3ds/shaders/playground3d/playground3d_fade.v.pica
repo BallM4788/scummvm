@@ -27,7 +27,8 @@
 
 
 ; Uniforms
-.fvec alphaLevel   ; uniform float alphaLevel;
+.fvec  alphaLevel   ; uniform float alphaLevel;
+.fvec  renderColor
 
 
 ; Outputs
@@ -43,7 +44,7 @@
 	mov outPos.zw,  NEGHALF_ONE
 
 	; put full black into outClr, with alpha level determined by alphaLevel
-	mov outClr.rgb, ZEROES
+	mov outClr.rgb, renderColor.xyz
 	mov outClr.a,   alphaLevel.x
 
 	end
