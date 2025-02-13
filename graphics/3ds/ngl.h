@@ -27,6 +27,7 @@
 #include <3ds.h>
 #include <citro3d.h>
 #include <tex3ds.h>
+#include "common/str.h"
 
 enum N3D_CULLFACE {
 	N3D_CULLFACE_FRONT          = 0,
@@ -78,6 +79,10 @@ void N3D_ColorLogicOpEnabled(bool state);
 
 // CUSTOM FUNCS
 C3D_Tex *N3D_GetGameScreen();
+shaderProgram_s *N3D_LoadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride = 0);
+void N3D_UnloadShaderProgram(const Common::String &shaderID);
+void *N3D_CreateBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
+void N3D_FreeBuffer(void *linearBuffer);
 void     N3D_ArbDataToArbBlockTexOffset(u32 *srcBuf, u32 *dstBuf, int copyWidth, int copyHeight,
                                       int xSource, int ySource, int wSource,   int hSource,
                                       int xDest,   int yDest,   int wDest,     int hDest,

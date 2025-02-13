@@ -159,6 +159,22 @@ C3D_Tex *N3D_GetGameScreen() {
 	return N3DS_3D::getActiveContext()->opGetGameScreen();
 }
 
+shaderProgram_s *N3D_LoadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride) {
+	return N3DS_3D::getActiveContext()->opLoadShaderProgram(shaderID, si_flags, geomStride);
+}
+
+void N3D_UnloadShaderProgram(const Common::String &shaderID) {
+	N3DS_3D::getActiveContext()->opUnloadShaderProgram(shaderID);
+}
+
+void *N3D_CreateBuffer(size_t size/*, size_t stride = NULL*/, const void *data) {
+	return N3DS_3D::getActiveContext()->opCreateBuffer(size, data);
+}
+
+void N3D_FreeBuffer(void *linearBuffer) {
+	N3DS_3D::getActiveContext()->opFreeBuffer(linearBuffer);
+}
+
 void N3D_ArbDataToArbBlockTexOffset(u32 *srcBuf, u32 *dstBuf, int copyWidth, int copyHeight,
                                     int xSource, int ySource, int wSource,   int hSource,
                                     int xDest,   int yDest,   int wDest,     int hDest,

@@ -58,6 +58,10 @@ void opColorLogicOpEnabled(bool state);
 
 // CUSTOM FUNCS
 C3D_Tex *opGetGameScreen();
+shaderProgram_s *opLoadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride);
+void opUnloadShaderProgram(const Common::String &shaderID);
+void *opCreateBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
+void opFreeBuffer(void *linearBuffer);
 void     opArbDataToArbBlockTexOffset(u32 *srcBuf, u32 *dstBuf, int copyWidth, int copyHeight,
                                       int xSource, int ySource, int wSource,   int hSource,
                                       int xDest,   int yDest,   int wDest,     int hDest,

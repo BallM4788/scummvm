@@ -116,14 +116,14 @@ struct ShaderData {
 	shaderProgram_s program;
 	bool isLoaded;
 
-	ShaderData()
-			: shbinData(nullptr),
-			  shbinSize(0),
-			  dvlb(nullptr),
-			  isLoaded(false) {
-	}
+//	ShaderData()
+//			: shbinData(nullptr),
+//			  shbinSize(0),
+//			  dvlb(nullptr),
+//			  isLoaded(false) {
+//	}
 
-	ShaderData(u32 *data, u32 size)
+	ShaderData(u32 *data = nullptr, u32 size = 0)
 			: shbinData(data),
 			  shbinSize(size),
 			  dvlb(nullptr),
@@ -138,16 +138,18 @@ struct ShaderData {
 	}
 
 	shaderProgram_s *loadData(u8 *si_flags, u8 geomStride = 0) {
-		dvlb = DVLB_ParseFile(shbinData, shbinSize);
-		shaderProgramInit(&program);
-		Result vshResult = shaderProgramSetVsh(&program, &dvlb->DVLE[0]);
-		Result gshResult = shaderProgramSetGsh(&program, &dvlb->DVLE[1], geomStride);
-		*si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
-		isLoaded = true;
+		if (!isLoaded) {
+			dvlb = DVLB_ParseFile(shbinData, shbinSize);
+			shaderProgramInit(&program);
+			Result vshResult = shaderProgramSetVsh(&program, &dvlb->DVLE[0]);
+			Result gshResult = shaderProgramSetGsh(&program, &dvlb->DVLE[1], geomStride);
+			*si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
+			isLoaded = true;
+		}
 		return &program;
 	}
 
-	void releaseData() {
+	void unloadData() {
 		if (isLoaded) {
 			shaderProgramFree(&program);
 			DVLB_Free(dvlb);
@@ -260,6 +262,10 @@ public:
 	void updateSize();
 
 	C3D_Tex *getGameSurface();
+	shaderProgram_s *loadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride = 0);
+	void unloadShaderProgram(const Common::String &shaderID);
+	void *createBuffer(size_t size/*, size_t stride = NULL*/, const void *data = nullptr);
+	void freeBuffer(void *linearBuffer);
 
 private:
 	void init3DSGraphics();
@@ -301,11 +307,11 @@ private:
 
 	Graphics::Surface _gameScreen;
 	bool _gameTextureDirty;
-	Sprite _gameTopTexture;
-	Sprite _gameBottomTexture;
-	Sprite _overlay;
-	Sprite _activityIcon;
-	Sprite _osdMessage;
+	Sprite *_gameTopTexture;
+	Sprite *_gameBottomTexture;
+	Sprite *_overlay;
+	Sprite *_activityIcon;
+	Sprite *_osdMessage;
 	bool _filteringEnabled;
 
 	enum {
@@ -349,7 +355,7 @@ private:
 
 	// Cursor
 	Graphics::Surface _cursor;
-	Sprite _cursorTexture;
+	Sprite *_cursorTexture;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;

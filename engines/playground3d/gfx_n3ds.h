@@ -79,6 +79,12 @@ private:
 //	OpenGL::Shader *_cubeShader;
 //	OpenGL::Shader *_fadeShader;
 //	OpenGL::Shader *_bitmapShader;
+	shaderProgram_s *_cubeProgram;
+	shaderProgram_s *_offsetProgram;
+	shaderProgram_s *_fadeProgram;
+	u8 _cubeProgramFlags;
+	u8 _offsetProgramFlags;
+	u8 _fadeProgramFlags;
 	N3DS_3D::ShaderObj *_cubeShader;
 	N3DS_3D::ShaderObj *_offsetShader;
 	N3DS_3D::ShaderObj *_fadeShader;

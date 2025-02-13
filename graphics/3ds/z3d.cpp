@@ -126,13 +126,9 @@ void N3DContext::changeShader(ShaderObj *shaderObj) {
 	_unif_IVecs[(16 * num) + IV_ID + vecIdx]
 
 // new shader object
-ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
-	_binary = DVLB_ParseFile((u32 *)const_cast<u8 *>(shbin), shbin_size);
-	_program = new shaderProgram_s();
-	shaderProgramInit(_program);
-	Result vshResult = shaderProgramSetVsh(_program, &_binary->DVLE[0]);
-	Result gshResult = shaderProgramSetGsh(_program, &_binary->DVLE[1], geomStride);
-	_si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
+ShaderObj::ShaderObj(shaderProgram_s *program, u8 flags) {
+	_program = program;
+	_si_flags = flags;
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
 
@@ -168,8 +164,7 @@ ShaderObj::ShaderObj(const u8 *shbin, u32 shbin_size, u8 geomStride) {
 }
 
 // cloned shader object
-ShaderObj::ShaderObj(ShaderObj *original) : _binary(original->_binary),
-                                            _program(original->_program),
+ShaderObj::ShaderObj(ShaderObj *original) : _program(original->_program),
                                             _si_flags(original->_si_flags),
                                             _vert_UniformMap(original->_vert_UniformMap),
                                             _vert_unif_FVecs(original->_vert_unif_FVecs),
@@ -189,7 +184,6 @@ ShaderObj::ShaderObj(ShaderObj *original) : _binary(original->_binary),
 
 ShaderObj::~ShaderObj() {
 	if (_isClone) {
-		_binary = nullptr;
 		_program = nullptr;
 		_vert_UniformMap = _geom_UniformMap = nullptr;
 		_vert_unif_FVecs = _geom_unif_FVecs = nullptr;
@@ -209,15 +203,11 @@ ShaderObj::~ShaderObj() {
 			delete _geom_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
 			delete _geom_UniformMap;
 		}
+		_program = nullptr;
 		delete [] _unif_IVecs; // int array on heap
 		delete [] _unif_bools; // bool array on heap
 		delete [] _dirtyIVecs; // bool array on heap
 		delete [] _dirtyBools; // bool array on heap
-
-		shaderProgramFree(_program);
-		delete _program;
-
-		DVLB_Free(_binary);
 	}
 }
 

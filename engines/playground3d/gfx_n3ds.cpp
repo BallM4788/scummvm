@@ -60,12 +60,12 @@ static const float triOffsetVertices[] =
 //	-0.5f, -0.5f,
 //	 0.5f, -0.5f,
 //};
-static const float dimRegionVertices[] = {
+const float dimRegionVertices[] = {
 	//  X      Y
-	-0.5f,  0.5f,
-	 0.5f,  0.5f,
 	-0.5f, -0.5f,
 	 0.5f, -0.5f,
+	-0.5f,  0.5f,
+	 0.5f,  0.5f,
 };
 
 //static const GLfloat bitmapVertices[] = {
@@ -130,10 +130,14 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 //	delete _bitmapShader;
 //}
 N3DSRenderer::~N3DSRenderer() {
-	N3DS_3D::freeBuffer(_cubeVBO);
-	N3DS_3D::freeBuffer(_offsetVBO);
-	N3DS_3D::freeBuffer(_fadeVBO);
-	// N3DS_3D::freeBuffer(_bitmapVBO);
+	linearFree(_cubeVBO);
+	linearFree(_offsetVBO);
+	linearFree(_fadeVBO);
+	// linearFree(_bitmapVBO);
+
+	N3D_UnloadShaderProgram("playground3d_cube");
+	N3D_UnloadShaderProgram("playground3d_offset");
+	N3D_UnloadShaderProgram("playground3d_fade");
 
 	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
 
@@ -165,17 +169,25 @@ void N3DSRenderer::init() {
 //	_cubeShader->enableVertexAttribute("position", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 8);
 //	_cubeShader->enableVertexAttribute("normal", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 20);
 //	_cubeShader->enableVertexAttribute("color", _cubeVBO, 3, GL_FLOAT, GL_FALSE, 11 * sizeof(float), 32);
-	// GL_FALSE == SHOULDN'T BE NORMALIZED
-	_cubeShader = new N3DS_3D::ShaderObj(playground3d_cube_shbin, playground3d_cube_shbin_size);
-	_cubeVBO = N3DS_3D::createBuffer(sizeof(cubeVertices), cubeVertices);
+//		// GL_FALSE == SHOULDN'T BE NORMALIZED
+	_cubeProgram = N3D_LoadShaderProgram("playground3d_cube", &_cubeProgramFlags);
+	_cubeShader = new N3DS_3D::ShaderObj(_cubeProgram, _cubeProgramFlags);
+	//_cubeVBO = N3DS_3D::createBuffer(sizeof(cubeVertices), cubeVertices);
+	//_cubeVBO = linearAlloc(sizeof(float) * 11 * 24);
+	//debug("_cubeVBO - %lx", (u32)_cubeVBO);
+	//memcpy(_cubeVBO, cubeVertices, sizeof(cubeVertices));
+	_cubeVBO = N3D_CreateBuffer(sizeof(float) * 11 * 24, cubeVertices);
+	debug("_cubeVBO size - %u", linearGetSize(_cubeVBO));
 	_cubeShader->addAttrLoader(0, GPU_FLOAT, 2);
 	_cubeShader->addAttrLoader(1, GPU_FLOAT, 3);
 	_cubeShader->addAttrLoader(2, GPU_FLOAT, 3);
 	_cubeShader->addAttrLoader(3, GPU_FLOAT, 3);
 	_cubeShader->addBufInfo(_cubeVBO, 11 * sizeof(float), 4, 0x3210);
 
-	_offsetShader = new N3DS_3D::ShaderObj(playground3d_offset_shbin, playground3d_offset_shbin_size);
-	_offsetVBO = N3DS_3D::createBuffer(sizeof(triOffsetVertices), triOffsetVertices);
+	_offsetProgram = N3D_LoadShaderProgram("playground3d_offset", &_offsetProgramFlags);
+	_offsetShader = new N3DS_3D::ShaderObj(_offsetProgram, _offsetProgramFlags);
+	_offsetVBO = linearMemAlign(sizeof(float) * 3 * 6, 0x4);
+	memcpy(_offsetVBO, triOffsetVertices, sizeof(triOffsetVertices));
 	_offsetShader->addAttrLoader(0, GPU_FLOAT, 3);
 	_offsetShader->addBufInfo(_offsetVBO, 3 * sizeof(float), 1, 0x0);
 
@@ -183,9 +195,14 @@ void N3DSRenderer::init() {
 //	_fadeShader = OpenGL::Shader::fromFiles("playground3d_fade", fadeAttributes);
 //	_fadeVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(dimRegionVertices), dimRegionVertices);
 //	_fadeShader->enableVertexAttribute("position", _fadeVBO, 2, GL_FLOAT, GL_TRUE, 2 * sizeof(float), 0);
-	// GL_TRUE = SHOULD BE NORMALIZED
-	_fadeShader = new N3DS_3D::ShaderObj(playground3d_fade_shbin, playground3d_fade_shbin_size);
-	_fadeVBO = N3DS_3D::createBuffer(sizeof(dimRegionVertices), dimRegionVertices);
+//		// GL_TRUE = SHOULD BE NORMALIZED
+	_fadeProgram = N3D_LoadShaderProgram("playground3d_fade", &_fadeProgramFlags);
+	_fadeShader = new N3DS_3D::ShaderObj(_fadeProgram, _fadeProgramFlags);
+	//_fadeVBO = N3DS_3D::createBuffer(sizeof(dimRegionVertices), dimRegionVertices);
+	_fadeVBO = linearMemAlign(sizeof(float) * 2 * 4, 0x4);
+	debug("_fadeVBO size - %u", linearGetSize(_fadeVBO));
+	memcpy(_fadeVBO, dimRegionVertices, sizeof(dimRegionVertices));
+	//_fadeVBO = N3D_CreateBuffer(sizeof(float) * 2 * 4, dimRegionVertices);
 	_fadeShader->addAttrLoader(0, GPU_FLOAT, 2);
 	_fadeShader->addBufInfo(_fadeVBO, 2 * sizeof(float), 1, 0x0);
 
@@ -194,9 +211,10 @@ void N3DSRenderer::init() {
 //	_bitmapVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(bitmapVertices), bitmapVertices);
 //	_bitmapShader->enableVertexAttribute("position", _bitmapVBO, 2, GL_FLOAT, GL_TRUE, 4 * sizeof(float), 0);
 //	_bitmapShader->enableVertexAttribute("texcoord", _bitmapVBO, 2, GL_FLOAT, GL_TRUE, 4 * sizeof(float), 8);
-	// // SHOULD BE NORMALIZED
+//		// SHOULD BE NORMALIZED
 	// _bitmapShader = new N3DS_3D::ShaderObj(playground3d_bitmap_shbin, playground3d_bitmap_shbin_size);
-	// _bitmapVBO = N3DS_3D::createBuffer(sizeof(bitmapVertices), bitmapVertices);
+	// _bitmapVBO = linearAlloc(sizeof(bitmapVertices));
+	// memcpy(_bitmapVBO, bitmapVertices, sizeof(bitmapVertices));
 	// _bitmapShader->addAttrLoader(0, GPU_FLOAT, 2);
 	// _bitmapShader->addAttrLoader(1, GPU_FLOAT, 2);
 	// _bitmapShader->addBufInfo(_bitmapVBO, sizeof(VtxTex), 2, 0x10);
@@ -295,6 +313,7 @@ void N3DSRenderer::enableFog(const Math::Vector4d &fogColor) {
 //void ShaderRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 	N3D_DepthTestEnabled(true);
+	N3D_DepthMask(true);
 	N3D_BlendEnabled(false);
 	N3D_BlendFunc(GPU_ONE, GPU_ZERO);
 //	Math::Quaternion quat = Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ);
@@ -308,10 +327,16 @@ void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &rol
 //	_cubeShader->setUniform("rotateMatrix", rotateMatrix);
 //	_cubeShader->setUniform("modelPos", pos);
 	N3DS_3D::getActiveContext()->changeShader(_cubeShader);
-	// _cubeShader->setUniform("textured", GPU_VERTEX_SHADER, 0.0f);
 	_cubeShader->setUniform("mvpMatrix", GPU_VERTEX_SHADER, _mvpMatrix);
 	_cubeShader->setUniform("rotateMatrix", GPU_VERTEX_SHADER, rotateMatrix);
 	_cubeShader->setUniform("modelPos", GPU_VERTEX_SHADER, pos);
+
+	//C3D_FVec *fvecptr = C3D_FVUnifWritePtr(GPU_VERTEX_SHADER, 0, 1);
+	//debug("cube frame begin");
+	//for (int i = 0; i < 20; i++) {
+	//	debug("%f,\t%f,\t%f,\t%f", fvecptr[i].x, fvecptr[i].y, fvecptr[i].z, fvecptr[i].w);
+	//}
+	//debug("cube frame end");
 
 //	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 //	glDrawArrays(GL_TRIANGLE_STRIP, 4, 4);
@@ -331,9 +356,9 @@ void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &rol
 //void ShaderRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vector3d &roll) {
 //	error("Polygon offset test not implemented yet");
-	N3D_DepthTestEnabled(true);
-	N3D_BlendEnabled(false);
-	N3D_BlendFunc(GPU_ONE, GPU_ZERO);
+//	N3D_DepthTestEnabled(true);
+//	N3D_BlendEnabled(false);
+//	N3D_BlendFunc(GPU_ONE, GPU_ZERO);
 
 	//glMatrixMode(GL_PROJECTION);
 	//glLoadMatrixf(_projectionMatrix.getData());
@@ -392,12 +417,22 @@ void N3DSRenderer::dimRegionInOut(float fade) {
 	N3D_DepthTestEnabled(false);
 	N3D_DepthMask(false);
 
-//	_fadeShader->use();
-//	_fadeShader->setUniform1f("alphaLevel", 1.0 - fade);
-//	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-//	_fadeShader->unbind();
+//	//_fadeShader->use();
+//	//_fadeShader->setUniform1f("alphaLevel", 1.0 - fade);
+//	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+//	//_fadeShader->unbind();
+	Math::Vector3d colorVec = Math::Vector3d(0.0f, 0.0f, 0.0f);
 	N3DS_3D::getActiveContext()->changeShader(_fadeShader);
 	_fadeShader->setUniform("alphaLevel", GPU_VERTEX_SHADER, 1.0f - fade);
+	_fadeShader->setUniform("renderColor", GPU_VERTEX_SHADER, Math::Vector3d(0.0f, 0.0f, 0.0f));
+
+	//C3D_FVec *fvecptr = C3D_FVUnifWritePtr(GPU_VERTEX_SHADER, 0, 1);
+	//debug("fade frame begin");
+	//for (int i = 0; i < 20; i++) {
+	//	debug("%f,\t%f,\t%f,\t%f", fvecptr[i].x, fvecptr[i].y, fvecptr[i].z, fvecptr[i].w);
+	//}
+	//debug("fade frame end");
+
 	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 }
 

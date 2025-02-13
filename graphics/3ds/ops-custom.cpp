@@ -28,6 +28,26 @@ C3D_Tex *N3DContext::opGetGameScreen() {
 	return gsys3DS->getGameSurface();
 }
 
+shaderProgram_s *N3DContext::opLoadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride) {
+	N3DS::OSystem_3DS *gsys3DS = dynamic_cast<N3DS::OSystem_3DS *>(g_system);
+	return gsys3DS->loadShaderProgram(shaderID, si_flags, geomStride);
+}
+
+void N3DContext::opUnloadShaderProgram(const Common::String &shaderID) {
+	N3DS::OSystem_3DS *gsys3DS = dynamic_cast<N3DS::OSystem_3DS *>(g_system);
+	return gsys3DS->unloadShaderProgram(shaderID);
+}
+
+void *N3DContext::opCreateBuffer(size_t size/*, size_t stride = NULL*/, const void *data) {
+	N3DS::OSystem_3DS *gsys3DS = dynamic_cast<N3DS::OSystem_3DS *>(g_system);
+	return gsys3DS->createBuffer(size, data);
+}
+
+void N3DContext::opFreeBuffer(void *linearBuffer) {
+	N3DS::OSystem_3DS *gsys3DS = dynamic_cast<N3DS::OSystem_3DS *>(g_system);
+	return gsys3DS->freeBuffer(linearBuffer);
+}
+
 static u32 getPixelSizeInBytes(GPU_TEXCOLOR format, u32 *isHalfByte) {
 	switch(format) {
 		case GPU_RGBA8:

@@ -39,13 +39,18 @@ Sprite::Sprite()
 	, scaleX(1.f)
 	, scaleY(1.f)
 {
+	debug("HERP DERP~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	Mtx_Identity(&modelview);
 
-	vertices = (vertex *)linearAlloc(sizeof(vertex) * 4);
+	vertices = (vertex *)linearMemAlign(sizeof(vertex) * 4, 0x4);
+	debug("sprite vertices location - %lx", (u32)vertices);
+	debug("sprite vertices size - %u", linearGetSize((void *)vertices));
+
 }
 
 Sprite::~Sprite() {
-	//
+	free();
+	linearFree(vertices);
 }
 
 void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram) {
@@ -62,13 +67,14 @@ void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram)
 
 	if (width && height) {
 		pixels = linearAlloc(h * pitch);
+		debug("new sprite pixels - %lx", (u32)pixels);
 		if (vram) {
 			debug("Sprite::create - Creating tex");
 			if (!C3D_TexInitVRAM(&texture, w, h, mode->textureFormat)){
 				C3D_TexInit(&texture, w, h, mode->textureFormat);
 				debug("Sprite::create - Tex created: %u bytes", texture.size);
 			} else {
-				debug("Sprite::create - VRAM tex created: %u bytes", texture.size);
+				debug("Sprite::create - VRAM tex created: width %d height %d", w, h);
 			}
 		} else{
 			debug("Sprite::create - Creating tex");
@@ -89,10 +95,13 @@ void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram)
 		{{x+width, y+height, 0.5f}, {u, v}},
 	};
 	memcpy(vertices, tmp, sizeof(vertex) * 4);
+	debug("sprite vertices location - %lx", (u32)vertices);
+	debug("sprite vertices size - %u", linearGetSize((void *)vertices));
 }
 
 void Sprite::free() {
-	linearFree(vertices);
+	//linearFree(vertices);
+	memset(vertices, 0, sizeof(vertex) * 4);
 	linearFree(pixels);
 	u32 vaddr = (u32)texture.data;
 	u32 size = texture.size;
