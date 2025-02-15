@@ -87,13 +87,7 @@ OSystem_3DS::OSystem_3DS():
 	_showCursor(true),
 	_snapToBorder(true),
 	_stretchToFit(false),
-	_screen(kScreenBoth),
-	_gameTopTexture(0),
-	_gameBottomTexture(0),
-	_overlay(0),
-	_activityIcon(0),
-	_osdMessage(0),
-	_cursorTexture(0)
+	_screen(kScreenBoth)
 {
 	chdir("sdmc:/");
 

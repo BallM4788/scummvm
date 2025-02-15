@@ -307,11 +307,11 @@ private:
 
 	Graphics::Surface _gameScreen;
 	bool _gameTextureDirty;
-	Sprite *_gameTopTexture;
-	Sprite *_gameBottomTexture;
-	Sprite *_overlay;
-	Sprite *_activityIcon;
-	Sprite *_osdMessage;
+	Sprite _gameTopTexture;
+	Sprite _gameBottomTexture;
+	Sprite _overlay;
+	Sprite _activityIcon;
+	Sprite _osdMessage;
 	bool _filteringEnabled;
 
 	enum {
@@ -355,7 +355,7 @@ private:
 
 	// Cursor
 	Graphics::Surface _cursor;
-	Sprite *_cursorTexture;
+	Sprite _cursorTexture;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;
