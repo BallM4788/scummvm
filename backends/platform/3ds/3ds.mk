@@ -15,10 +15,7 @@ MAKEROM          ?= makerom
 SHADER_GENFILES := \
 	$(wildcard backends/platform/3ds/*_shbin.h) \
 	$(wildcard backends/platform/3ds/*.shbin) \
-	$(wildcard backends/platform/3ds/.deps/*.shbin.d) \
-	$(wildcard backends/platform/3ds/shaders/playground3d/*_shbin.h) \
-	$(wildcard backends/platform/3ds/shaders/playground3d/*.shbin) \
-	$(wildcard backends/platform/3ds/shaders/playground3d/.deps/*.shbin.d)
+	$(wildcard backends/platform/3ds/*.shbin.d)
 
 .PHONY: clean_3ds dist_3ds
 
