@@ -399,7 +399,7 @@ bool OSystem_3DS::notifyEvent(const Common::Event &event) {
 		} else if (_screen != kScreenBoth && _magnifyMode == MODE_MAGOFF) {
 			// TODO: Automatically enable both screens while magnify mode is on
 			displayMessageOnOSD(_("Magnify Mode can only be activated\n when both screens are enabled."));
-		} else if (_gameWidth <= 400 && _gameHeight <= 240) {
+		} else if (_gfxState.gameWidth <= 400 && _gfxState.gameHeight <= 240) {
 			displayMessageOnOSD(_("In-game resolution too small to magnify."));
 		} else {
 			if (_magnifyMode == MODE_MAGOFF) {
