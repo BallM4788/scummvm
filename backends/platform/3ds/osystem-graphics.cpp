@@ -38,28 +38,28 @@
 		(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |  \
 		 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(in) | \
 		 GX_TRANSFER_OUT_FORMAT(out) | GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-#define DEFAULT_MODE _modeRGBA8
+#define DEFAULT_MODE _texmodeRGBA8
 
 namespace N3DS {
 /* Group the various enums, values, etc. needed for
- * each graphics mode into instaces of GfxMode3DS */
-static const GfxMode3DS _modeRGBA8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
+ * each graphics mode into instaces of TexMode */
+static const TexMode _texmodeRGBA8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
 									   GPU_RGBA8, TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGBA8) };
-static const GfxMode3DS _modeRGBX8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
+static const TexMode _texmodeRGBX8 = { Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0),
 									   GPU_RGB8, TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA8, GX_TRANSFER_FMT_RGB8) };
-static const GfxMode3DS _modeRGB565 = { Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0),
+static const TexMode _texmodeRGB565 = { Graphics::PixelFormat(2, 5, 6, 5, 0, 11, 5, 0, 0),
 										GPU_RGB565, TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB565, GX_TRANSFER_FMT_RGB565) };
-static const GfxMode3DS _modeRGB5A1 = { Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0),
+static const TexMode _texmodeRGB5A1 = { Graphics::PixelFormat(2, 5, 5, 5, 1, 11, 6, 1, 0),
 										GPU_RGBA5551, TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGB5A1, GX_TRANSFER_FMT_RGB5A1) };
-static const GfxMode3DS _modeRGBA4 = { Graphics::PixelFormat(2, 4, 4, 4, 4, 12, 8, 4, 0),
+static const TexMode _texmodeRGBA4 = { Graphics::PixelFormat(2, 4, 4, 4, 4, 12, 8, 4, 0),
 										GPU_RGBA4, TEXTURE_TRANSFER_FLAGS(GX_TRANSFER_FMT_RGBA4, GX_TRANSFER_FMT_RGBA4) };
-static const GfxMode3DS _modeCLUT8 = _modeRGBX8;
+static const TexMode _texmodeCLUT8 = _texmodeRGBX8;
 
-static const GfxMode3DS *gfxModes[] = { &_modeRGBX8, &_modeRGB565, &_modeRGB5A1, &_modeRGBA4, &_modeCLUT8 };
+static const TexMode *texmodes[] = { &_texmodeRGBX8, &_texmodeRGB565, &_texmodeRGB5A1, &_texmodeRGBA4, &_texmodeCLUT8 };
 
 
 void OSystem_3DS::init3DSGraphics() {
-	_gfxState.gfxMode = gfxModes[CLUT8];
+	_gfxState.texMode = texmodes[CLUT8];
 	_pfGame = Graphics::PixelFormat::createFormatCLUT8();
 	_pfDefaultTexture = Graphics::PixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
 
@@ -156,7 +156,7 @@ bool OSystem_3DS::getFeatureState(OSystem::Feature f) {
 	}
 }
 
-GraphicsModeID OSystem_3DS::chooseMode(Graphics::PixelFormat *format) {
+TexModeID OSystem_3DS::chooseTexModeID(Graphics::PixelFormat *format) {
 	if (format->bytesPerPixel > 2) {
 		return RGBA8;
 	} else if (format->bytesPerPixel > 1) {
@@ -171,14 +171,14 @@ GraphicsModeID OSystem_3DS::chooseMode(Graphics::PixelFormat *format) {
 	return CLUT8;
 }
 
-bool OSystem_3DS::setGraphicsMode(GraphicsModeID modeID) {
+bool OSystem_3DS::setTexMode(TexModeID modeID) {
 	switch (modeID) {
 	case RGBA8:
 	case RGB565:
 	case RGB5A1:
 	case RGBA4:
 	case CLUT8:
-		_gfxState.gfxMode = gfxModes[modeID];
+		_gfxState.texMode = texmodes[modeID];
 		return true;
 	default:
 		return false;
@@ -209,11 +209,11 @@ void OSystem_3DS::initSize(uint width, uint height,
 	assert(_pfGame.bytesPerPixel > 0);
 	if (_pfGame != _oldPfGame) {
 		assert(_transactionState == kTransactionActive);
-		_gfxState.gfxModeID = chooseMode(&_pfGame);
+		_gfxState.texModeID = chooseTexModeID(&_pfGame);
 		_transactionDetails.formatChanged = true;
 	}
 
-	_gameTopTexture.create(width, height, _gfxState.gfxMode, true);
+	_gameTopTexture.create(width, height, _gfxState.texMode, true);
 
 	if (_pfGame == _gameTopTexture.format)
 		_gameScreen.free();
@@ -309,11 +309,11 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 
 	assert(_transactionState != kTransactionNone);
 	if (_transactionState == kTransactionRollback) {
-		if (_gfxState.gfxModeID != _oldGfxState.gfxModeID) {
+		if (_gfxState.texModeID != _oldGfxState.texModeID) {
 			errors |= OSystem::kTransactionModeSwitchFailed;
 			_gfxState = _oldGfxState;
-		} else if ((_gfxState.gfxMode != _oldGfxState.gfxMode) |
-		           (_gfxState.gfxMode != gfxModes[_gfxState.gfxModeID])) {
+		} else if ((_gfxState.texMode != _oldGfxState.texMode) |
+		           (_gfxState.texMode != texmodes[_gfxState.texModeID])) {
 			errors |= OSystem::kTransactionFormatNotSupported;
 			_gfxState = _oldGfxState;
 		}
@@ -321,12 +321,12 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 		_oldGfxState.setup = false;
 	}
 	if (_transactionDetails.formatChanged) {
-		if (!setGraphicsMode(_gfxState.gfxModeID)) {
+		if (!setTexMode(_gfxState.texModeID)) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
 				errors |= endGFXTransaction();
 			}
-		} else if (_gfxState.gfxMode != gfxModes[_gfxState.gfxModeID]) {
+		} else if (_gfxState.texMode != texmodes[_gfxState.texModeID]) {
 			if (_oldGfxState.setup) {
 				_transactionState = kTransactionRollback;
 				errors |= endGFXTransaction();
@@ -356,7 +356,7 @@ float OSystem_3DS::getScaleRatio() const {
 void OSystem_3DS::setPalette(const byte *colors, uint start, uint num) {
 	assert(start + num <= 256);
 	memcpy(_palette + 3 * start, colors, 3 * num);
-	Graphics::convertPaletteToMap(_paletteMap + start, colors, num, _modeCLUT8.surfaceFormat);
+	Graphics::convertPaletteToMap(_paletteMap + start, colors, num, _texmodeCLUT8.surfaceFormat);
 
 	// Palette changes invalidate the entire surface
 	_dirtyRects.emplace_back(getWidth(), getHeight());
@@ -407,7 +407,7 @@ void OSystem_3DS::flushGameScreen() {
 		if (_blitFunc) {
 			_blitFunc(dst, src, _gameTopTexture.pitch, _gameScreen.pitch,
 				r.width(), r.height());
-		} else if (_gfxState.gfxMode == &_modeCLUT8) {
+		} else if (_gfxState.texMode == &_texmodeCLUT8) {
 			Graphics::crossBlitMap(dst, src, _gameTopTexture.pitch, _gameScreen.pitch,
 				r.width(), r.height(), _gameTopTexture.format.bytesPerPixel, _paletteMap);
 		} else {
