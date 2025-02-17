@@ -35,13 +35,13 @@ typedef struct {
 	float texcoord[2];
 } vertex;
 
-struct GfxMode3DS;
+struct TexMode;
 
 class Sprite : public Graphics::Surface {
 public:
 	Sprite();
 	~Sprite();
-	void create(uint16 width, uint16 height, const GfxMode3DS *mode, bool vram = false);
+	void create(uint16 width, uint16 height, const TexMode *mode, bool vram = false);
 	void free();
 	void convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette = 0);
 	void transfer();
