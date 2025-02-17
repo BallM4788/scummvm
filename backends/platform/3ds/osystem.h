@@ -57,7 +57,8 @@ enum TexModeID {
 	RGB565,
 	RGB5A1,
 	RGBA4,
-	CLUT8
+	CLUT8,
+	N3D
 };
 
 enum Screen {
@@ -74,12 +75,12 @@ enum TransactionState {
 
 
 struct TransactionDetails {
-	bool sizeChanged, formatChanged, modeChanged;
+	bool sizeChanged, formatChanged, renderModeChanged;
 
 	TransactionDetails() {
 		sizeChanged = false;
 		formatChanged = false;
-		modeChanged = false;
+		renderModeChanged = false;
 	}
 };
 
@@ -95,6 +96,7 @@ struct GfxState {
 	Graphics::PixelFormat gameFormat;
 	TexModeID texModeID;
 	const TexMode *texMode;
+	OSystem::GfxModeFlags renderMode;
 
 	GfxState() {
 		setup = false;
@@ -102,6 +104,7 @@ struct GfxState {
 		gameHeight = 240;
 		texModeID = CLUT8;
 		gameFormat = Graphics::PixelFormat::createFormatCLUT8();
+		renderMode = OSystem::kGfxModeNoFlags;
 	}
 };
 
@@ -155,6 +158,7 @@ public:
 	virtual int getScreenChangeID() const { return _screenChangeId; };
 	TexModeID chooseTexModeID(Graphics::PixelFormat *format);
 	bool setTexMode(TexModeID modeID);
+	virtual bool setGraphicsMode(int mode, uint flags = OSystem::kGfxModeNoFlags) override;
 
 	void beginGFXTransaction();
 	OSystem::TransactionError endGFXTransaction();
@@ -232,7 +236,8 @@ private:
 	Thread audioThread;
 
 	// Graphics
-	TexModeID _texModeID;
+	C3D_TexEnv _defaultTexEnv;
+	C3D_AttrInfo _defaultAttrInfo;
 	TransactionState _transactionState;
 	TransactionDetails _transactionDetails;
 
