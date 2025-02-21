@@ -35,6 +35,7 @@
 #include "common/queue.h"
 #include "common/ustr.h"
 #include "engines/engine.h"
+#include "common/hashmap.h"
 
 #define TICKS_PER_MSEC 268123
 
@@ -107,6 +108,48 @@ struct GfxState {
 	}
 };
 
+struct ShaderData {
+	u32 *shbinData;
+	u32 shbinSize;
+	DVLB_s *dvlb;
+	shaderProgram_s program;
+	bool isLoaded;
+
+	ShaderData(u32 *data = nullptr, u32 size = 0)
+			: shbinData(data),
+			  shbinSize(size),
+			  dvlb(nullptr),
+			  isLoaded(false) {
+	}
+
+	~ShaderData() {
+		if (isLoaded) {
+			shaderProgramFree(&program);
+			DVLB_Free(dvlb);
+		}
+	}
+
+	shaderProgram_s *loadData(u8 *si_flags, u8 geomStride = 0) {
+		if (!isLoaded) {
+			dvlb = DVLB_ParseFile(shbinData, shbinSize);
+			shaderProgramInit(&program);
+			Result vshResult = shaderProgramSetVsh(&program, &dvlb->DVLE[0]);
+			Result gshResult = shaderProgramSetGsh(&program, &dvlb->DVLE[1], geomStride);
+			*si_flags = ((gshResult == 0) << 1) | (vshResult == 0);
+			isLoaded = true;
+		}
+		return &program;
+	}
+
+	void unloadData() {
+		if (isLoaded) {
+			shaderProgramFree(&program);
+			DVLB_Free(dvlb);
+			isLoaded = false;
+		}
+	}
+};
+typedef Common::HashMap<Common::String, ShaderData> ShaderDataMap;
 
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager, public Common::EventObserver {
 public:
@@ -207,6 +250,12 @@ public:
 	void updateConfig();
 	void updateSize();
 
+	C3D_Tex *getGameSurface();
+	shaderProgram_s *loadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride = 0);
+	void unloadShaderProgram(const Common::String &shaderID);
+	void *createBuffer(size_t size, const void *data = nullptr, size_t alignment = 0x80);
+	void freeBuffer(void *linearBuffer);
+
 private:
 	void init3DSGraphics();
 	void destroy3DSGraphics();
@@ -273,6 +322,8 @@ private:
 	C3D_Mtx _projectionBottom;
 	C3D_RenderTarget* _renderTargetTop;
 	C3D_RenderTarget* _renderTargetBottom;
+
+	ShaderDataMap shaderDataMap;
 
 	// Focus
 	Common::Rect _focusRect;
