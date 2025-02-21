@@ -1,0 +1,39 @@
+; manual screen clear for SCUMMVM
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias ZEROS		 myConst.xxxx
+.alias ONES			 myConst.yyyy
+.alias TWOS			 myConst.zzzz
+.alias NEGHALF		-myConst.wwww
+.alias NEGONES		-myConst.yyyy
+
+
+; Inputs
+.alias inPos		v0
+
+
+; Outputs
+.out outPos			pos
+.out outColor		clr
+
+
+; Main
+.entry main
+.proc main
+	; Coordinates are [0.0; 1.0], transform to [-1.0; 1.0]
+	; 2nd and 3rd source registers in "mad" operation cannot both be constants - "mov" TWOS to r0
+	mov r0.xy,		 TWOS
+	mad r1.xy,		 inPos.xy,		r0.xy,		NEGONES
+	mov outPos.x,	 r1.x
+	; Flip Y sign
+	mov outPos.y,	-r1.y
+					; z coordiates on 3DS must be on the interval [0.0, -1.0] (0.0 = nearest, -1.0 = furthest)
+					; z-component 0.0 in openGL -> -0.5 in 3DS
+	; mov outPos.z,	 NEGHALF
+	mov outPos.z,	 ZEROS
+	mov outPos.w,	 ONES
+	mov outColor,	 ZEROS
+
+	end
+.end

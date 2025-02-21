@@ -171,7 +171,7 @@ bool OSystem_3DS::getFeatureState(OSystem::Feature f) {
 }
 
 TexModeID OSystem_3DS::chooseTexModeID(Graphics::PixelFormat *format) {
-	if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+	if ((RENDER_MODE == OSystem::kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 		return N3D;
 	}
 	if (format->bytesPerPixel > 2) {
@@ -226,7 +226,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 		_transactionDetails.sizeChanged = true;
 
 	if (!format) {
-		if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+		if ((RENDER_MODE == OSystem::kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 			GAME_FORMAT = _texmodeRGBA8.surfaceFormat;
 		} else{
 			GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
@@ -361,7 +361,7 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 			}
 		} else {
 			if (_transactionDetails.renderModeChanged) {
-				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d)) {
+				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 					C3D_BindProgram(&_program);
 					C3D_SetAttrInfo(&_defaultAttrInfo);
 					C3D_SetTexEnv(0, &_defaultTexEnv);
@@ -498,7 +498,7 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	if (_gameTextureDirty) {
-		if (RENDER_MODE == OSystem::kGfxModeNoFlags) {
+		if ((RENDER_MODE == OSystem::kGfxModeNoFlags) || (ConfMan.get("renderer") == "software")) {
 			flushGameScreen();
 		}
 		_gameTextureDirty = false;
@@ -512,7 +512,7 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	C3D_FrameBegin(0);
-		if (RENDER_MODE == OSystem::kGfxModeNoFlags) {
+		if ((RENDER_MODE == OSystem::kGfxModeNoFlags) || (ConfMan.get("renderer") == "software")) {
 			_gameTopTexture.transfer();
 		} else {
 			C3D_BindProgram(&_program);
@@ -936,6 +936,24 @@ void OSystem_3DS::flushCursor() {
 			applyKeyColor<uint32>(&_cursor, &_cursorTexture, _cursorKeyColor);
 		}
 	}
+}
+
+C3D_Tex *OSystem_3DS::getGameSurface() {
+	return _gameTopTexture.getTex();
+}
+
+void *OSystem_3DS::createBuffer(size_t size, const void *data, size_t alignment) {
+	void *ptr = (alignment == 0x80) ? linearAlloc(size) : linearMemAlign(size, alignment);
+	if (data == nullptr)
+		memset(ptr, 0, size);
+	else
+		memcpy(ptr, data, size);
+
+	return ptr;
+}
+
+void OSystem_3DS::freeBuffer(void *linearBuffer) {
+	linearFree(linearBuffer);
 }
 
 } // namespace N3DS

@@ -106,7 +106,6 @@ struct GfxState {
 	}
 };
 
-
 class OSystem_3DS : public EventsBaseBackend, public PaletteManager, public Common::EventObserver {
 public:
 	OSystem_3DS();
@@ -205,6 +204,10 @@ public:
 	void updateBacklight();
 	void updateConfig();
 	void updateSize();
+
+	C3D_Tex *getGameSurface();
+	void *createBuffer(size_t size, const void *data = nullptr, size_t alignment = 0x80);
+	void freeBuffer(void *linearBuffer);
 
 private:
 	void init3DSGraphics();
