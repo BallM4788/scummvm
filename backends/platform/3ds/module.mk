@@ -7,9 +7,9 @@ MODULE_OBJS := \
 	sprite.o \
 	options.o \
 	osystem.o \
-	osystem-graphics.o \
 	osystem-audio.o \
-	osystem-events.o
+	osystem-events.o \
+	osystem-graphics.o
 
 # We don't use rules.mk but rather manually update OBJS and MODULE_DIRS.
 MODULE_OBJS := $(addprefix $(MODULE)/, $(MODULE_OBJS))
