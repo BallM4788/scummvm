@@ -38,6 +38,9 @@ static const RendererTypeDescription rendererTypes[] = {
 #ifdef USE_TINYGL
 	{ "software", "Software", kRendererTypeTinyGL },
 #endif
+#if defined(__3DS__)
+	{ "n3ds", "Nintendo 3DS via Citro3D", kRendererTypeN3DS },
+#endif
 	{ 0, 0, kRendererTypeDefault }
 };
 
@@ -80,6 +83,10 @@ Common::String Renderer::getTypeCode(RendererType type) {
 
 uint32 Renderer::getAvailableTypes() {
 	uint32 available = 0;
+
+#if defined(__3DS__)
+	available |= kRendererTypeN3DS;
+#endif
 
 #if defined(USE_TINYGL)
 	/* TinyGL doesn't depend on hardware support */
@@ -127,6 +134,12 @@ RendererType Renderer::getBestMatchingType(RendererType desired, uint32 availabl
 	if (available & kRendererTypeOpenGL) {
 		return kRendererTypeOpenGL;
 	}
+#if defined(__3DS__)
+	/* then N3DS */
+	if (available & kRendererTypeN3DS) {
+		return kRendererTypeN3DS;
+	}
+#endif
 	/* then TinyGL */
 	if (available & kRendererTypeTinyGL) {
 		return kRendererTypeTinyGL;
