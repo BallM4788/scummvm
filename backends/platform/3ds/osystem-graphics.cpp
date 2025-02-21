@@ -171,7 +171,7 @@ bool OSystem_3DS::getFeatureState(OSystem::Feature f) {
 }
 
 TexModeID OSystem_3DS::chooseTexModeID(Graphics::PixelFormat *format) {
-	if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+	if ((RENDER_MODE == OSystem::kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 		return N3D;
 	}
 	if (format->bytesPerPixel > 2) {
@@ -226,7 +226,7 @@ void OSystem_3DS::initSize(uint width, uint height,
 		_transactionDetails.sizeChanged = true;
 
 	if (!format) {
-		if (RENDER_MODE == OSystem::kGfxModeRender3d) {
+		if ((RENDER_MODE == OSystem::kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 			GAME_FORMAT = _texmodeRGBA8.surfaceFormat;
 		} else{
 			GAME_FORMAT = Graphics::PixelFormat::createFormatCLUT8();
@@ -361,7 +361,7 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 			}
 		} else {
 			if (_transactionDetails.renderModeChanged) {
-				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d)) {
+				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d) && (ConfMan.get("renderer") != "software")) {
 					C3D_BindProgram(&_program);
 					C3D_SetAttrInfo(&_defaultAttrInfo);
 					C3D_SetTexEnv(0, &_defaultTexEnv);
@@ -498,7 +498,7 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	if (_gameTextureDirty) {
-		if (RENDER_MODE == OSystem::kGfxModeNoFlags) {
+		if ((RENDER_MODE == OSystem::kGfxModeNoFlags) || (ConfMan.get("renderer") == "software")) {
 			flushGameScreen();
 		}
 		_gameTextureDirty = false;
@@ -512,12 +512,23 @@ void OSystem_3DS::updateScreen() {
 	}
 
 	C3D_FrameBegin(0);
-		if (RENDER_MODE == OSystem::kGfxModeNoFlags) {
+		if ((RENDER_MODE == OSystem::kGfxModeNoFlags) || (ConfMan.get("renderer") == "software")) {
 			_gameTopTexture.transfer();
 		} else {
 			C3D_BindProgram(&_program);
 			C3D_SetAttrInfo(&_defaultAttrInfo);
 			C3D_SetTexEnv(0, &_defaultTexEnv);
+			C3D_DepthMap(true, -1.0f, 0.0f);
+			C3D_CullFace(GPU_CULL_NONE);
+			C3D_StencilTest(false, GPU_ALWAYS, 0x00, 0xFF, 0x00);
+			C3D_StencilOp(GPU_STENCIL_KEEP, GPU_STENCIL_KEEP, GPU_STENCIL_KEEP);
+			C3D_BlendingColor(0);
+			C3D_EarlyDepthTest(false, GPU_EARLYDEPTH_GREATER, 0);
+			C3D_DepthTest(false, GPU_GEQUAL, GPU_WRITE_ALL);
+			C3D_AlphaTest(false, GPU_ALWAYS, 0x00);
+			C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+			C3D_FragOpMode(GPU_FRAGOPMODE_GL);
+			C3D_FragOpShadow(0.0, 1.0);
 		}
 		if (_overlayVisible) {
 			_overlay.transfer();
@@ -936,6 +947,24 @@ void OSystem_3DS::flushCursor() {
 			applyKeyColor<uint32>(&_cursor, &_cursorTexture, _cursorKeyColor);
 		}
 	}
+}
+
+C3D_Tex *OSystem_3DS::getGameSurface() {
+	return _gameTopTexture.getTex();
+}
+
+void *OSystem_3DS::createBuffer(size_t size, const void *data, size_t alignment) {
+	void *ptr = (alignment == 0x80) ? linearAlloc(size) : linearMemAlign(size, alignment);
+	if (data == nullptr)
+		memset(ptr, 0, size);
+	else
+		memcpy(ptr, data, size);
+
+	return ptr;
+}
+
+void OSystem_3DS::freeBuffer(void *linearBuffer) {
+	linearFree(linearBuffer);
 }
 
 } // namespace N3DS

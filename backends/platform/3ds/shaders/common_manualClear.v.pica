@@ -1,0 +1,34 @@
+; manual screen clear for SCUMMVM
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias ZEROS		 myConst.xxxx
+.alias ONES			 myConst.yyyy
+.alias TWOS			 myConst.zzzz
+.alias NEGHALF		-myConst.wwww
+.alias NEGONES		-myConst.yyyy
+
+
+; Inputs
+.alias inPos		v0
+
+
+; Outputs
+.out outPos			pos
+.out outColor		clr
+
+.fvec colorClear
+.fvec depthClear
+
+; Main
+.entry main
+.proc main
+	mov outPos.x,	 r1.x
+	; Flip Y sign
+	mov outPos.y,	-r1.y
+	mov outPos.z,	 depthClear.x
+	mov outPos.w,	 ONES
+	mov outColor,	 colorClear
+
+	end
+.end
