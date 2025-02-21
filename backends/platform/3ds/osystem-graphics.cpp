@@ -124,6 +124,9 @@ void OSystem_3DS::init3DSGraphics() {
 	C3D_CullFace(GPU_CULL_NONE);
 
 	_overlay.create(320, 240, &DEFAULT_MODE, true);
+
+	// If any 3D engines are included in the build, put them into "shaderDataMap"
+// ...
 }
 
 void OSystem_3DS::destroy3DSGraphics() {
@@ -907,6 +910,42 @@ void OSystem_3DS::flushCursor() {
 			applyKeyColor<uint32>(&_cursor, &_cursorTexture, _cursorKeyColor);
 		}
 	}
+}
+
+C3D_Tex *OSystem_3DS::getGameSurface() {
+	return _gameTopTexture.getTex();
+}
+
+shaderProgram_s *OSystem_3DS::loadShaderProgram(const Common::String &shaderID, u8 *si_flags, int geomStride) {
+	shaderProgram_s *shader;
+	ShaderDataMap::iterator kv = shaderDataMap.find(shaderID);
+	if (kv == shaderDataMap.end()) {
+		error("3DS shader not found! Shader ID requested: %s", shaderID.c_str());
+	}
+	shader = kv->_value.loadData(si_flags, geomStride);
+	return shader;
+}
+
+void OSystem_3DS::unloadShaderProgram(const Common::String &shaderID) {
+	ShaderDataMap::iterator kv = shaderDataMap.find(shaderID);
+	if (kv == shaderDataMap.end()) {
+		error("3DS shader not found! Shader ID requested: %s", shaderID.c_str());
+	}
+	kv->_value.unloadData();
+}
+
+void *OSystem_3DS::createBuffer(size_t size, const void *data, size_t alignment) {
+	void *ptr = (alignment == 0x80) ? linearAlloc(size) : linearMemAlign(size, alignment);
+	if (data == nullptr)
+		memset(ptr, 0, size);
+	else
+		memcpy(ptr, data, size);
+
+	return ptr;
+}
+
+void OSystem_3DS::freeBuffer(void *linearBuffer) {
+	linearFree(linearBuffer);
 }
 
 } // namespace N3DS
