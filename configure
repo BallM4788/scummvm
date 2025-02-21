@@ -4988,7 +4988,7 @@ if test "$_dynamic_modules" = yes ; then
 		_elf_loader=yes
 		append_var DEFINES "-DUNCACHED_PLUGINS"
 _mak_plugins='
-PLUGIN_LDFLAGS		+= -Wl,-T$(srcdir)/backends/plugins/3ds/plugin.ld -march=armv6k -mfloat-abi=hard
+PLUGIN_LDFLAGS		+= -Wl,-T$(srcdir)/backends/plugins/3ds/plugin.ld -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 '
 		;;
 	amigaos)
@@ -5195,12 +5195,22 @@ define_in_config_if_yes "$_elf_loader" 'USE_ELF_LOADER'
 if test "$_elf_loader" = yes; then
 	_plugin_prefix=""
 	_plugin_suffix=".plg"
+	case $_host_os in
+	3ds)
+		_mak_plugins='
+POST_OBJS_FLAGS		:= -lcitro3d -Wl,--no-whole-archive
+'"$_mak_plugins"
+		;;
+	*)
+		_mak_plugins='
+POST_OBJS_FLAGS		:= -Wl,--no-whole-archive
+'"$_mak_plugins"
+		;;
+	esac
 	_mak_plugins='
 PLUGIN_EXTRA_DEPS	= $(EXECUTABLE)
 PLUGIN_LDFLAGS		+= -nostartfiles backends/plugins/elf/version.o -Wl,-q,--retain-symbols-file,$(srcdir)/backends/plugins/elf/plugin.syms -Xlinker --just-symbols -Xlinker $(EXECUTABLE)
-PRE_OBJS_FLAGS		:= -Wl,--whole-archive
-POST_OBJS_FLAGS		:= -Wl,--no-whole-archive
-'"$_mak_plugins"
+PRE_OBJS_FLAGS		:= -Wl,--whole-archive'"$_mak_plugins"
 fi
 
 #
