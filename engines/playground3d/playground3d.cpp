@@ -44,6 +44,9 @@ bool Playground3dEngine::hasFeature(EngineFeature f) const {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
@@ -66,6 +69,20 @@ void Playground3dEngine::genTextures() {
 	_rgb565Texture = generateRgbaTexture(120, 120, pixelFormatRGB565);
 	_rgba5551Texture = generateRgbaTexture(120, 120, pixelFormatRGB5551);
 	_rgba4444Texture = generateRgbaTexture(120, 120, pixelFormatRGB4444);
+#if defined(__3DS__)
+	// Copy the surface data into C3D_Texes, then delete the Graphics::Surface objects,
+	//	as they are no longer needed.
+	_gfx->loadTextureRGBA(_rgbaTexture);
+	_gfx->loadTextureRGB(_rgbTexture);
+	_gfx->loadTextureRGB565(_rgb565Texture);
+	_gfx->loadTextureRGBA5551(_rgba5551Texture);
+	_gfx->loadTextureRGBA4444(_rgba4444Texture);
+	delete _rgbaTexture;
+	delete _rgbTexture;
+	delete _rgb565Texture;
+	delete _rgba5551Texture;
+	delete _rgba4444Texture;
+#endif
 }
 
 Playground3dEngine::Playground3dEngine(OSystem *syst)
@@ -81,6 +98,8 @@ Playground3dEngine::~Playground3dEngine() {
 	delete _frameLimiter;
 	delete _gfx;
 
+#ifndef __3DS__
+	// These were already deleted in the 3DS port.
 	if (_rgbaTexture) {
 		_rgbaTexture->free();
 		delete _rgbaTexture;
@@ -93,6 +112,7 @@ Playground3dEngine::~Playground3dEngine() {
 		_rgba4444Texture->free();
 		delete _rgba4444Texture;
 	}
+#endif
 }
 
 Common::Error Playground3dEngine::run() {
@@ -207,21 +227,31 @@ void Playground3dEngine::processInput() {
 Graphics::Surface *Playground3dEngine::generateRgbaTexture(int width, int height, Graphics::PixelFormat format) {
 	Graphics::Surface *surface = new Graphics::Surface;
 	surface->create(width, height, format);
+	// full red
 	const int barW = width / 4;
 	Common::Rect r(0, 0, barW, height);
 	uint32 pixel = format.ARGBToColor(255, 255, 0, 0);
 	surface->fillRect(r, pixel);
+	// full green
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(255, 0, 255, 0);
 	surface->fillRect(r, pixel);
+	// full blue
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(255, 0, 0, 255);
 	surface->fillRect(r, pixel);
+	// half black
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(128, 0, 0, 0);
+	surface->fillRect(r, pixel);
+	// yellow notch (for texture orientation)
+	r.left = barW;
+	r.right = barW * 3;
+	r.bottom = height / 8;
+	pixel = format.ARGBToColor(255, 255, 255, 0);
 	surface->fillRect(r, pixel);
 	return surface;
 }
@@ -306,11 +336,14 @@ void Playground3dEngine::drawFrame() {
 			drawInViewport();
 			break;
 		case 5:
+#ifndef __3DS__
+			// The 3DS port only does this when textures are first generated.
 			_gfx->loadTextureRGBA(_rgbaTexture);
 			_gfx->loadTextureRGB(_rgbTexture);
 			_gfx->loadTextureRGB565(_rgb565Texture);
 			_gfx->loadTextureRGBA5551(_rgba5551Texture);
 			_gfx->loadTextureRGBA4444(_rgba4444Texture);
+#endif
 			drawRgbaTexture();
 			break;
 		default:
