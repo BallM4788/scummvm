@@ -113,7 +113,7 @@ void            *custom3DS_CreateBuffer(size_t size, const void *data = nullptr,
 void             custom3DS_FreeBuffer(void *linearBuffer);
 
 // Copy a rectangular area of arbitrary size from one buffer, Morton-swizzle it (if it isn't already),
-// 	and paste it into an arbitrary location of another buffer.
+//	and paste it into an arbitrary location of another buffer.
 // PARAMETERS:
 //	srcBuf:     pointer to the source buffer
 //	dstBuf:     pointer to the destination buffer

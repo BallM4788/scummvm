@@ -1,0 +1,50 @@
+; fade shader for playground3d in ScummVM
+
+; ORIGINAL GLSL CODE
+; in vec2 position;
+;
+; void main() {
+; 	gl_Position = vec4(position, 0.0, 1.0);
+; }
+
+; FRAGMENT SHADER CODE
+; OUTPUT
+;
+; uniform float alphaLevel;
+;
+; void main() {
+; 	outColor = vec4(0.0, 0.0, 0.0, alphaLevel);
+; }
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, -0.5)
+.alias ZEROES       myConst.xxxx
+.alias NEGHALF_ONE  myConst.wywy
+
+
+; Inputs
+.alias inPos v0    ; in vec2 position;
+
+
+; Uniforms
+.fvec  alphaLevel   ; uniform float alphaLevel;
+
+
+; Outputs
+.out outPos pos ; gl_Position
+.out outClr clr ; outColor
+
+
+; Main
+.entry main
+.proc main
+	mov outPos.xy,     inPos.xy
+	; z coordiates on 3DS must be on the interval [0.0, -1.0] (0.0 = nearest, -1.0 = furthest)
+	mov outPos.zw,     NEGHALF_ONE
+
+	; put full black into outClr, with alpha level determined by alphaLevel
+	mov outClr.rgb,    ZEROES
+	mov outClr.a,      alphaLevel.x
+
+	end
+.end

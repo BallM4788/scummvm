@@ -44,6 +44,9 @@ bool Playground3dEngine::hasFeature(EngineFeature f) const {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
@@ -61,11 +64,28 @@ void Playground3dEngine::genTextures() {
 	Graphics::PixelFormat pixelFormatRGB565(2, 5, 6, 5, 0, 11, 5, 0, 0);
 	Graphics::PixelFormat pixelFormatRGB5551(2, 5, 5, 5, 1, 11, 6, 1, 0);
 	Graphics::PixelFormat pixelFormatRGB4444(2, 4, 4, 4, 4, 12, 8, 4, 0);
-	_rgbaTexture = generateRgbaTexture(120, 120, pixelFormatRGBA);
-	_rgbTexture = _rgbaTexture->convertTo(pixelFormatRGB);
-	_rgb565Texture = generateRgbaTexture(120, 120, pixelFormatRGB565);
-	_rgba5551Texture = generateRgbaTexture(120, 120, pixelFormatRGB5551);
-	_rgba4444Texture = generateRgbaTexture(120, 120, pixelFormatRGB4444);
+	Graphics::Surface *_rgbaTexture = generateRgbaTexture(120, 120, pixelFormatRGBA);
+	Graphics::Surface *_rgbTexture = _rgbaTexture->convertTo(pixelFormatRGB);
+	Graphics::Surface *_rgb565Texture = generateRgbaTexture(120, 120, pixelFormatRGB565);
+	Graphics::Surface *_rgba5551Texture = generateRgbaTexture(120, 120, pixelFormatRGB5551);
+	Graphics::Surface *_rgba4444Texture = generateRgbaTexture(120, 120, pixelFormatRGB4444);
+	_gfx->loadTextureRGBA(_rgbaTexture);
+	_gfx->loadTextureRGB(_rgbTexture);
+	_gfx->loadTextureRGB565(_rgb565Texture);
+	_gfx->loadTextureRGBA5551(_rgba5551Texture);
+	_gfx->loadTextureRGBA4444(_rgba4444Texture);
+	_rgbaTexture->free();
+	delete _rgbaTexture;
+	_rgbTexture->free();
+	delete _rgbTexture;
+	_rgb565Texture->free();
+	delete _rgb565Texture;
+	_rgba5551Texture->free();
+	delete _rgba5551Texture;
+	_rgba4444Texture->free();
+	delete _rgba4444Texture;
+
+	_texturesLoaded = true;
 }
 
 Playground3dEngine::Playground3dEngine(OSystem *syst)
@@ -73,26 +93,12 @@ Playground3dEngine::Playground3dEngine(OSystem *syst)
 		_rotateAngleX(0), _rotateAngleY(0), _rotateAngleZ(0), _fogEnable(false),
 		_clearColor(0.0f, 0.0f, 0.0f, 1.0f), _fogColor(0.0f, 0.0f, 0.0f, 1.0f),
 		_testId(0), _fade(1.0f), _fadeIn(false), _scissorEnable(false),
-		_rgbaTexture(nullptr), _rgbTexture(nullptr), _rgb565Texture(nullptr),
-		_rgba5551Texture(nullptr), _rgba4444Texture(nullptr) {
+		_texturesLoaded(false) {
 }
 
 Playground3dEngine::~Playground3dEngine() {
 	delete _frameLimiter;
 	delete _gfx;
-
-	if (_rgbaTexture) {
-		_rgbaTexture->free();
-		delete _rgbaTexture;
-		_rgbTexture->free();
-		delete _rgbTexture;
-		_rgb565Texture->free();
-		delete _rgb565Texture;
-		_rgba5551Texture->free();
-		delete _rgba5551Texture;
-		_rgba4444Texture->free();
-		delete _rgba4444Texture;
-	}
 }
 
 Common::Error Playground3dEngine::run() {
@@ -133,7 +139,7 @@ Common::Error Playground3dEngine::run() {
 			break;
 		case 5: {
 			_clearColor = Math::Vector4d(0.5f, 0.5f, 0.5f, 1.0f);
-			if (!_rgbaTexture) {
+			if (!_texturesLoaded) {
 				genTextures();
 			}
 			break;
@@ -185,7 +191,7 @@ void Playground3dEngine::processInput() {
 					break;
 				case 5: {
 					_clearColor = Math::Vector4d(0.5f, 0.5f, 0.5f, 1.0f);
-					if (!_rgbaTexture) {
+					if (!_texturesLoaded) {
 						genTextures();
 					}
 					break;
@@ -207,21 +213,31 @@ void Playground3dEngine::processInput() {
 Graphics::Surface *Playground3dEngine::generateRgbaTexture(int width, int height, Graphics::PixelFormat format) {
 	Graphics::Surface *surface = new Graphics::Surface;
 	surface->create(width, height, format);
+	// full red
 	const int barW = width / 4;
 	Common::Rect r(0, 0, barW, height);
 	uint32 pixel = format.ARGBToColor(255, 255, 0, 0);
 	surface->fillRect(r, pixel);
+	// full green
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(255, 0, 255, 0);
 	surface->fillRect(r, pixel);
+	// full blue
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(255, 0, 0, 255);
 	surface->fillRect(r, pixel);
+	// half black
 	r.left += barW;
 	r.right += barW;
 	pixel = format.ARGBToColor(128, 0, 0, 0);
+	surface->fillRect(r, pixel);
+	// yellow notch (for texture orientation)
+	r.left = barW;
+	r.right = barW * 3;
+	r.bottom = height / 8;
+	pixel = format.ARGBToColor(255, 255, 255, 0);
 	surface->fillRect(r, pixel);
 	return surface;
 }
@@ -306,11 +322,6 @@ void Playground3dEngine::drawFrame() {
 			drawInViewport();
 			break;
 		case 5:
-			_gfx->loadTextureRGBA(_rgbaTexture);
-			_gfx->loadTextureRGB(_rgbTexture);
-			_gfx->loadTextureRGB565(_rgb565Texture);
-			_gfx->loadTextureRGBA5551(_rgba5551Texture);
-			_gfx->loadTextureRGBA4444(_rgba4444Texture);
 			drawRgbaTexture();
 			break;
 		default:
