@@ -88,6 +88,7 @@ protected:
 
 Renderer *CreateGfxOpenGL(OSystem *system);
 Renderer *CreateGfxOpenGLShader(OSystem *system);
+Renderer *CreateGfxN3DS(OSystem *system);
 Renderer *CreateGfxTinyGL(OSystem *system);
 Renderer *createRenderer(OSystem *system);
 

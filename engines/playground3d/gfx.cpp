@@ -69,6 +69,8 @@ const float Renderer::cubeVertices[] = {
 	1.0f, 0.0f,  1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, 1.0f  // magenta
 };
 
+bool isAccelerated;
+
 Renderer::Renderer(OSystem *system)
 		: _system(system), _texture(nullptr) {
 }
@@ -102,6 +104,19 @@ Math::Matrix4 Renderer::makeProjectionMatrix(float fov, float nearClip, float fa
 
 void Renderer::setupCameraPerspective(float pitch, float heading, float fov) {
 	_projectionMatrix = makeProjectionMatrix(fov, 1.0f, 10000.0f);
+// For native 3DS rendering, projection matrices must be adjusted.
+#if defined (__3DS__)
+	// Don't do anything if the TinyGL renderer is being used.
+	if (isAccelerated) {
+		Math::Matrix4 n3dsProjAdjust;
+		// flip Y
+		n3dsProjAdjust(1, 1) = -1.0f;
+		// adjust Z to fit in range 0 to -1
+		n3dsProjAdjust(2, 2) =  0.5f;
+		n3dsProjAdjust(3, 2) = -0.5f;
+		_projectionMatrix = _projectionMatrix * n3dsProjAdjust;
+	}
+#endif
 	_modelViewMatrix = Math::Matrix4(180.0f - heading, pitch, 0.0f, Math::EO_XYZ);
 	Math::Matrix4 proj = _projectionMatrix;
 	Math::Matrix4 model = _modelViewMatrix;
@@ -121,12 +136,15 @@ Renderer *createRenderer(OSystem *system) {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
 			0);
 
-	bool isAccelerated = matchingRendererType != Graphics::kRendererTypeTinyGL;
+	isAccelerated = matchingRendererType != Graphics::kRendererTypeTinyGL;
 
 	uint width = Renderer::kOriginalWidth;
 	uint height = Renderer::kOriginalHeight;
@@ -145,6 +163,11 @@ Renderer *createRenderer(OSystem *system) {
 #if defined(USE_OPENGL_GAME)
 	if (matchingRendererType == Graphics::kRendererTypeOpenGL) {
 		return CreateGfxOpenGL(system);
+	}
+#endif
+#if defined(__3DS__)
+	if (matchingRendererType == Graphics::kRendererTypeN3DS) {
+		return CreateGfxN3DS(system);
 	}
 #endif
 #if defined(USE_TINYGL)
