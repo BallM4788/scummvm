@@ -61,7 +61,7 @@ public:
 
 	Common::Rect viewport() const;
 
-	void setupCameraPerspective(float pitch, float heading, float fov);
+	virtual void setupCameraPerspective(float pitch, float heading, float fov);
 
 	static const int kOriginalWidth = 640;
 	static const int kOriginalHeight = 480;
@@ -102,6 +102,7 @@ protected:
 
 Renderer *CreateGfxOpenGL(OSystem *system);
 Renderer *CreateGfxOpenGLShader(OSystem *system);
+Renderer *CreateGfxN3DS(OSystem *system);
 Renderer *CreateGfxTinyGL(OSystem *system);
 Renderer *createRenderer(OSystem *system);
 

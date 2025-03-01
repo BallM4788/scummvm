@@ -121,6 +121,9 @@ Renderer *createRenderer(OSystem *system) {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
@@ -145,6 +148,11 @@ Renderer *createRenderer(OSystem *system) {
 #if defined(USE_OPENGL_GAME)
 	if (matchingRendererType == Graphics::kRendererTypeOpenGL) {
 		return CreateGfxOpenGL(system);
+	}
+#endif
+#if defined(__3DS__)
+	if (matchingRendererType == Graphics::kRendererTypeN3DS) {
+		return CreateGfxN3DS(system);
 	}
 #endif
 #if defined(USE_TINYGL)
