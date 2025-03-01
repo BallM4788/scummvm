@@ -162,7 +162,7 @@ public:
 	~ShaderObj();
 
 	// Set the float matrix or vector(s) uniform associated with "uniformID" while converting
-	// 	it from ScummVM format to Citro3D format.
+	//	it from ScummVM format to Citro3D format.
 	template <int R, int C>
 	bool setUniform(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, const Math::Matrix<R,C> &svmMtx) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
@@ -251,7 +251,7 @@ public:
 	}
 
 	// Set the array of N-length float vector uniforms associated with "uniformID" while
-	// 	converting them from ScummVM format to Citro3D format.
+	//	converting them from ScummVM format to Citro3D format.
 	bool setUniformNfv(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, float *dataPtr, int vecCount, int floatsPerVec) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
@@ -333,7 +333,7 @@ public:
 	}
 
 	// Get the location of the uniform associated with "uniformID", or create a new
-	// 	uniform and return its location.
+	//	uniform and return its location.
 	int getUniformLocation(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum) const {
 		UniformsMap::iterator kv = N3DSMACRO_UNIF_MAP(shaderEnum)->find(uniformID);
 		if (kv == N3DSMACRO_UNIF_MAP(shaderEnum)->end()) {
@@ -356,14 +356,14 @@ public:
 	}
 
 	// Destroy a buffer whose address is stored in one of _program's stored buffer
-	// 	configurations (usually the first config).
+	//	configurations (usually the first config).
 	void freeAttachedBuffer(/*C3D_BufInfo *bufInfo, bool inLinearMem, */int bufIdx = 0);
 
 	// Add buffer info to the ShaderObj, or modify it if it already exists.
 	int BufInfo_AddOrModify(const void* data, ptrdiff_t stride, int attribCount, u64 permutation, int id = 0);
 
 	// Send queued uniforms to Citro3D. Only does something when the shaderObj is the
-	// 	active ShaderObj.
+	//	active ShaderObj.
 	void sendDirtyUniforms();
 
 

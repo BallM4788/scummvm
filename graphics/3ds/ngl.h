@@ -113,22 +113,22 @@ void            *N3D_CreateBuffer(size_t size, const void *data = nullptr, size_
 void             N3D_FreeBuffer(void *linearBuffer);
 
 // Copy a rectangular area of arbitrary size from one buffer, Morton-swizzle it (if it isn't already),
-// 	and paste it into an arbitrary location of another buffer.
+//	and paste it into an arbitrary location of another buffer.
 // PARAMETERS:
-// 	srcBuf:     pointer to the source buffer
-// 	dstBuf:     pointer to the destination buffer
-// 	copyWidth:  width of the area to copy
-// 	copyHeight: height of the area to copy
-// 	xSource:    unswizzled X offset of the copy area's top-left corner
-// 	ySource:    unswizzled Y offset of the copy area's top-left corner
-// 	wSource:    width of the source buffer (not just the copy area)
-// 	hSource:    height of the source buffer (not just the copy area)
-// 	xDest:      unswizzled X offset of the paste area's top-left corner
-// 	yDest:      unswizzled Y offset of the paste area's top-left corner
-// 	wDest:      width of the destination buffer (not just the paste area)
-// 	hDest:      height of the destination buffer (not just the paste area)
-// 	format:     texture format of the source and destination buffers (Search "GPU_TEXCOLOR" at https://libctru.devkitpro.org/)
-// 	isBlockSrc: whether or not the source buffer is already in a Morton-swizzled pixel order
+//	srcBuf:     pointer to the source buffer
+//	dstBuf:     pointer to the destination buffer
+//	copyWidth:  width of the area to copy
+//	copyHeight: height of the area to copy
+//	xSource:    unswizzled X offset of the copy area's top-left corner
+//	ySource:    unswizzled, unflipped Y offset of the copy area's top-left corner
+//	wSource:    width of the source buffer (not just the copy area)
+//	hSource:    height of the source buffer (not just the copy area)
+//	xDest:      unswizzled X offset of the paste area's top-left corner
+//	yDest:      unswizzled, unflipped Y offset of the paste area's top-left corner
+//	wDest:      width of the destination buffer (not just the paste area)
+//	hDest:      height of the destination buffer (not just the paste area)
+//	format:     texture format of the source and destination buffers (Search "GPU_TEXCOLOR" at https://libctru.devkitpro.org/)
+//	isBlockSrc: whether or not the source buffer is already in a Morton-swizzled pixel order
 
 // !!! NOTE !!!
 // wSource, hSource, wDest, and hDest MUST be powers of two.

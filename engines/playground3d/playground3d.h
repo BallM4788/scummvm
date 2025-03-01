@@ -64,11 +64,7 @@ private:
 	bool _fadeIn;
 	bool _fogEnable;
 	bool _scissorEnable;
-	Graphics::Surface *_rgbaTexture;
-	Graphics::Surface *_rgbTexture;
-	Graphics::Surface *_rgb565Texture;
-	Graphics::Surface *_rgba5551Texture;
-	Graphics::Surface *_rgba4444Texture;
+	bool _texturesLoaded;
 
 	float _rotateAngleX, _rotateAngleY, _rotateAngleZ;
 
