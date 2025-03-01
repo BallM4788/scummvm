@@ -1,0 +1,58 @@
+; bitmap shader for playground3d in ScummVM
+
+; ORIGINAL GLSL CODE
+; in vec2 position;
+; in vec2 texcoord;
+;
+; out vec2 Texcoord;
+;
+; uniform vec2 offsetXY;
+;
+; void main() {
+; 	Texcoord = texcoord;
+; 	gl_Position = vec4(position + offsetXY, 0.0, 1.0);
+; }
+
+; FRAGMENT SHADER CODE
+; in vec2 Texcoord;
+;
+; OUTPUT
+;
+; uniform sampler2D tex;
+;
+; void main() {
+; 	outColor = texture(tex, Texcoord);
+; }
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, -0.5)
+.alias ONES         myConst.yyyy
+.alias ZEROES       myConst.xxxx
+.alias NEGHALF_ONE  myConst.wywy
+
+
+; Inputs
+.alias inPos    v0 ; in vec2 position;
+.alias inTex    v1 ; in vec2 texcoord;
+
+
+; Uniforms
+.fvec offsetXY     ; uniform vec2 offsetXY;
+
+
+; Outputs
+.out outPos pos       ; gl_Position
+.out outTex texcoord0 ; out vec2 Texcoord
+
+
+; Main
+.entry main
+.proc main
+	add outPos.xy,    offsetXY.xy, inPos.xy
+	; z coordiates on 3DS must be on the interval [0.0, -1.0] (0.0 = nearest, -1.0 = furthest)
+	mov outPos.zw,    NEGHALF_ONE
+	mov outTex,       inTex.xy
+
+	end
+.end

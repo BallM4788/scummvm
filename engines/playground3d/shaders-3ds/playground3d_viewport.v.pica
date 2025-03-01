@@ -1,0 +1,35 @@
+; viewport shader for playground3d in ScummVM
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, -0.5)
+.alias ONES         myConst.yyyy
+.alias ZEROES       myConst.xxxx
+.alias NEGHALF_ONE  myConst.wywy
+
+
+; Inputs
+.alias inPos v0
+
+
+; Uniforms
+.fvec offsetXY
+.fvec renderColor
+
+
+; Outputs
+.out outPos pos
+.out outClr clr
+
+
+; Main
+.entry main
+.proc main
+	add outPos.xy,     offsetXY.xy, inPos.xy
+	; z coordiates on 3DS must be on the interval [0.0, -1.0] (0.0 = nearest, -1.0 = furthest)
+	mov outPos.zw,     NEGHALF_ONE
+
+	mov outClr.rgb,    renderColor
+	mov outClr.a,      ONES
+
+	end
+.end
