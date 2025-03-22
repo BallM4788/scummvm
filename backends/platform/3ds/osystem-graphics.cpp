@@ -34,11 +34,6 @@
 		 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGB8) | \
 		 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) |                          \
 		 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
-#define DISPLAY_TRANSFER_FLAGS_3D                                                 \
-		(GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) |                    \
-		 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | \
-		 GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) |                           \
-		 GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 #define TEXTURE_TRANSFER_FLAGS(in, out)                             \
 		(GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) |  \
 		 GX_TRANSFER_RAW_COPY(0) | GX_TRANSFER_IN_FORMAT(in) | \
@@ -362,10 +357,6 @@ OSystem::TransactionError OSystem_3DS::endGFXTransaction() {
 		} else {
 			if (_transactionDetails.renderModeChanged) {
 				if ((RENDER_MODE == kGfxModeNoFlags) && (OLD_RENDER_MODE == kGfxModeRender3d)) {
-					C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT,
-					                          DISPLAY_TRANSFER_FLAGS);
-					C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT,
-					                          DISPLAY_TRANSFER_FLAGS);
 					C3D_BindProgram(&_program);
 					C3D_SetAttrInfo(&_defaultAttrInfo);
 					C3D_SetTexEnv(0, &_defaultTexEnv);
@@ -496,8 +487,6 @@ void OSystem_3DS::updateScreen() {
 			C3D_BindProgram(&_program);
 			C3D_SetAttrInfo(&_defaultAttrInfo);
 			C3D_SetTexEnv(0, &_defaultTexEnv);
-			C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS_3D);
-			C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS_3D);
 		}
 		if (_overlayVisible) {
 			_overlay.transfer();
@@ -516,10 +505,6 @@ void OSystem_3DS::updateScreen() {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameTopTexture.getMatrix());
 			_gameTopTexture.setFilteringMode(_magnifyMode != MODE_MAGON && _filteringEnabled);
 			_gameTopTexture.render();
-
-			if (RENDER_MODE == OSystem::kGfxModeRender3d) {
-				C3D_RenderTargetSetOutput(_renderTargetTop, GFX_TOP, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
-			}
 
 			if (_overlayVisible && _screen == kScreenTop) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
@@ -550,10 +535,6 @@ void OSystem_3DS::updateScreen() {
 			C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _gameBottomTexture.getMatrix());
 			_gameTopTexture.setFilteringMode(_filteringEnabled);
 			_gameTopTexture.render();
-
-			if (RENDER_MODE == OSystem::kGfxModeRender3d) {
-				C3D_RenderTargetSetOutput(_renderTargetBottom, GFX_BOTTOM, GFX_LEFT, DISPLAY_TRANSFER_FLAGS);
-			}
 
 			if (_overlayVisible) {
 				C3D_FVUnifMtx4x4(GPU_VERTEX_SHADER, _modelviewLocation, _overlay.getMatrix());
