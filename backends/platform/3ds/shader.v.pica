@@ -50,7 +50,7 @@
 	dp4 outpos.z, projection[2], r1
 	dp4 outpos.w, projection[3], r1
 
- 	mov outtex, intex
+	mov outtex, intex
 
 	end
 .end
