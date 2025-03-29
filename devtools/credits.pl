@@ -1008,6 +1008,7 @@ begin_credits("Credits");
 				add_person("Andr&eacute; Souza", "luke_br", "SDL-based OpenGL renderer");
 				add_person("Joel Teichroeb", "klusark", "Android port for ResidualVM");
 				add_person("Tom Frost", "TomFrost", "WebOS port contributions");
+				add_person("Michael Ball", "BallM4788", "3DS port contributions");
 			end_persons();
 		end_section();
 
