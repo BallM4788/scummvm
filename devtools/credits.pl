@@ -591,6 +591,7 @@ begin_credits("Credits");
 
 			begin_section("Nintendo 3DS");
 				add_person("Thomas Edvalson", "Cruel", "");
+				add_person("Michael Ball", "BallM4788", "");
 			end_section();
 
 			begin_section("Nintendo 64");
