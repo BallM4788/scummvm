@@ -113,6 +113,7 @@ GrimEngine::GrimEngine(OSystem *syst, uint32 gameFlags, GrimGameType gameType, C
 	_showFps = ConfMan.getBool("show_fps");
 
 	_softRenderer = true;
+	_n3dsRenderer = true;
 
 	_mixer->setVolumeForSoundType(Audio::Mixer::kPlainSoundType, 192);
 	_mixer->setVolumeForSoundType(Audio::Mixer::kSFXSoundType, ConfMan.getInt("sfx_volume"));
@@ -269,6 +270,9 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_OPENGL_SHADERS)
 			Graphics::kRendererTypeOpenGLShaders |
 #endif
+#if defined(__3DS__)
+			Graphics::kRendererTypeN3DS |
+#endif
 #if defined(USE_TINYGL)
 			Graphics::kRendererTypeTinyGL |
 #endif
@@ -295,6 +299,8 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 	Graphics::RendererType matchingRendererType = Graphics::Renderer::getBestMatchingType(desiredRendererType, availableRendererTypes);
 
 	_softRenderer = matchingRendererType == Graphics::kRendererTypeTinyGL;
+	_n3dsRenderer = matchingRendererType == Graphics::kRendererTypeN3DS;
+
 	if (!_softRenderer) {
 		initGraphics3d(screenW, screenH);
 	} else {
@@ -310,6 +316,11 @@ GfxBase *GrimEngine::createRenderer(int screenW, int screenH) {
 #if defined(USE_OPENGL_GAME)
 	if (matchingRendererType == Graphics::kRendererTypeOpenGL) {
 		renderer = CreateGfxOpenGL();
+	}
+#endif
+#if defined(__3DS__)
+	if (matchingRendererType == Graphics::kRendererTypeN3DS) {
+		renderer = CreateGfxN3DS();
 	}
 #endif
 #if defined(USE_TINYGL)
@@ -352,6 +363,29 @@ Common::Error GrimEngine::run() {
 				SearchMan.add("EFMI Installer", archive, 0, true);
 		}
 	}
+
+#if defined(__3DS__)
+	if (getGameType() == GType_GRIM && g_grim->isRemastered()) {
+		Common::U32String incompatString = Common::U32String::format(_(
+		        "The 3DS port of ScummVM cannot run Grim Fandango Remastered.")
+		        );
+		GUI::MessageDialog msg(incompatString);
+		msg.runModal();
+		return Common::kUserCanceled;
+	}
+
+	Common::U32String loadGameString = Common::U32String::format(_(
+	        "ScummVM will now load the game.\n"
+	        "This will take no longer than %s seconds, and controls will be unresponsive.\n"
+	        "Any control inputs during this time will be accumulated, then processed in order once loading is complete.\n"
+	        "Continue?"),
+	        GType_GRIM == getGameType() ? "30" : "__"				// TODO: Get load time for MONKEY4
+	        );
+	GUI::MessageDialog msgLoad(loadGameString, _("Yes"), _("No"));
+	if (msgLoad.runModal() != GUI::kMessageOK) {
+		return Common::kUserCanceled;
+	}
+#endif
 
 	ConfMan.registerDefault("check_gamedata", true);
 	if (ConfMan.getBool("check_gamedata") && !isRemastered()) {
@@ -439,7 +473,7 @@ Common::Error GrimEngine::run() {
 
 	// This flipBuffer() may make the OpenGL renderer show garbage instead of the splash,
 	// while the TinyGL renderer needs it.
-	if (_softRenderer)
+	if (_softRenderer || _n3dsRenderer)
 		g_driver->flipBuffer();
 
 	LuaBase *lua = createLua();
