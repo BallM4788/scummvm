@@ -15,6 +15,8 @@ MAKEROM          ?= makerom
 SHADER_GENFILES := \
 	$(wildcard backends/platform/3ds/shaders/*_shbin.h) \
 	$(wildcard backends/platform/3ds/shaders/*.shbin) \
+	$(wildcard engines/grim/shaders-3ds/*_shbin.h) \
+	$(wildcard engines/grim/shaders-3ds/*.shbin) \
 	$(wildcard engines/playground3d/shaders-3ds/*_shbin.h) \
 	$(wildcard engines/playground3d/shaders-3ds/*.shbin)
 

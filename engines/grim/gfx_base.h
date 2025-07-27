@@ -299,6 +299,7 @@ protected:
 GfxBase *CreateGfxOpenGL();
 GfxBase *CreateGfxOpenGLShader();
 GfxBase *CreateGfxTinyGL();
+GfxBase *CreateGfxN3DS();
 
 extern GfxBase *g_driver;
 
