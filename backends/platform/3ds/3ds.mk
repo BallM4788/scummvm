@@ -29,6 +29,7 @@ clean_3ds:
 	$(RM_REC) backends/platform/3ds/shaders/$(DEPDIR)
 #TEMPLATE:
 #	$(RM_REC) backends/platform/3ds/shaders/[ENGINE]/$(DEPDIR)
+	$(RM_REC) backends/platform/3ds/shaders/grim/$(DEPDIR)
 	$(RM_REC) backends/platform/3ds/shaders/playground3d/$(DEPDIR)
 	$(RM) $(TARGET).smdh
 	$(RM) $(TARGET).3dsx

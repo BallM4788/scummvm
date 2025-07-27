@@ -1,0 +1,59 @@
+; plane-dimming shader for Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec2 position;
+;
+;	void main() {
+;		// Coordinates are [0.0;1.0], transform to [-1.0; 1.0]
+;		vec2 pos = position;
+;		pos.x = pos.x * 2.0 - 1.0;
+;		pos.y = pos.y * 2.0 - 1.0;
+;
+;		gl_Position = vec4(pos, 0.0, 1.0);
+;	}
+
+; FRAGMENT SHADER CODE
+;	OUTPUT
+;
+;	uniform float dim;
+;
+;	void main() {
+;		outColor = vec4(0.0, 0.0, 0.0, dim);
+;	}
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias       ZEROS	 myConst.xxxx
+.alias        ONES	 myConst.yyyy
+.alias        TWOS	 myConst.zzzz
+.alias        HALF	 myConst.wwww
+.alias     NEGONES	-myConst.yyyy
+
+
+; Input
+.alias    inPos		v0		; in vec2 position
+
+
+; Uniform
+.fvec dim				; float dim
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outColor	clr		; outColor
+
+
+; Main
+.entry main
+.proc main
+	mov outColor.rgb,	ZEROS
+	mov r0.xy,			TWOS
+	mad outPos.xy,		inPos.xy,			r0.xy,				NEGONES
+	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
+	; z-component 0.0 in openGL -> -0.5 in 3DS
+	mov outPos.z,		-HALF
+	mov outPos.w,		 ONES
+	mov outColor.a,		 dim.x
+
+	end
+.end

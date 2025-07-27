@@ -13,10 +13,28 @@ MODULE_OBJS := \
 #TEMPLATE:
 #ifdef ENABLE_[ENGINE UPPERCASE]
 #MODULE_OBJS += \
-#	shaders/[ENGINE LOWERCASE]/[ENGINE LOWERCASE]_[SHADER SUBNAME].shbin.o \
-#	shaders/[ENGINE LOWERCASE]/[ENGINE LOWERCASE]_[SHADER SUBNAME].shbin.o \
+#	shaders/[ENGINE LOWERCASE]/[GAME_OR_ENGINE LOWERCASE]_[SHADER SUBNAME].shbin.o \
+#	shaders/[ENGINE LOWERCASE]/[GAME_OR_ENGINE LOWERCASE]_[SHADER SUBNAME].shbin.o \
 #	...
 #endif
+ifdef ENABLE_GRIM
+MODULE_OBJS += \
+	shaders/grim/emi_actor.shbin.o \
+	shaders/grim/emi_actorlights.shbin.o \
+	shaders/grim/emi_background.shbin.o \
+	shaders/grim/emi_dimplane.shbin.o \
+	shaders/grim/emi_sprite.shbin.o \
+	shaders/grim/grim_actor.shbin.o \
+	shaders/grim/grim_actorlights.shbin.o \
+	shaders/grim/grim_background.shbin.o \
+	shaders/grim/grim_dim.shbin.o \
+	shaders/grim/grim_emerg.shbin.o \
+	shaders/grim/grim_primRect.shbin.o \
+	shaders/grim/grim_primLines.shbin.o \
+	shaders/grim/grim_shadowplane.shbin.o \
+	shaders/grim/grim_smush.shbin.o \
+	shaders/grim/grim_text.shbin.o
+endif
 ifdef ENABLE_PLAYGROUND3D
 MODULE_OBJS += \
 	shaders/playground3d/playground3d_cube.shbin.o \

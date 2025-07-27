@@ -28,6 +28,23 @@
 #include "graphics/fontman.h"
 #include "gui/gui-manager.h"
 #include "backends/platform/3ds/shaders/manualClear_shbin.h"
+#ifdef ENABLE_GRIM
+	#include "backends/platform/3ds/shaders/grim/emi_actor_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/emi_actorlights_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/emi_background_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/emi_dimplane_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/emi_sprite_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_actor_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_actorlights_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_background_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_dim_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_emerg_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_primRect_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_primLines_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_shadowplane_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_smush_shbin.h"
+	#include "backends/platform/3ds/shaders/grim/grim_text_shbin.h"
+#endif
 #ifdef ENABLE_PLAYGROUND3D
 	#include "backends/platform/3ds/shaders/playground3d/playground3d_cube_shbin.h"
 	#include "backends/platform/3ds/shaders/playground3d/playground3d_offset_shbin.h"
@@ -132,6 +149,23 @@ void OSystem_3DS::init3DSGraphics() {
 
 	shaderDataMap.setVal("manualClear", ShaderData((u32*)const_cast<u8 *>(manualClear_shbin), manualClear_shbin_size));
 	// If any 3D engines are included in the build, put them into "shaderDataMap"
+#ifdef ENABLE_GRIM
+	shaderDataMap.setVal("emi_actor",        ShaderData((u32*)const_cast<u8 *>(emi_actor_shbin),        emi_actor_shbin_size));
+	shaderDataMap.setVal("emi_actorlights",  ShaderData((u32*)const_cast<u8 *>(emi_actorlights_shbin),  emi_actorlights_shbin_size));
+	shaderDataMap.setVal("emi_background",   ShaderData((u32*)const_cast<u8 *>(emi_background_shbin),   emi_background_shbin_size));
+	shaderDataMap.setVal("emi_dimplane",     ShaderData((u32*)const_cast<u8 *>(emi_dimplane_shbin),     emi_dimplane_shbin_size));
+	shaderDataMap.setVal("emi_sprite",       ShaderData((u32*)const_cast<u8 *>(emi_sprite_shbin),       emi_sprite_shbin_size));
+	shaderDataMap.setVal("grim_actor",       ShaderData((u32*)const_cast<u8 *>(grim_actor_shbin),       grim_actor_shbin_size));
+	shaderDataMap.setVal("grim_actorlights", ShaderData((u32*)const_cast<u8 *>(grim_actorlights_shbin), grim_actorlights_shbin_size));
+	shaderDataMap.setVal("grim_background",  ShaderData((u32*)const_cast<u8 *>(grim_background_shbin),  grim_background_shbin_size));
+	shaderDataMap.setVal("grim_dim",         ShaderData((u32*)const_cast<u8 *>(grim_dim_shbin),         grim_dim_shbin_size));
+	shaderDataMap.setVal("grim_emerg",       ShaderData((u32*)const_cast<u8 *>(grim_emerg_shbin),       grim_emerg_shbin_size));
+	shaderDataMap.setVal("grim_primRect",    ShaderData((u32*)const_cast<u8 *>(grim_primRect_shbin),    grim_primRect_shbin_size));
+	shaderDataMap.setVal("grim_primLines",   ShaderData((u32*)const_cast<u8 *>(grim_primLines_shbin),   grim_primLines_shbin_size));
+	shaderDataMap.setVal("grim_shadowplane", ShaderData((u32*)const_cast<u8 *>(grim_shadowplane_shbin), grim_shadowplane_shbin_size));
+	shaderDataMap.setVal("grim_smush",       ShaderData((u32*)const_cast<u8 *>(grim_smush_shbin),       grim_smush_shbin_size));
+	shaderDataMap.setVal("grim_text",        ShaderData((u32*)const_cast<u8 *>(grim_text_shbin),        grim_text_shbin_size));
+#endif
 #ifdef ENABLE_PLAYGROUND3D
 	shaderDataMap.setVal("playground3d_cube", ShaderData((u32*)const_cast<u8 *>(playground3d_cube_shbin), playground3d_cube_shbin_size));
 	shaderDataMap.setVal("playground3d_offset", ShaderData((u32*)const_cast<u8 *>(playground3d_offset_shbin), playground3d_offset_shbin_size));

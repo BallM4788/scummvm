@@ -143,6 +143,11 @@ MODULE_OBJS += \
 	movie/codecs/blocky8ARM.o
 endif
 
+ifeq ($(BACKEND), 3ds)
+MODULE_OBJS += \
+	gfx_n3ds.o
+endif
+
 ifdef USE_TINYGL
 MODULE_OBJS += \
 	gfx_tinygl.o
