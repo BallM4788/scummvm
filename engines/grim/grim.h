@@ -255,6 +255,7 @@ protected:
 	unsigned _speedLimitMs;
 	bool _showFps;
 	bool _softRenderer;
+	bool _n3dsRenderer;
 
 	bool *_controlsEnabled;
 	bool *_controlsState;
