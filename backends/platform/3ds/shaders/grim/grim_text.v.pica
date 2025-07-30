@@ -60,19 +60,18 @@
 ; Main
 .entry main
 .proc main
-	mov outTcoord,		inTcoord
-	mov outColor.rgb,	color.rgb
-
-	mov r0.xy,			inPos.xy
-	mov r1.xy,			TWOS
-	mad r2.xy,			r1.xy,				r0.xy,				NEGONES
-	mul r2.y,			NEGONES,			r2.y
-	mov outPos.xy,		r2.xy
+	mov outTcoord,		 inTcoord
+	; Coordinates are [0.0; 1.0], transform to [-1.0; 1.0]
+	; 2nd and 3rd source registers in "mad" operation cannot both be constants - "mov" TWOS to r0
+	mov r0.xy,			 TWOS
+	; Do NOT flip Y-sign
+	mad outPos.xy,		 inPos.xy,		r0.xy,		NEGONES
 	; 3DS system clips z component of window coordinates in the range [0, -1] instead of [-1, 1]
 	; z-component 0.0 in openGL -> -0.5 in 3DS
 	mov outPos.z,		-HALF
 	mov outPos.w,		 ONES
 
+	mov outColor.rgb,	 color.rgb
 	mov outColor.a,		 ONES
 
 	end
