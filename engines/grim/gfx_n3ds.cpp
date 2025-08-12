@@ -510,6 +510,8 @@ void GfxN3DS::clearScreen() {
 	//     buffers must be cleared simultaneously; you can't choose to clear one and preserve the other.
 	// Solution: Draw a blank texture to the screen with depth writing ENabled and stencil writing DISabled.
 
+	debug("clearScreen");
+
 	// we want to preserve _grimContext's settings
 	// use a temporary context cloned from _grimContext; tmpContext is automatically set to be the active context
 	N3DS_3D::ContextHandle *tmpContext = N3DS_3D::createContext(_grimContext);
@@ -559,6 +561,9 @@ void GfxN3DS::clearScreen() {
 
 void GfxN3DS::clearDepthBuffer() {
 //	glClear(GL_DEPTH_BUFFER_BIT);																									// DEPTH AND STENCIL BUFFER ARE INTERLEAVED
+
+	debug("clearDepthBuffer");
+
 	//N3DS_3D::ContextHandle *tmpContext = N3DS_3D::createContext(_grimContext);														// DEFINITE?
 	//N3D_ColorMask(false, false, false, false);																						// DEFINITE?
 	//N3D_StencilTestEnabled(true);																									// DEFINITE?
@@ -628,9 +633,11 @@ void GfxN3DS::drawShadowPlanes() {
 }
 
 void GfxN3DS::setShadowMode() {
+	debug("setShadowMode");
 }
 
 void GfxN3DS::clearShadowMode() {
+	debug("clearShadowMode");
 }
 
 bool GfxN3DS::isShadowModeActive() {
@@ -647,6 +654,7 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 }
 
 void GfxN3DS::set3DMode() {
+	debug("set3DMode");
 }
 
 void GfxN3DS::translateViewpointStart() {

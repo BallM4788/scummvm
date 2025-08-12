@@ -60,7 +60,9 @@ extern "C" void __system_allocateHeaps(void) {
 	// New 3DS needs more linear memory than Old 3DS to boot up ScummVM; app instantly crashes otherwise.
 	// 0x00A00000 bytes = 10 MiB, for Old 3DS
 	// 0x01400000 bytes = 20 MiB, for New 3DS
-	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x01400000;
+//	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x01400000;
+//	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x06000000;
+	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x04000000;
 	__ctru_heap_size = remaining - __ctru_linear_heap_size;
 
 	// Allocate the application heap
