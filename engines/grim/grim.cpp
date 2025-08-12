@@ -347,6 +347,11 @@ const char *GrimEngine::getUpdateFilename() {
 }
 
 Common::Error GrimEngine::run() {
+	//Common::Event event;
+	//event.type = Common::EVENT_DEBUGGER;
+	//g_system->getEventManager()->pushEvent(event);
+	//g_system->getEventManager()->pollEvent(event);
+
 	// Try to see if we have the EMI Mac installer present
 	// Currently, this requires the data fork to be standalone
 	if (getGameType() == GType_MONKEY4) {

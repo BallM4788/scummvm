@@ -612,6 +612,7 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 }
 
 void GfxN3DS::set3DMode() {
+	debug("set3DMode");
 }
 
 void GfxN3DS::translateViewpointStart() {
