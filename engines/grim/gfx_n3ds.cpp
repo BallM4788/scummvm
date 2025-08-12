@@ -564,6 +564,7 @@ void GfxN3DS::clearScreen() {
 
 void GfxN3DS::clearDepthBuffer() {
 //	glClear(GL_DEPTH_BUFFER_BIT);																									// DEPTH AND STENCIL BUFFER ARE INTERLEAVED
+
 	//N3DS_3D::ContextHandle *tmpContext = N3DS_3D::createContext(_grimContext);														// DEFINITE?
 	//N3D_ColorMask(false, false, false, false);																						// DEFINITE?
 	//N3D_StencilTestEnabled(true);																									// DEFINITE?
@@ -650,6 +651,7 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 }
 
 void GfxN3DS::set3DMode() {
+	debug("set3DMode");
 }
 
 void GfxN3DS::translateViewpointStart() {
