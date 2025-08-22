@@ -774,6 +774,7 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			N3D_C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);
 			N3D_C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);
 			N3D_C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+			// Swizzle pixOut data into c3dTex.
 			N3D_DataToBlockTex((u32 *)const_cast<uint8 *>(pixOut), (u32 *)c3dTex->data, 0, 0,
 			                   bitmap->_width, bitmap->_height, actualWidth, actualHeight,
 			                   format, false);
@@ -809,20 +810,25 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 
 void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 	if (g_grim->getGameType() == GType_MONKEY4 && bitmap->_data && bitmap->_data->_texc) {
+		// Configure fragment operations.
 		N3D_DepthTestEnabled(false);
 		N3D_DepthMask(false);																										// ADDED
 		N3D_BlendEnabled(true);
 		N3D_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+		N3D_CullFaceEnabled(false);																									// ADDED
 
+		// Get textures.
 		BitmapData *data = bitmap->_data;
 		N3DS_3D::ShaderObj *shader = (N3DS_3D::ShaderObj *)data->_userData;
 		C3D_Tex *textures = static_cast<C3D_Tex *>(bitmap->getTexIds());
 
+		// Bind shader program.
 		N3DS_3D::getActiveContext()->changeShader(shader);
 
+		// Start hardware frame.
 		drawStart(0, 0, 0, 640, 480);
+		// Use texture environment settings for bitmaps and movies.
 		N3D_C3D_SetTexEnv(0, &envBG_Smush);
-
 
 		assert(layer < data->_numLayers);
 		uint32 offset = data->_layers[layer]._offset;
@@ -849,6 +855,7 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 	}
 
 	if (format == 1) {
+		// Configure fragment operations.
 		N3D_DepthTestEnabled(false);
 		N3D_DepthMask(false);
 		if (bitmap->getFormat() == 1 && bitmap->getHasTransparency()) {
