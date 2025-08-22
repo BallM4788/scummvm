@@ -265,10 +265,16 @@
 	dp4 TMP_1.w,		viewMatrix[3],		TMP_0										;	TMP_1        occupied;	TMP_0        no longer needed
 
 	; outPos = projMatrix * positionView;
-	dp4 outPos.x,		projMatrix[0],		vec4_posView
-	dp4 outPos.y,		projMatrix[1],		vec4_posView
-	dp4 outPos.z,		projMatrix[2],		vec4_posView
-	dp4 outPos.w,		projMatrix[3],		vec4_posView								;	outPos        written;	vec4_posView     STILL NEEDED
+	; dp4 outPos.x,		projMatrix[0],		vec4_posView
+	; dp4 outPos.y,		projMatrix[1],		vec4_posView
+	; dp4 outPos.z,		projMatrix[2],		vec4_posView
+	; dp4 outPos.w,		projMatrix[3],		vec4_posView								;	outPos        written;	vec4_posView     STILL NEEDED
+	dp4 r11.x,		projMatrix[0],		vec4_posView
+	dp4 r11.y,		projMatrix[1],		vec4_posView
+	dp4 r11.z,		projMatrix[2],		vec4_posView
+	dp4 r11.w,		projMatrix[3],		vec4_posView								;	outPos        written;	vec4_posView     STILL NEEDED
+	rcp r12.w,		r11.w
+	mul outPos,		r11,				r12.w
 
 ; TMP_0:        UNOCCUPIED
 ; TMP_1:          OCCUPIED (viewVecNorm)

@@ -168,10 +168,16 @@
 	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
 
 	; outPos = projMatrix * positionView;
-	dp4 outPos.x,		projMatrix[0],		vec4_posView
-	dp4 outPos.y,		projMatrix[1],		vec4_posView
-	dp4 outPos.z,		projMatrix[2],		vec4_posView
-	dp4 outPos.w,		projMatrix[3],		vec4_posView
+	; dp4 outPos.x,		projMatrix[0],		vec4_posView
+	; dp4 outPos.y,		projMatrix[1],		vec4_posView
+	; dp4 outPos.z,		projMatrix[2],		vec4_posView
+	; dp4 outPos.w,		projMatrix[3],		vec4_posView
+	dp4 r8.x,		projMatrix[0],		vec4_posView
+	dp4 r8.y,		projMatrix[1],		vec4_posView
+	dp4 r8.z,		projMatrix[2],		vec4_posView
+	dp4 r8.w,		projMatrix[3],		vec4_posView
+	rcp r9.w,		r8.w
+	mul outPos,		r8,					r9.w
 
 	; if (shadowOn)
 	ifc cmp.x
