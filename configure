@@ -2939,6 +2939,8 @@ case $_host_os in
 		# We remove it at the end of configure
 		append_var LDFLAGS "-specs=3dsx.specs -lctru"
 		append_var LIBS "-lcitro3d -lctru"
+		append_var LDFLAGS "-Wl,-Map,scummvm.map"
+		# ^ Generate .map file for main executable
 		;;
 	amigaos*)
 		_port_mk="backends/platform/sdl/amigaos/amigaos.mk"
