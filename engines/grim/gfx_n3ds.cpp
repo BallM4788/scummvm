@@ -64,7 +64,12 @@
 #include "engines/grim/set.h"
 #include "engines/grim/sprite.h"
 
+#include "engines/grim/shaders-3ds/emi_actor_shbin.h"
+#include "engines/grim/shaders-3ds/emi_actorLights_shbin.h"
 #include "engines/grim/shaders-3ds/emi_background_shbin.h"
+#include "engines/grim/shaders-3ds/emi_sprite_shbin.h"
+#include "engines/grim/shaders-3ds/grim_actor_shbin.h"
+#include "engines/grim/shaders-3ds/grim_actorLights_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
@@ -326,6 +331,10 @@ GfxN3DS::GfxN3DS() : _alpha(1.f),
 	C3D_TexEnvOpAlpha(&envText, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA*/);
 
 	type = Graphics::RendererType::kRendererTypeN3DS;
+	_matrixStack.push(Math::Matrix4());
+
+	float div = 6.0f;
+	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
 
 	// GPU_LEQUAL as N3D_DepthFunc ensures that subsequent drawing attempts for
 	// the same triangles are not ignored by the depth test.
@@ -341,11 +350,14 @@ GfxN3DS::GfxN3DS() : _alpha(1.f),
 GfxN3DS::~GfxN3DS() {
 	releaseMovieFrame();
 
+	delete[] _lights;
+
 	C3D_RenderTargetDelete(_gameScreenTarget);
 
 	N3D_FreeBuffer(_blankVBO);
 	N3D_FreeBuffer(_smushVBO);
 	N3D_FreeBuffer(_quadEBO);
+	N3D_FreeBuffer(_spriteVBO);
 
 	N3D_FreeBuffer(_blastVBO);
 
@@ -353,6 +365,9 @@ GfxN3DS::~GfxN3DS() {
 
 	DECOMPOSE_SHADER(_background);
 
+	DECOMPOSE_SHADER(_sprite);
+	DECOMPOSE_SHADER(_actor);
+	DECOMPOSE_SHADER(_actorLights);
 	DECOMPOSE_SHADER(_smush);
 	DECOMPOSE_SHADER(_text);
 
@@ -407,6 +422,14 @@ void GfxN3DS::setupTexturedQuad() {
 }
 
 void GfxN3DS::setupTexturedCenteredQuad() {
+//	_spriteVBO = OpenGL::Shader::createBuffer(GL_ARRAY_BUFFER, sizeof(textured_quad_centered), textured_quad_centered, GL_STATIC_DRAW);
+//	_spriteProgram->enableVertexAttribute("position", _spriteVBO, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 0);
+//	_spriteProgram->enableVertexAttribute("texcoord", _spriteVBO, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), 3 * sizeof(float));
+//	_spriteProgram->disableVertexAttribute("color", Math::Vector4d(1.0f, 1.0f, 1.0f, 1.0f));
+	_spriteVBO = N3D_CreateBuffer(sizeof(textured_quad_centered), textured_quad_centered, 0x4);
+	_spriteShader->addAttrLoader(0, GPU_FLOAT, 3);						// v0 = position
+	_spriteShader->addAttrLoader(1, GPU_FLOAT, 2);						// v1 = texcoord
+	_spriteShader->addBufInfo(_spriteVBO, 5 * sizeof(float), 2, 0x10);
 }
 
 void GfxN3DS::setupPrimitives() {
@@ -431,8 +454,14 @@ void GfxN3DS::setupShaders() {
 
 	if (isEMI) {
 		CONSTRUCT_SHADER(_background, emi_background, 0);
+		CONSTRUCT_SHADER(_actor, emi_actor, 0);
+		CONSTRUCT_SHADER(_actorLights, emi_actorLights, 0);
+		CONSTRUCT_SHADER(_sprite, emi_sprite, 0);
 	} else {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
+		CONSTRUCT_SHADER(_actor, grim_actor, 0);
+		CONSTRUCT_SHADER(_actorLights, grim_actorLights, 0);
+		CONSTRUCT_SHADER(_sprite, grim_actor, 0);
 	}
 
 	setupQuadEBO();
@@ -472,12 +501,51 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 }
 
 void GfxN3DS::setupCameraFrustum(float fov, float nclip, float fclip) {
+	if (_fov == fov && _nclip == nclip && _fclip == fclip)
+		return;
+
+	_fov = fov; _nclip = nclip; _fclip = fclip;
+
+	float right = nclip * tan(fov / 2 * ((float)M_PI / 180));
+	float top = right * 0.75;
+
+	_projMatrix = makeFrustumMatrix(-right, right, -top, top, nclip, fclip);
 }
 
 void GfxN3DS::positionCamera(const Math::Vector3d &pos, const Math::Vector3d &interest, float roll) {
+	Math::Matrix4 viewMatrix = makeRotationMatrix(Math::Angle(roll), Math::Vector3d(0, 0, 1));
+	Math::Vector3d up_vec(0, 0, 1);
+
+	if (pos.x() == interest.x() && pos.y() == interest.y())
+		up_vec = Math::Vector3d(0, 1, 0);
+
+	Math::Matrix4 lookMatrix = makeLookMatrix(pos, interest, up_vec);
+
+	_viewMatrix = viewMatrix * lookMatrix;
+	_viewMatrix.transpose();
 }
 
 void GfxN3DS::positionCamera(const Math::Vector3d &pos, const Math::Matrix4 &rot) {
+	Math::Matrix4 projMatrix = _projMatrix;
+	projMatrix.transpose();
+
+	_currentPos = pos;
+	_currentRot = rot;
+
+	Math::Matrix4 invertZ;
+	invertZ(2, 2) = -1.0f;
+
+	Math::Matrix4 viewMatrix = _currentRot;
+	viewMatrix.transpose();
+
+	Math::Matrix4 camPos;
+	camPos(0, 3) = -_currentPos.x();
+	camPos(1, 3) = -_currentPos.y();
+	camPos(2, 3) = -_currentPos.z();
+
+	_viewMatrix = invertZ * viewMatrix * camPos;
+	_mvpMatrix = projMatrix * _viewMatrix;
+	_viewMatrix.transpose();
 }
 
 
@@ -611,12 +679,204 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 }
 
 void GfxN3DS::getScreenBoundingBox(const Mesh *model, int *x1, int *y1, int *x2, int *y2) {
+	if (_currentShadowArray) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	Math::Matrix4 modelMatrix = _currentActor->getFinalMatrix();
+	Math::Matrix4 mvpMatrix = _mvpMatrix * modelMatrix;
+
+	double top = 1000;
+	double right = -1000;
+	double left = 1000;
+	double bottom = -1000;
+
+	Math::Vector3d obj;
+	float *pVertices = nullptr;
+
+	for (int i = 0; i < model->_numFaces; i++) {
+		for (int j = 0; j < model->_faces[i].getNumVertices(); j++) {
+			pVertices = model->_vertices + 3 * model->_faces[i].getVertex(j);
+
+			obj.set(*(pVertices), *(pVertices + 1), *(pVertices + 2));
+
+			Math::Vector4d v = Math::Vector4d(obj.x(), obj.y(), obj.z(), 1.0f);
+			v = mvpMatrix * v;
+			v /= v.w();
+
+			double winX = (1 + v.x()) / 2.0f * _gameWidth;
+			double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+			if (winX > right)
+				right = winX;
+			if (winX < left)
+				left = winX;
+			if (winY < top)
+				top = winY;
+			if (winY > bottom)
+				bottom = winY;
+		}
+	}
+
+	double t = bottom;
+	bottom = _gameHeight - top;
+	top = _gameHeight - t;
+
+	if (left < 0)
+		left = 0;
+	if (right >= _gameWidth)
+		right = _gameWidth - 1;
+	if (top < 0)
+		top = 0;
+	if (bottom >= _gameHeight)
+		bottom = _gameHeight - 1;
+
+	if (top >= _gameHeight || left >= _gameWidth || bottom < 0 || right < 0) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	*x1 = (int)left;
+	*y1 = (int)(_gameHeight - bottom);
+	*x2 = (int)right;
+	*y2 = (int)(_gameHeight - top);
 }
 
 void GfxN3DS::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, int *x2, int *y2) {
+	if (_currentShadowArray) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	Math::Matrix4 modelMatrix = _currentActor->getFinalMatrix();
+	Math::Matrix4 mvpMatrix = _mvpMatrix * modelMatrix;
+
+	double top = 1000;
+	double right = -1000;
+	double left = 1000;
+	double bottom = -1000;
+
+	for (uint i = 0; i < model->_numFaces; i++) {
+		uint16 *indices = (uint16 *)model->_faces[i]._indexes;
+
+		for (uint j = 0; j < model->_faces[i]._faceLength * 3; j++) {
+			uint16 index = indices[j];
+			const Math::Vector3d &dv = model->_drawVertices[index];
+
+			Math::Vector4d v = Math::Vector4d(dv.x(), dv.y(), dv.z(), 1.0f);
+			v = mvpMatrix * v;
+			v /= v.w();
+
+			double winX = (1 + v.x()) / 2.0f * _gameWidth;
+			double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+			if (winX > right)
+				right = winX;
+			if (winX < left)
+				left = winX;
+			if (winY < top)
+				top = winY;
+			if (winY > bottom)
+				bottom = winY;
+		}
+	}
+
+	double t = bottom;
+	bottom = _gameHeight - top;
+	top = _gameHeight - t;
+
+	if (left < 0)
+		left = 0;
+	if (right >= _gameWidth)
+		right = _gameWidth - 1;
+	if (top < 0)
+		top = 0;
+	if (bottom >= _gameHeight)
+		bottom = _gameHeight - 1;
+
+	if (top >= _gameHeight || left >= _gameWidth || bottom < 0 || right < 0) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	*x1 = (int)left;
+	*y1 = (int)(_gameHeight - bottom);
+	*x2 = (int)right;
+	*y2 = (int)(_gameHeight - top);
 }
 
 void GfxN3DS::getActorScreenBBox(const Actor *actor, Common::Point &p1, Common::Point &p2) {
+	// Get the actor's bounding box information (describes a 3D box)
+	Math::Vector3d bboxPos, bboxSize;
+	actor->getBBoxInfo(bboxPos, bboxSize);
+
+	// Translate the bounding box to the actor's position
+	Math::Matrix4 m = actor->getFinalMatrix();
+	bboxPos = bboxPos + actor->getWorldPos();
+
+	// Set up the camera coordinate system
+	Math::Matrix4 modelView = _currentRot;
+	Math::Matrix4 zScale;
+	zScale.setValue(2, 2, -1.0);
+	modelView = modelView * zScale;
+	modelView.transpose();
+	modelView.translate(-_currentPos);
+	modelView.transpose();
+
+	// Set values outside of the screen range
+	p1.x = 1000;
+	p1.y = 1000;
+	p2.x = -1000;
+	p2.y = -1000;
+
+	// Project all of the points in the 3D bounding box
+	Math::Vector3d p, projected;
+	for (int x = 0; x < 2; x++) {
+		for (int y = 0; y < 2; y++) {
+			for (int z = 0; z < 2; z++) {
+				Math::Vector3d added(bboxSize.x() * 0.5f * (x * 2 - 1), bboxSize.y() * 0.5f * (y * 2 - 1), bboxSize.z() * 0.5f * (z * 2 - 1));
+				m.transform(&added, false);
+				p = bboxPos + added;
+
+				Math::Vector4d v = Math::Vector4d(p.x(), p.y(), p.z(), 1.0f);
+				v = _projMatrix.transform(modelView.transform(v));
+				if (v.w() == 0.0)
+					return;
+				v /= v.w();
+
+				double winX = (1 + v.x()) / 2.0f * _gameWidth;
+				double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+				// Find the points
+				if (winX < p1.x)
+					p1.x = winX;
+				if (winY < p1.y)
+					p1.y = winY;
+				if (winX > p2.x)
+					p2.x = winX;
+				if (winY > p2.y)
+					p2.y = winY;
+			}
+		}
+	}
+
+	// Swap the p1/p2 y coorindates
+	int16 tmp = p1.y;
+	p1.y = 480 - p2.y;
+	p2.y = 480 - tmp;
 }
 
 void GfxN3DS::startActorDraw(const Actor *actor) {
@@ -651,22 +911,34 @@ void GfxN3DS::destroyShadow(Shadow *shadow) {
 }
 
 void GfxN3DS::set3DMode() {
-	debug("set3DMode");
+	// USE MODEL VIEW MATRIX?
+	//N3D_DepthTestEnabled(true);																										// ADDED from "gfx_opengl.cpp"
+	//N3D_DepthFunc(_depthFunc);																										// ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::translateViewpointStart() {
+	_matrixStack.push(_matrixStack.top());
 }
 
 void GfxN3DS::translateViewpoint(const Math::Vector3d &vec) {
+	Math::Matrix4 temp;
+	temp.setPosition(vec);
+	temp.transpose();
+	_matrixStack.top() = temp * _matrixStack.top();
 }
 
 void GfxN3DS::rotateViewpoint(const Math::Angle &angle, const Math::Vector3d &axis_) {
+	Math::Matrix4 temp = makeRotationMatrix(angle, axis_) * _matrixStack.top();
+	_matrixStack.top() = temp;
 }
 
 void GfxN3DS::rotateViewpoint(const Math::Matrix4 &rot) {
+	Math::Matrix4 temp = rot * _matrixStack.top();
+	_matrixStack.top() = temp;
 }
 
 void GfxN3DS::translateViewpointFinish() {
+	_matrixStack.pop();
 }
 
 void GfxN3DS::updateEMIModel(const EMIModel* model) {
@@ -688,25 +960,158 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 }
 
 void GfxN3DS::enableLights() {
+	_lightsEnabled = true;
 }
 
 void GfxN3DS::disableLights() {
+	_lightsEnabled = false;
 }
 
 void GfxN3DS::setupLight(Grim::Light *light, int lightId) {
+	_lightsEnabled = true;
+
+	if (lightId >= _maxLights) {
+		return;
+	}
+
+	// Disable previous lights.
+	if (lightId == 0) {
+		_hasAmbientLight = false;
+		for (int id = 0; id < _maxLights; ++id)
+			_lights[id]._color.w() = 0.0;
+	}
+
+	Math::Vector4d &lightColor  = _lights[lightId]._color;
+	Math::Vector4d &lightPos    = _lights[lightId]._position;
+	Math::Vector4d &lightDir    = _lights[lightId]._direction;
+	Math::Vector4d &lightParams = _lights[lightId]._params;
+
+	lightColor.x() = (float)light->_color.getRed();
+	lightColor.y() = (float)light->_color.getGreen();
+	lightColor.z() = (float)light->_color.getBlue();
+	lightColor.w() = light->_scaledintensity;
+
+	if (light->_type == Grim::Light::Omni) {
+		lightPos = Math::Vector4d(light->_pos.x(), light->_pos.y(), light->_pos.z(), 1.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		lightParams = Math::Vector4d(light->_falloffNear, light->_falloffFar, 0.0f, 0.0f);
+	} else if (light->_type == Grim::Light::Direct) {
+		lightPos = Math::Vector4d(-light->_dir.x(), -light->_dir.y(), -light->_dir.z(), 0.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+	} else if (light->_type == Grim::Light::Spot) {
+		lightPos = Math::Vector4d(light->_pos.x(), light->_pos.y(), light->_pos.z(), 1.0f);
+		lightDir = Math::Vector4d(light->_dir.x(), light->_dir.y(), light->_dir.z(), 1.0f);
+		lightParams = Math::Vector4d(light->_falloffNear, light->_falloffFar, light->_cospenumbraangle, light->_cosumbraangle);
+	} else if (light->_type == Grim::Light::Ambient) {
+		lightPos = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		_hasAmbientLight = true;
+	}
 }
 
 void GfxN3DS::turnOffLight(int lightId) {
+	if (lightId >= _maxLights) {
+		return;
+	}
+
+	_lights[lightId]._color = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
+	_lights[lightId]._position = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
+	_lights[lightId]._direction = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 
 void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cmap, bool clamp) {
+	debug("Create texture");
+//	texture->_texture = new GLuint[1];
+//	glGenTextures(1, (GLuint *)texture->_texture);
+	texture->_texture = new C3D_Tex[1];
+
+//	GLuint *textures = (GLuint *)texture->_texture;
+//	glBindTexture(GL_TEXTURE_2D, textures[0]);
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+
+	// Remove darkened lines in EMI intro
+	if (g_grim->getGameType() == GType_MONKEY4 && clamp) {
+		C3D_TexSetWrap(textures, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+	} else {
+		C3D_TexSetWrap(textures, GPU_REPEAT, GPU_REPEAT);
+	}
+
+	C3D_TexSetFilter(textures, GPU_LINEAR, GPU_LINEAR);
+
+	if (cmap != nullptr) { // EMI doesn't have colour-maps
+		int bytes = 4;
+
+		char *texdata = new char[texture->_width * texture->_height * bytes];
+		char *texdatapos = texdata;
+
+		for (int y = 0; y < texture->_height; y++) {
+			for (int x = 0; x < texture->_width; x++) {
+				uint8 col = *(const uint8 *)(data);
+				if (col == 0) {
+					memset(texdatapos, 0, bytes); // transparent
+					if (!texture->_hasAlpha) {
+						texdatapos[3] = '\xff'; // fully opaque
+					}
+				} else {
+					memcpy(texdatapos, cmap->_colors + 3 * (col), 3);
+					texdatapos[3] = '\xff'; // fully opaque
+				}
+				texdatapos += bytes;
+				data++;
+			}
+		}
+
+//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture->_width, texture->_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);											// DEFINITE?
+		GSPGPU_FlushDataCache((void *)texdata, texture->_width * texture->_height * bytes);											// DEFINITE?
+		// GX_TRANSFER_FMT_RGBA8 is already 0																						// DEFINITE?
+		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
+		C3D_SyncDisplayTransfer((u32 *)texdata,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),					// DEFINITE?
+		                            (u32 *)textures[0].data, (u32)GX_BUFFER_DIM(texture->_width, texture->_height), 3);				// DEFINITE?
+		delete[] texdata;
+	} else {
+//		GLint format = (texture->_bpp == 4) ? GL_RGBA : GL_RGB;
+//		glTexImage2D(GL_TEXTURE_2D, 0, format, texture->_width, texture->_height, 0, format, GL_UNSIGNED_BYTE, data);
+		GPU_TEXCOLOR format;
+		GX_TRANSFER_FORMAT transFmt;																								// DEFINITE?
+		if (texture->_bpp == 4) {																									// DEFINITE?
+			format = GPU_RGBA8;																										// DEFINITE?
+			transFmt = GX_TRANSFER_FMT_RGBA8;																						// DEFINITE?
+		} else {																													// DEFINITE?
+			format = GPU_RGB8;																										// DEFINITE?
+			transFmt = GX_TRANSFER_FMT_RGB8;																						// DEFINITE?
+		}																															// DEFINITE?
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);												// DEFINITE?
+		GSPGPU_FlushDataCache(static_cast<const void *>(data), texture->_width * texture->_height * texture->_bpp);					// DEFINTIE?
+		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3						// DEFINITE?
+		C3D_SyncDisplayTransfer((u32 *)const_cast<uint8 *>(data), (u32)GX_BUFFER_DIM(texture->_width, texture->_height),		// DEFINITE?
+		                            (u32 *)textures[0].data,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),		// DEFINITE?
+		                            GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt) | 3);						// DEFINITE?
+	}
 }
 
 void GfxN3DS::selectTexture(const Texture *texture) {
+//	GLuint *textures = (GLuint *)texture->_texture;
+//	glBindTexture(GL_TEXTURE_2D, textures[0]);
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+	N3D_C3D_TexBind(0, textures);
+
+	if (texture->_hasAlpha && g_grim->getGameType() == GType_MONKEY4) {
+		N3D_BlendEnabled(true);
+	}
+
+	_selectedTexture = const_cast<Texture *>(texture);
 }
 
 void GfxN3DS::destroyTexture(Texture *texture) {
+//	GLuint *textures = static_cast<GLuint *>(texture->_texture);
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+	if (textures) {
+//		glDeleteTextures(1, textures);
+		C3D_TexDelete(textures);
+		delete[] textures;
+	}
 }
 
 void GfxN3DS::createBitmap(BitmapData *bitmap) {

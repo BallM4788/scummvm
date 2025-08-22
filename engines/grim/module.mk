@@ -145,7 +145,12 @@ endif
 
 ifeq ($(BACKEND), 3ds)
 MODULE_OBJS += \
+	shaders-3ds/emi_actor.shbin.o \
+	shaders-3ds/emi_actorLights.shbin.o \
 	shaders-3ds/emi_background.shbin.o \
+	shaders-3ds/emi_sprite.shbin.o \
+	shaders-3ds/grim_actor.shbin.o \
+	shaders-3ds/grim_actorLights.shbin.o \
 	shaders-3ds/grim_smush.shbin.o \
 	shaders-3ds/grim_text.shbin.o \
 	../../backends/platform/3ds/shaders/common_manualClear.shbin.o \
