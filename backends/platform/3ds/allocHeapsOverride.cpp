@@ -62,7 +62,7 @@ extern "C" void __system_allocateHeaps(void) {
 	// 0x01400000 bytes = 20 MiB, for New 3DS
 //	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x01400000;
 //	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x06000000;
-	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x04000000;
+	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x02000000;
 	__ctru_heap_size = remaining - __ctru_linear_heap_size;
 
 	// Allocate the application heap
