@@ -147,6 +147,7 @@ ifeq ($(BACKEND), 3ds)
 MODULE_OBJS += \
 	shaders-3ds/emi_background.shbin.o \
 	shaders-3ds/grim_smush.shbin.o \
+	shaders-3ds/grim_text.shbin.o \
 	../../backends/platform/3ds/shaders/common_manualClear.shbin.o \
 	gfx_n3ds.o
 endif
