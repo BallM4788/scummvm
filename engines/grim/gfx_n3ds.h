@@ -354,6 +354,8 @@ private:
 
 	GPU_BLENDFACTOR _srcBlend, _dstBlend;
 
+	TextObject *_activeTextObject;
+
 
 
 
