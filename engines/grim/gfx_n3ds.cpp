@@ -62,6 +62,7 @@
 
 #include "engines/grim/shaders-3ds/emi_background_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
+#include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
 
 namespace Grim {
@@ -284,6 +285,13 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvOpRgb(&envBG_Smush, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA*/);
 	C3D_TexEnvOpAlpha(&envBG_Smush, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
 
+	// Create texEnv for text.
+	C3D_TexEnvInit(&envText);
+	C3D_TexEnvFunc(&envText, C3D_Both, GPU_MODULATE);
+	C3D_TexEnvSrc(&envText, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR/*, 0*/);
+	C3D_TexEnvOpRgb(&envText, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_ALPHA*/);
+	C3D_TexEnvOpAlpha(&envText, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA*/);
+
 	// Citro3D doesn't set the initial "size" value of C3D_Tex-es to 0, so we have to do that ourselves.
 	_smushTex.size = 0;
 }
@@ -297,6 +305,8 @@ GfxN3DS::~GfxN3DS() {
 	custom3DS_FreeBuffer(_smushVBO);
 	custom3DS_FreeBuffer(_quadEBO);
 
+	custom3DS_FreeBuffer(_blastVBO);
+
 
 
 	custom3DS_FreeBuffer(_zBuffer);
@@ -307,8 +317,10 @@ GfxN3DS::~GfxN3DS() {
 	DECOMPOSE_SHADER(_background);
 
 	DECOMPOSE_SHADER(_smush);
+	DECOMPOSE_SHADER(_text);
 
 	DECOMPOSE_SHADER(_manualClear);
+
 	N3DS_3D::destroyNative3D();
 }
 
@@ -345,6 +357,9 @@ void GfxN3DS::setupTexturedQuad() {
 	_smushShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
 	_smushShader->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);
 
+	_textShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_textShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+
 
 
 	if (g_grim->getGameType() == GType_GRIM) {
@@ -373,6 +388,7 @@ void GfxN3DS::setupShaders() {
 	CONSTRUCT_SHADER(_manualClear, common_manualClear, 0);
 
 	CONSTRUCT_SHADER(_smush, grim_smush, 0);
+	CONSTRUCT_SHADER(_text, grim_text, 0);
 
 	if (!isEMI) {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
@@ -386,6 +402,9 @@ void GfxN3DS::setupShaders() {
 	setupTexturedCenteredQuad();
 	setupPrimitives();
 
+	if (!isEMI) {
+		_blastVBO = custom3DS_CreateBuffer(size_t(128 * 16) * sizeof(float), nullptr, 0x4);
+	}
 }
 
 void GfxN3DS::setupScreen(int screenW, int screenH) {
@@ -890,18 +909,229 @@ void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
 }
 
 void GfxN3DS::createFont(Font *f) {
+	if (!f->is8Bit())
+		error("non-8bit fonts are not supported in 3DS renderer");						// Is this true?
+	BitmapFont *font = static_cast<BitmapFont *>(f);
+	const byte *bitmapData = font->getFontData();
+	uint dataSize = font->getDataSize();
+
+	uint8 bpp = 4;
+	uint8 charsWide = 16;
+	uint8 charsHigh = 16;
+
+	byte *fntData = new byte[dataSize * bpp];
+	byte *fntDataPtr = fntData;
+
+	for (uint i = 0; i < dataSize; i++, fntDataPtr += bpp, bitmapData++) {
+		byte pixel = *bitmapData;
+		if (pixel == 0x00) {
+			fntDataPtr[0] = fntDataPtr[1] = fntDataPtr[2] = fntDataPtr[3] = 0;
+		} else if (pixel == 0x80) {
+			fntDataPtr[0] = fntDataPtr[1] = fntDataPtr[2] = 0;
+			fntDataPtr[3] = 255;
+		} else if (pixel == 0xFF) {
+			fntDataPtr[0] = fntDataPtr[1] = fntDataPtr[2] = fntDataPtr[3] = 255;
+		}
+	}
+	int size = 0;
+	for (int i = 0; i < 256; ++i) {
+		int width = font->getCharBitmapWidth(i), height = font->getCharBitmapHeight(i);
+		int m = MAX(width, height);
+		if (m > size)
+			size = m;
+	}
+	assert(size < 64);
+	if (size < 8)
+		size = 8;
+	if (size < 16)
+		size = 16;
+	else if (size < 32)
+		size = 32;
+	else if (size < 64)
+		size = 64;
+
+	FontUserData *userData = new FontUserData;
+	font->setUserData(userData);
+	userData->size = size;
+	// Allocate linear memory for subtexture coordinates.
+	userData->subTextures = (Tex3DS_SubTexture *)custom3DS_CreateBuffer(sizeof(Tex3DS_SubTexture) * charsWide * charsHigh, nullptr, 0x4);
+
+	// Allocate linear memory for texture data via texture initialization.
+	u32 pixelsWide = charsWide * size;
+	u32 pixelsHigh = charsHigh * size;
+	C3D_TexInit(&userData->texture, (u16)pixelsWide, (u16)pixelsHigh, GPU_RGBA8);
+	C3D_TexSetFilter(&userData->texture, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexSetWrap(&userData->texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+
+	// Allocate temp in linear memory AFTER subTextures and texture, to prevent fragmentation of unoccupied space.
+	uint arraySize = size * size * bpp * charsWide * charsHigh;
+	byte *temp = (byte *)custom3DS_CreateBuffer(sizeof(byte) * arraySize/*, nullptr, 0x4*/);
+
+	for (int i = 0, row = 0; i < 256; ++i) {
+		// Precalculate subtexture coordinates.
+		u32 charX = (i != 0) ? ((i - 1) % 16) : 0;
+		u32 charY = (i != 0) ? ((i - 1) / 16) : 0;
+		userData->subTextures[i].width  = size;
+		userData->subTextures[i].height = size;
+		userData->subTextures[i].left   = float(charX)     / charsWide;
+		userData->subTextures[i].top    = float(charY)     / charsHigh;
+		userData->subTextures[i].right  = float(charX + 1) / charsWide;
+		userData->subTextures[i].bottom = float(charY + 1) / charsHigh;
+
+		int width = font->getCharBitmapWidth(i), height = font->getCharBitmapHeight(i);
+		int32 d = font->getCharOffset(i);
+		for (int x = 0; x < height; ++x) {
+			// a is the offset to get to the correct row.
+			// b is the offset to get to the correct line in the character.
+			// c is the offset of the character from the start of the row.
+			uint a = row * size * size * bpp * charsHigh;
+			uint b = x * size * charsWide * bpp;
+			uint c = 0;
+			if (i != 0)
+				c = ((i - 1) % 16) * size * bpp;
+
+			uint pos = a + b + c;
+			uint pos2 = d * bpp + x * width * bpp;
+			assert(pos + width * bpp <= arraySize);
+			assert(pos2 + width * bpp <= dataSize * bpp);
+			memcpy(temp + pos, fntData + pos2, width * bpp);
+		}
+		if (i != 0 && i % charsWide == 0)
+			++row;
+	}
+
+	// Swizzle texels into C3D_Tex.
+	GSPGPU_FlushDataCache((void *)temp, sizeof(byte) * (u32)arraySize);
+	// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+//	C3D_SyncDisplayTransfer((u32 *)temp,                   GX_BUFFER_DIM(pixelsWide, pixelsHigh),
+//	                        (u32 *)userData->texture.data, GX_BUFFER_DIM(pixelsWide, pixelsHigh), 3);
+	custom3DS_DataToBlockTex((u32 *)const_cast<uint8 *>(temp), (u32 *)userData->texture.data, 0, 0,
+	                         pixelsWide, pixelsHigh, pixelsWide, pixelsHigh, GPU_RGBA8);
+
+	delete[] fntData;
+	custom3DS_FreeBuffer(temp);
 }
 
 void GfxN3DS::destroyFont(Font *font) {
+	if (font->is8Bit()) {
+		const FontUserData *data = static_cast<const FontUserData *>(static_cast<const BitmapFont *>(font)->getUserData());
+		if (data) {
+			C3D_TexDelete(const_cast<C3D_Tex *>(&data->texture));
+			// Free the buffer containing subtexture coordinates.
+			custom3DS_FreeBuffer(data->subTextures);
+			// Delete font data.
+			delete data;
+		}
+	}
 }
 
 void GfxN3DS::createTextObject(TextObject *text) {
+	const Color &color = text->getFGColor();
+	const Font *f = text->getFont();
+	if (!f->is8Bit())
+		error("non-8bit fonts are not supported in 3DS renderer");						// Is this true?
+	const BitmapFont *font = static_cast<const BitmapFont *>(f);
+
+	const FontUserData *userData = (const FontUserData *)font->getUserData();
+	if (!userData)
+		error("Could not get font userdata");
+
+	float sizeW = float(userData->size) / _gameWidth;
+	float sizeH = float(userData->size) / _gameHeight;
+	const Common::String *lines = text->getLines();
+	int numLines = text->getNumLines();
+
+	int numCharacters = 0;
+	for (int j = 0; j < numLines; ++j) {
+		numCharacters += lines[j].size();
+	}
+
+	float *bufData = new float[numCharacters * 16];
+	float *cur = bufData;
+
+	const Tex3DS_SubTexture *subTexes = userData->subTextures;
+
+	for (int j = 0; j < numLines; ++j) {
+		const Common::String &line = lines[j];
+		int x = text->getLineX(j);
+		int y = text->getLineY(j);
+		for (uint i = 0; i < line.size(); ++i) {
+			uint8 character = line[i];
+			float w = y + font->getCharStartingLine(character);
+			if (g_grim->getGameType() == GType_GRIM)
+				w += font->getBaseOffsetY();
+			float z = x + font->getCharStartingCol(character);
+			z /= _gameWidth;
+			w /= _gameHeight;
+
+			// Copy precalculated texture coordinates from *subTexes.
+			float charData[] = {
+				z,         w,         subTexes[character].left,  subTexes[character].top,
+				z + sizeW, w,         subTexes[character].right, subTexes[character].top,
+				z + sizeW, w + sizeH, subTexes[character].right, subTexes[character].bottom,
+				z,         w + sizeH, subTexes[character].left,  subTexes[character].bottom
+			};
+			memcpy(cur, charData, 16 * sizeof(float));
+			cur += 16;
+
+			x += font->getCharKernedWidth(character);
+		}
+	}
+	void *vbo;
+	if (text->isBlastDraw()) {
+		vbo = _blastVBO;
+		memcpy(vbo, bufData, numCharacters * 16 * sizeof(float));
+	} else {
+		vbo = custom3DS_CreateBuffer(numCharacters * 16 * sizeof(float), bufData, 0x4);
+	}
+
+	N3DS_3D::ShaderObj *textShader = new N3DS_3D::ShaderObj(_textShader);
+
+	textShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	textShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	textShader->addBufInfo(vbo, 4 * sizeof(float), 2, 0x10);
+
+	TextUserData * td = new TextUserData;
+	td->characters = numCharacters;
+	td->shader = textShader;
+	td->color = color;
+	td->texture = const_cast<C3D_Tex *>(&userData->texture);
+	text->setUserData(td);
+	delete[] bufData;
 }
 
 void GfxN3DS::drawTextObject(const TextObject *text) {
+	glTo3DS_Enable(ENUM3DS_CAP_BLEND);
+	glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+
+	const TextUserData * td = (const TextUserData *) text->getUserData();
+	assert(td);
+	N3DS_3D::changeShader(td->shader);
+
+	Math::Vector3d colors(float(td->color.getRed()  ) / 255.0f,
+	                      float(td->color.getGreen()) / 255.0f,
+	                      float(td->color.getBlue() ) / 255.0f);
+	td->shader->setUniform("color", GPU_VERTEX_SHADER, colors);
+	glTo3DS_BindTexture(0, td->texture);
+
+	drawStart(0, 0, 0, 640, 480, &envText);
+	// Draw the text.
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawElements(GPU_TRIANGLES, (int)td->characters * 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
+	drawEnd(0);
+
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
 }
 
 void GfxN3DS::destroyTextObject(TextObject *text) {
+	TextUserData * td = reinterpret_cast<TextUserData *>(const_cast<void *>(text->getUserData()));
+	if (!text->isBlastDraw()) {
+		td->shader->freeAttachedBuffer(0);
+	}
+	text->setUserData(nullptr);
+
+	delete td->shader;
+	delete td;
 }
 
 void GfxN3DS::storeDisplay() {
