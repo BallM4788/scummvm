@@ -557,14 +557,17 @@ void N3D_C3D_SetScissor(GPU_SCISSORMODE mode, u32 left, u32 top, u32 right, u32 
 }
 
 void N3D_C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size) {
+	N3DS_3D::getActiveContext()->applyContextState();
 	C3D_DrawArrays(primitive, first, size);
 }
 
 void N3D_C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices) {
+	N3DS_3D::getActiveContext()->applyContextState();
 	C3D_DrawElements(primitive, count, type, indices);
 }
 
 void N3D_C3D_ImmDrawBegin(GPU_Primitive_t primitive) {
+	N3DS_3D::getActiveContext()->applyContextState();
 	C3D_ImmDrawBegin(primitive);
 }
 

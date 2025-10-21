@@ -46,10 +46,9 @@ namespace Playground3d {
 #define CONSTRUCT_SHADER(game, shaderName, geomStride) \
 	shaderName##DVLB = DVLB_ParseFile((u32*)const_cast<u8 *>(game##shaderName##_shbin), game##shaderName##_shbin_size); \
 	shaderProgramInit(&shaderName##Program); \
-	Result shaderName##vsh = shaderProgramSetVsh(&shaderName##Program, &shaderName##DVLB->DVLE[0]); \
-	Result shaderName##gsh = shaderProgramSetGsh(&shaderName##Program, &shaderName##DVLB->DVLE[1], geomStride); \
-	shaderName##ProgramFlags = ((shaderName##gsh == 0) << 1) | (shaderName##vsh == 0); \
-	shaderName##Shader = new N3DS_3D::ShaderObj(&shaderName##Program, shaderName##ProgramFlags);
+	shaderProgramSetVsh(&shaderName##Program, &shaderName##DVLB->DVLE[0]); \
+	shaderProgramSetGsh(&shaderName##Program, &shaderName##DVLB->DVLE[1], geomStride); \
+	shaderName##Shader = new N3DS_3D::ShaderObj(&shaderName##Program);
 #define DECOMPOSE_SHADER(shaderName) \
 	delete shaderName##Shader; \
 	shaderProgramFree(&shaderName##Program); \

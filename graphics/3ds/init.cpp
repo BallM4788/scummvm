@@ -105,21 +105,21 @@ N3DContext *getActiveContext() {
 ContextHandle *createContext() {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init();
-	activeContext->updateEntireContext();
+	activeContext->applyContextState();
 	return (ContextHandle *)activeContext;
 }
 
 ContextHandle *createOGLContext() {
 	activeContext = Native3D::instance().createContext();
 	activeContext->initOGL();
-	activeContext->updateEntireContext();
+	activeContext->applyContextState();
 	return (ContextHandle *)activeContext;
 }
 
 ContextHandle *createContext(ContextHandle *source) {
 	activeContext = Native3D::instance().createContext();
 	activeContext->init((N3DContext *)source);
-	activeContext->updateEntireContext();
+	activeContext->applyContextState();
 	return (ContextHandle *)activeContext;
 }
 
@@ -129,7 +129,8 @@ void setContext(ContextHandle *handle) {
 		error("N3DS_3D: Context not found");
 	}
 	activeContext = ctx;
-	activeContext->updateEntireContext();
+	activeContext->activeShaderObj = nullptr;
+	activeContext->applyContextState(true);
 }
 
 N3DContext *getContext(ContextHandle *handle) {
@@ -157,6 +158,7 @@ void destroyNative3D() {
 
 void N3DContext::init(N3DContext *source) {
 	if (source != nullptr) {
+		dirtyFlags              = source->dirtyFlags;
 		cullFace_mode           = source->cullFace_mode;
 		cullFace_faceToCull     = source->cullFace_faceToCull;
 		cullFace_frontFace      = source->cullFace_frontFace;
@@ -210,6 +212,7 @@ void N3DContext::init(N3DContext *source) {
 
 	} else {
 		// Citro3D starting values?
+		dirtyFlags              = kDirtyAll;
 		cullFace_mode           = GPU_CULL_BACK_CCW;         // C3D default
 		cullFace_faceToCull     = N3D_CULLFACE_BACK;         // C3D default
 		cullFace_frontFace      = N3D_FRONTFACE_CCW;         // C3D default
@@ -264,6 +267,7 @@ void N3DContext::init(N3DContext *source) {
 }
 
 void N3DContext::initOGL() {
+	dirtyFlags              = kDirtyAll;
 	cullFace_mode           = GPU_CULL_BACK_CCW;
 	cullFace_faceToCull     = N3D_CULLFACE_BACK;
 	cullFace_frontFace      = N3D_FRONTFACE_CCW;

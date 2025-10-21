@@ -33,11 +33,28 @@
 
 namespace N3DS_3D {
 
+enum RenderContextFlags : u16 {
+	kDirtyNone           = 0x0000, // It's just 0
+	kDirtyDepthMap       = 0x0001, // 0b000000000001 = 0001
+	kDirtyCulling        = 0x0002, // 0b000000000010 = 0002
+	kDirtyStencilTest    = 0x0004, // 0b000000000100 = 0004
+	kDirtyStencilOp      = 0x0008, // 0b000000001000 = 0008
+	kDirtyBlendingColor  = 0x0010, // 0b000000010000 = 0016
+	kDirtyEarlyDepthTest = 0x0020, // 0b000000100000 = 0032
+	kDirtyDepthTest      = 0x0040, // 0b000001000000 = 0064
+	kDirtyAlphaTest      = 0x0080, // 0b000010000000 = 0128
+	kDirtyBlendLogicOp   = 0x0100, // 0b000100000000 = 0256
+	kDirtyFragOp         = 0x0200, // 0b001000000000 = 0512
+	kDirtyScissor        = 0x0400, // 0b010000000000 = 1024
+	kDirtyTexBind        = 0x0800, // 0b100000000000 = 2048
+	kDirtyAll            = 0x0FFF  // 0b111111111111 = 4095 (4096 - 1)
+};
+
 struct dirtyFVec {
 	C3D_FVec *ptr;
 	int pos;
 	int dirtyRows;
-	dirtyFVec(C3D_FVec *vec, int startPosition, int numRows) : ptr(vec), pos(startPosition), dirtyRows(numRows) {}
+	dirtyFVec(C3D_FVec *vec = nullptr, int startPosition = 0, int numRows = 0) : ptr(vec), pos(startPosition), dirtyRows(numRows) {}
 };
 
 typedef Common::HashMap<Common::String, int> UniformsMap;
@@ -45,6 +62,7 @@ typedef Common::Queue<dirtyFVec> FVecQueue;
 class ShaderObj;
 
 struct N3DContext {
+	u16                dirtyFlags;
 	GPU_CULLMODE       cullFace_mode;
 	N3D_CULLFACE       cullFace_faceToCull;
 	N3D_FRONTFACE      cullFace_frontFace;
@@ -101,11 +119,8 @@ struct N3DContext {
 	ShaderObj *activeShaderObj;
 
 private:
-	void updateCullMode();
-	void updateDepthMap();
-	void updateBlend();
 public:
-	void updateEntireContext();
+	void applyContextState(bool forceApply = false);
 	void changeShader(ShaderObj *shaderObj);
 #include "graphics/3ds/opinfo.h"
 	void init(N3DContext *source = nullptr);
@@ -127,15 +142,15 @@ N3DContext *getActiveContext();
 #define N3DSMACRO_DIRTY_FVECS(shaderEnum) \
 	((shaderEnum == 0) ? _vert_dirtyFVecs : _geom_dirtyFVecs)
 
-enum SHADERINSTANCEFLAG {
-	SI_VERTEX = 0x01,
-	SI_GEOM   = 0x10
-};
+//enum SHADERINSTANCEFLAG {
+//	SI_VERTEX = 0x01,
+//	SI_GEOM   = 0x10
+//};
 
 class ShaderObj {
 public:
 	// Constructor
-	ShaderObj(shaderProgram_s *program, u8 flags);
+	ShaderObj(shaderProgram_s *program, u8 flags = 0);
 	// Copy constructor
 	ShaderObj(ShaderObj *original);
 	// ShaderObj destructor, preserving the vshader and uniform map if this is a clone
@@ -349,7 +364,6 @@ public:
 
 	// vars
 	shaderProgram_s    *_program;
-	u8                  _si_flags;
 	C3D_AttrInfo        _attrInfo;
 	C3D_BufInfo         _bufInfo;
 

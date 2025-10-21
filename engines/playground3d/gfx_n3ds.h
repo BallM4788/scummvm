@@ -35,7 +35,6 @@ namespace Playground3d {
 #define SHADER_VARS(name) \
 	DVLB_s *name##DVLB; \
 	shaderProgram_s name##Program; \
-	u8 name##ProgramFlags; \
 	N3DS_3D::ShaderObj *name##Shader;
 
 class N3DSRenderer : public Renderer {

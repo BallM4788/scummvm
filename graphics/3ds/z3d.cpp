@@ -23,79 +23,72 @@
 
 namespace N3DS_3D {
 
-void N3DContext::updateCullMode() {
-	GPU_CULLMODE mode;
-	if (cullFace_enabled == true)
-		mode = ((cullFace_faceToCull == N3D_CULLFACE_FRONT) ^ (cullFace_frontFace == N3D_FRONTFACE_CCW))
-		     ? GPU_CULL_BACK_CCW : GPU_CULL_FRONT_CCW;
-	else
-		mode = GPU_CULL_NONE;
-
-	if (cullFace_mode != mode) {
-		cullFace_mode = mode;
-
-		C3D_CullFace(mode);
-	}
-}
-
-void N3DContext::updateDepthMap() {
-	float scale = depthMap_rangeN - depthMap_rangeF;
-	float offset = depthMap_rangeN;
-
-	if ((depthMap_enabled == true) && (depthMap_pOffUnits != 0.f))
-		offset += depthMap_pOffUnits / 16777215.f;
-
-	depthMap_zScale = scale;
-	depthMap_zOffset = offset;
-	C3D_DepthMap(depthMap_enabled, depthMap_zScale, depthMap_zOffset);
-}
-
-void N3DContext::updateBlend() {
-	if (blend_enabled && !colorLogicOp_enabled) {
-		C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha);
-		if (fragOpMode != GPU_FRAGOPMODE_GL)
-			C3D_FragOpMode(fragOpMode);
-	}
-}
-
-void N3DContext::updateEntireContext() {
-	if (activeShaderObj != nullptr) {
-		C3D_BindProgram(activeShaderObj->_program);
-		C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
-		C3D_SetBufInfo(&activeShaderObj->_bufInfo);
-		activeShaderObj->sendDirtyUniforms();
-	}
+void N3DContext::applyContextState(bool forceApply) {
+//	if (activeShaderObj != nullptr) {
+//		C3D_BindProgram(activeShaderObj->_program);
+//		C3D_SetAttrInfo(&activeShaderObj->_attrInfo);
+//		C3D_SetBufInfo(&activeShaderObj->_bufInfo);
+//		activeShaderObj->sendDirtyUniforms();
+//	}
 
 	// <----------------------------------------------------------------------------------------------------------------------TEXENV?
-
-	updateCullMode();
-	updateDepthMap();
-	C3D_SetScissor(scissor_mode, scissor_x, scissor_y, scissor_w, scissor_h);
-	C3D_AlphaTest(alphaTest_enabled, alphaTest_func, alphaTest_ref);
-	C3D_StencilTest(stencilTest_enabled, stencilTest_func, stencilTest_ref, stencilTest_mask, stencilTest_writeMask);
-	C3D_StencilOp(stencilOp_fail, stencilOp_zfail, stencilOp_zpass);
-	C3D_DepthTest(depthTest_enabled, depthTest_func,
-	              depthTest_enabled ? depthTest_writeMask : (GPU_WRITEMASK)(depthTest_writeMask & ~GPU_WRITE_DEPTH));
-	C3D_EarlyDepthTest(earlyDepthTest_enabled, earlyDepthTest_func, earlyDepthTest_clear);
-
-	if (colorLogicOp_enabled == true)
-		C3D_ColorLogicOp(colorLogicOp_op);
-	else {
-		(blend_enabled)
-			? C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha)
-			: C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ZERO,GPU_ONE, GPU_ZERO);
-		if (fragOpMode != GPU_FRAGOPMODE_GL)
-			C3D_FragOpMode(fragOpMode);
+	if ((dirtyFlags & kDirtyBlendLogicOp) || forceApply) {
+		if (colorLogicOp_enabled == true)
+			C3D_ColorLogicOp(colorLogicOp_op);
+		else {
+			(blend_enabled)
+				? C3D_AlphaBlend(blend_colorEq, blend_alphaEq, blend_srcColor, blend_dstColor, blend_srcAlpha, blend_dstAlpha)
+				: C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ZERO,GPU_ONE, GPU_ZERO);
+			if (fragOpMode != GPU_FRAGOPMODE_GL)
+				C3D_FragOpMode(fragOpMode);
+		}
 	}
+	if ((dirtyFlags & kDirtyCulling) || forceApply) {
+		GPU_CULLMODE mode;
+		if (cullFace_enabled == true)
+			mode = ((cullFace_faceToCull == N3D_CULLFACE_FRONT) ^ (cullFace_frontFace == N3D_FRONTFACE_CCW))
+			     ? GPU_CULL_BACK_CCW : GPU_CULL_FRONT_CCW;
+		else
+			mode = GPU_CULL_NONE;
 
-	C3D_BlendingColor((blend_color[3] << 24) | (blend_color[2] << 16) | (blend_color[1] << 8) | blend_color[0]);
+		cullFace_mode = mode;
+		C3D_CullFace(mode);
+	}
+	if ((dirtyFlags & kDirtyDepthMap) || forceApply) {
+		float scale = depthMap_rangeN - depthMap_rangeF;
+		float offset = depthMap_rangeN;
 
-	C3D_TexBind(0, boundTexUnits[0]);
+		if ((depthMap_enabled == true) && (depthMap_pOffUnits != 0.f))
+			offset += depthMap_pOffUnits / 16777215.f;
+
+		depthMap_zScale = scale;
+		depthMap_zOffset = offset;
+		C3D_DepthMap(depthMap_enabled, depthMap_zScale, depthMap_zOffset);
+	}
+	if ((dirtyFlags & kDirtyScissor) || forceApply)
+		C3D_SetScissor(scissor_mode, scissor_x, scissor_y, scissor_w, scissor_h);
+	if ((dirtyFlags & kDirtyAlphaTest) || forceApply)
+		C3D_AlphaTest(alphaTest_enabled, alphaTest_func, alphaTest_ref);
+	if ((dirtyFlags & kDirtyStencilTest) || forceApply)
+		C3D_StencilTest(stencilTest_enabled, stencilTest_func, stencilTest_ref, stencilTest_mask, stencilTest_writeMask);
+	if ((dirtyFlags & kDirtyStencilOp) || forceApply)
+		C3D_StencilOp(stencilOp_fail, stencilOp_zfail, stencilOp_zpass);
+	if ((dirtyFlags & kDirtyDepthTest) || forceApply)
+		C3D_DepthTest(depthTest_enabled, depthTest_func,
+		              depthTest_enabled ? depthTest_writeMask : (GPU_WRITEMASK)(depthTest_writeMask & ~GPU_WRITE_DEPTH));
+	if ((dirtyFlags & kDirtyEarlyDepthTest) || forceApply)
+		C3D_EarlyDepthTest(earlyDepthTest_enabled, earlyDepthTest_func, earlyDepthTest_clear);
+	if ((dirtyFlags & kDirtyBlendingColor) || forceApply)
+		C3D_BlendingColor((blend_color[3] << 24) | (blend_color[2] << 16) | (blend_color[1] << 8) | blend_color[0]);
+//	if ((dirtyFlags & kDirtyTexBind) || forceApply)
+		C3D_TexBind(0, boundTexUnits[0]);
+
+	dirtyFlags = kDirtyNone;
 }
 
 void N3DContext::changeShader(ShaderObj *shaderObj) {
-	if (activeShaderObj == shaderObj)
-		return;
+//	if (activeShaderObj == shaderObj)
+//		return;
 
 	activeShaderObj = shaderObj;
 	C3D_BindProgram(activeShaderObj->_program);
@@ -104,27 +97,19 @@ void N3DContext::changeShader(ShaderObj *shaderObj) {
 	activeShaderObj->sendDirtyUniforms();
 }
 
-#define N3DSMACRO_GPUSHADERTYPE_ENUM(num) \
-	((num == 0) ? GPU_VERTEX_SHADER : GPU_GEOMETRY_SHADER)
-#define N3DSMACRO_IVEC_ID_POS(num, vecIdx) \
-	_unif_IVecs[(16 * num) + IV_ID + vecIdx]
-
 ShaderObj::ShaderObj(shaderProgram_s *program, u8 flags) {
 	_program = program;
-	_si_flags = flags;
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
 
-	if (_si_flags & SI_VERTEX) {
-		_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
-		if (_vert_numFVecs > 0) {
-			_vert_UniformMap = new UniformsMap();
-			_vert_unif_FVecs = new C3D_FVec[_vert_numFVecs];
-			memset(_vert_unif_FVecs, 0, _vert_numFVecs * sizeof(C3D_FVec));
-			_vert_dirtyFVecs = new FVecQueue();
-		}
+	_vert_numFVecs = _program->vertexShader->numFloat24Uniforms;
+	if (_vert_numFVecs > 0) {
+		_vert_UniformMap = new UniformsMap();
+		_vert_unif_FVecs = new C3D_FVec[_vert_numFVecs];
+		memset(_vert_unif_FVecs, 0, _vert_numFVecs * sizeof(C3D_FVec));
+		_vert_dirtyFVecs = new FVecQueue();
 	}
-	if (_si_flags & SI_GEOM) {
+	if (_program->geometryShader) {
 		_geom_numFVecs = _program->geometryShader->numFloat24Uniforms;
 		if (_geom_numFVecs > 0) {
 			_geom_UniformMap = new UniformsMap();
@@ -148,7 +133,6 @@ ShaderObj::ShaderObj(shaderProgram_s *program, u8 flags) {
 
 // cloned shader object
 ShaderObj::ShaderObj(ShaderObj *original) : _program(original->_program),
-                                            _si_flags(original->_si_flags),
                                             _vert_UniformMap(original->_vert_UniformMap),
                                             _vert_unif_FVecs(original->_vert_unif_FVecs),
                                             _vert_dirtyFVecs(original->_vert_dirtyFVecs),
@@ -175,11 +159,9 @@ ShaderObj::~ShaderObj() {
 		_unif_bools = nullptr;
 		_dirtyIVecs = _dirtyBools = nullptr;
 	} else {
-		if (_program->vertexShader) {
-			delete [] _vert_unif_FVecs; // C3D_FVec array on heap
-			delete _vert_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
-			delete _vert_UniformMap;
-		}
+		delete [] _vert_unif_FVecs; // C3D_FVec array on heap
+		delete _vert_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
+		delete _vert_UniformMap;
 		if (_program->geometryShader) {
 			delete [] _geom_unif_FVecs; // C3D_FVec array on heap
 			delete _geom_dirtyFVecs; // FVecQueue (Common::Queue<dirtyFVec>: "common/queue.h")
@@ -237,45 +219,41 @@ int ShaderObj::BufInfo_AddOrModify(const void* data, ptrdiff_t stride, int attri
 	}
 }
 
+#define N3DSMACRO_IVEC_ID_POS(num, vecIdx) \
+	_unif_IVecs[(16 * num) + IV_ID + vecIdx]
+
 void ShaderObj::sendDirtyUniforms() {
-	GPU_SHADER_TYPE shaderEnum;
+	bool hasGeomShader = _program->geometryShader ? true : false;
 
-	for (int shaderType = 0; shaderType < 2; shaderType++) {
-		shaderEnum = N3DSMACRO_GPUSHADERTYPE_ENUM(shaderType);
+	for (uint shaderType = 0; shaderType < 2; shaderType++) {
+		// 0 = GPU_VERTEX_SHADER
+		// 1 = GPU_GEOMETRY_SHADER
 
-		if (!((shaderEnum + 1) & _si_flags)) {
+		if ((shaderType == 1) & !hasGeomShader) {
 			continue;
 		}
-		if (N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty())
+		if (N3DSMACRO_DIRTY_FVECS(shaderType)->empty())
 			continue;
 
-		while (!N3DSMACRO_DIRTY_FVECS(shaderEnum)->empty()) {
-			dirtyFVec temp = N3DSMACRO_DIRTY_FVECS(shaderEnum)->pop();
-			if (temp.dirtyRows <= 4) {
-				C3D_FVUnifMtxNx4(shaderEnum, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
-			} else {
-				for (int row = 0; row < temp.dirtyRows; row++) {
-					C3D_FVUnifSet(shaderEnum, temp.pos, temp.ptr[row].x,
-					                                    temp.ptr[row].y,
-					                                    temp.ptr[row].z,
-					                                    temp.ptr[row].w);
-				}
-			}
+		dirtyFVec temp;
+		while (!N3DSMACRO_DIRTY_FVECS(shaderType)->empty()) {
+			temp = N3DSMACRO_DIRTY_FVECS(shaderType)->pop();
+			C3D_FVUnifMtxNx4((GPU_SHADER_TYPE)shaderType, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
 		}
 
 		for (int IV_ID = 0; IV_ID < 4; IV_ID++) {
 			if (_dirtyIVecs[(shaderType * 4) + IV_ID] == true) {
-				C3D_IVUnifSet(shaderEnum, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
-				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 1),
-				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 2),
-				                                 N3DSMACRO_IVEC_ID_POS(shaderType, 3));
+				C3D_IVUnifSet((GPU_SHADER_TYPE)shaderType, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
+				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 1),
+				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 2),
+				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 3));
 				_dirtyIVecs[(shaderType * 4) + IV_ID] = false;
 			}
 		}
 
 		for (int bool_ID = 0; bool_ID < 2; bool_ID++) {
 			if (_dirtyBools[(shaderType * 2) + bool_ID] == true) {
-				C3D_BoolUnifSet(shaderEnum, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
+				C3D_BoolUnifSet((GPU_SHADER_TYPE)shaderType, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
 				_dirtyBools[(shaderType * 2) + bool_ID] = false;
 			}
 		}
