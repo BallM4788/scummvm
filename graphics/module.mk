@@ -103,11 +103,12 @@ endif
 
 ifeq ($(BACKEND), 3ds)
 MODULE_OBJS += \
-	3ds/z3d.o \
+	3ds/native3d.o \
+	3ds/context.o \
+	3ds/shaderobj.o \
 	3ds/api.o \
 	3ds/ops-gl2citro.o \
-	3ds/ops-custom.o \
-	3ds/init.o
+	3ds/ops-custom.o
 endif
 
 ifdef USE_ASPECT

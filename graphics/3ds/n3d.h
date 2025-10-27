@@ -39,7 +39,7 @@
 //};
 
 
-#include "graphics/3ds/ngl.h"
+//#include "graphics/3ds/ngl.h"
 #include "graphics/3ds/z3d.h"
 
 namespace N3DS_3D {

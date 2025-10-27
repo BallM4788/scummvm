@@ -138,12 +138,12 @@ N3DSRenderer::N3DSRenderer(OSystem *system) :
 	_p3dContext = N3DS_3D::createOGLContext();
 
 	_gameScreenTex = N3D_GetGameScreen();
-	_gameScreenTarget = N3D_C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+	_gameScreenTarget = C3D_RenderTargetCreateFromTex(_gameScreenTex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
 
-	N3D_C3D_TexEnvInit(&_p3dTexEnv);
-	N3D_C3D_TexEnvFunc(&_p3dTexEnv, C3D_Both, GPU_REPLACE);
-	N3D_C3D_TexEnvOpRgb(&_p3dTexEnv, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR*/);
-	N3D_C3D_TexEnvOpAlpha(&_p3dTexEnv, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
+	C3D_TexEnvInit(&_p3dTexEnv);
+	C3D_TexEnvFunc(&_p3dTexEnv, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvOpRgb(&_p3dTexEnv, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR*/);
+	C3D_TexEnvOpAlpha(&_p3dTexEnv, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
 }
 
 N3DSRenderer::~N3DSRenderer() {
@@ -160,7 +160,7 @@ N3DSRenderer::~N3DSRenderer() {
 	DECOMPOSE_SHADER(_viewport)
 	DECOMPOSE_SHADER(_bitmap)
 
-	N3D_C3D_RenderTargetDelete(_gameScreenTarget);
+	C3D_RenderTargetDelete(_gameScreenTarget);
 
 	N3DS_3D::setContext(_backendContext);
 	N3DS_3D::destroyContext(_p3dContext);
@@ -199,8 +199,8 @@ void N3DSRenderer::init() {
 	_viewportVBO_2 = N3D_CreateBuffer(sizeof(float) * 2 * 4, boxVertices2, 0x4);
 	_viewportShader->addAttrLoader(0, GPU_FLOAT, 2);
 	_viewportShader->addBufInfo(_viewportVBO_1, 2 * sizeof(float), 1, 0x0);
-	N3D_BufInfo_Init(&_vpBuf2);
-	N3D_BufInfo_Add(&_vpBuf2, _viewportVBO_2, 2 * sizeof(float), 1, 0x0);
+	BufInfo_Init(&_vpBuf2);
+	BufInfo_Add(&_vpBuf2, _viewportVBO_2, 2 * sizeof(float), 1, 0x0);
 
 	_bitmapVBO = N3D_CreateBuffer(sizeof(float) * 4 * 4, bitmapVertices, 0x4);
 	_bitmapShader->addAttrLoader(0, GPU_FLOAT, 2);
@@ -209,11 +209,11 @@ void N3DSRenderer::init() {
 }
 
 void N3DSRenderer::deinit() {
-	N3D_C3D_TexDelete(&_textureRgba);
-	N3D_C3D_TexDelete(&_textureRgb);
-	N3D_C3D_TexDelete(&_textureRgb565);
-	N3D_C3D_TexDelete(&_textureRgba5551);
-	N3D_C3D_TexDelete(&_textureRgba4444);
+	C3D_TexDelete(&_textureRgba);
+	C3D_TexDelete(&_textureRgb);
+	C3D_TexDelete(&_textureRgb565);
+	C3D_TexDelete(&_textureRgba5551);
+	C3D_TexDelete(&_textureRgba4444);
 }
 
 void N3DSRenderer::setupCameraPerspective(float pitch, float heading, float fov) {
@@ -239,24 +239,24 @@ void N3DSRenderer::setupCameraPerspective(float pitch, float heading, float fov)
 
 void N3DSRenderer::clear(const Math::Vector4d &clearColor) {
 	N3DS_3D::setContext(_p3dContext);
-	N3D_C3D_FrameBegin(0);
-	N3D_C3D_FrameDrawOn(_gameScreenTarget);
+	C3D_FrameBegin(0);
+	C3D_FrameDrawOn(_gameScreenTarget);
 	u32 clearcolorint = FLOAT_TO_8BIT(clearColor.x()) << 24
 	                  | FLOAT_TO_8BIT(clearColor.y()) << 16
 	                  | FLOAT_TO_8BIT(clearColor.z()) << 8
 	                  | FLOAT_TO_8BIT(clearColor.w());
-	N3D_C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, clearcolorint, 0xFFFF);
+	C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, clearcolorint, 0xFFFF);
 }
 
 #undef FLOAT_TO_8BIT
 
 void N3DSRenderer::setupViewport(int x, int y, int width, int height) {
-	N3D_C3D_SetViewport(x, y, width, height);
+	C3D_SetViewport(x, y, width, height);
 }
 
 void N3DSRenderer::flipBuffer() {
-	N3D_C3D_FrameEnd(0);
-	N3D_C3D_TexBind(0, NULL);
+	C3D_FrameEnd(0);
+	C3D_TexBind(0, NULL);
 	N3DS_3D::setContext(_backendContext);
 }
 
@@ -281,8 +281,8 @@ void N3DSRenderer::loadTextureRGBA(Graphics::Surface *texture) {
 	int wPow2 = nextHigher2(texture->w); // 128
 	int hPow2 = nextHigher2(texture->h); // 128
 	int pitchPow2 = wPow2 * 4;
-	N3D_C3D_TexInit(&_textureRgba, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
-	N3D_C3D_TexSetFilter(&_textureRgba, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexInit(&_textureRgba, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
+	C3D_TexSetFilter(&_textureRgba, GPU_NEAREST, GPU_NEAREST);
 
 	// Only create the temporary buffer AFTER initializing the C3D_Tex,
 	//	so as to prevent fragmentation of linear memory.
@@ -303,7 +303,7 @@ void N3DSRenderer::loadTextureRGBA(Graphics::Surface *texture) {
 	N3D_DataToBlockTex((u32 *)tmp, (u32 *)_textureRgba.data, 0, 0, wPow2, hPow2, wPow2, hPow2, GPU_RGBA8, false);
 
 	// Flush the texture changes.
-	N3D_C3D_TexFlush(&_textureRgba);
+	C3D_TexFlush(&_textureRgba);
 	// Delete the temporary buffer.
 	N3D_FreeBuffer(tmp);
 }
@@ -313,8 +313,8 @@ void N3DSRenderer::loadTextureRGB(Graphics::Surface *texture) {
 	int wPow2 = nextHigher2(texture->w); // 128
 	int hPow2 = nextHigher2(texture->h); // 128
 	// Make an RGBA8 texture since we need all 4 components
-	N3D_C3D_TexInit(&_textureRgb, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
-	N3D_C3D_TexSetFilter(&_textureRgb, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexInit(&_textureRgb, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
+	C3D_TexSetFilter(&_textureRgb, GPU_NEAREST, GPU_NEAREST);
 
 	// Only create the temporary buffer AFTER initializing the C3D_Tex,
 	//	so as to prevent fragmentation of linear memory.
@@ -338,7 +338,7 @@ void N3DSRenderer::loadTextureRGB(Graphics::Surface *texture) {
 	N3D_DataToBlockTex((u32 *)tmp, (u32 *)_textureRgb.data, 0, 0, wPow2, hPow2, wPow2, hPow2, GPU_RGBA8, false);
 
 	// Flush the texture changes.
-	N3D_C3D_TexFlush(&_textureRgb);
+	C3D_TexFlush(&_textureRgb);
 	// Delete the temporary buffer.
 	N3D_FreeBuffer(tmp);
 }
@@ -348,8 +348,8 @@ void N3DSRenderer::loadTextureRGB565(Graphics::Surface *texture) {
 	int wPow2 = nextHigher2(texture->w); // 128
 	int hPow2 = nextHigher2(texture->h); // 128
 	// Make an RGBA8 texture since we need all 4 components
-	N3D_C3D_TexInit(&_textureRgb565, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
-	N3D_C3D_TexSetFilter(&_textureRgb565, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexInit(&_textureRgb565, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
+	C3D_TexSetFilter(&_textureRgb565, GPU_NEAREST, GPU_NEAREST);
 
 	// Only create the temporary buffer AFTER initializing the C3D_Tex,
 	//	so as to prevent fragmentation of linear memory.
@@ -376,27 +376,27 @@ void N3DSRenderer::loadTextureRGB565(Graphics::Surface *texture) {
 	N3D_DataToBlockTex((u32 *)tmp, (u32 *)_textureRgb565.data, 0, 0, wPow2, hPow2, wPow2, hPow2, GPU_RGBA8, false);
 
 	// Flush the texture changes.
-	N3D_C3D_TexFlush(&_textureRgb565);
+	C3D_TexFlush(&_textureRgb565);
 	// Delete the temporary buffer.
 	N3D_FreeBuffer(tmp);
 }
 
 void N3DSRenderer::loadTextureRGBA5551(Graphics::Surface *texture) {
 	// For the sake of example, we will use GSPGPU_FlushDataCache and
-	//	N3D_C3D_SyncDisplayTransfer instead of N3D_DataToBlockTex.
+	//	C3D_SyncDisplayTransfer instead of N3D_DataToBlockTex.
 
 	// texture->w and texture->h are both 120
 	int wPow2 = nextHigher2(texture->w); // 128
 	int hPow2 = nextHigher2(texture->h); // 128
 	// Make an RGBA8 texture since we need all 4 components
-	N3D_C3D_TexInit(&_textureRgba5551, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
-	N3D_C3D_TexSetFilter(&_textureRgba5551, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexInit(&_textureRgba5551, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
+	C3D_TexSetFilter(&_textureRgba5551, GPU_NEAREST, GPU_NEAREST);
 
 	// Only create the temporary buffer AFTER initializing the C3D_Tex,
 	//	so as to prevent fragmentation of linear memory.
 	void *tmp = N3D_CreateBuffer(wPow2 * texture->h * 4);
 
-	// Convert pixels to little endian RGBA8, as N3D_C3D_SyncDisplayTransfer
+	// Convert pixels to little endian RGBA8, as C3D_SyncDisplayTransfer
 	//	does not do any byte swapping.
 	u16 *texPtr;
 	byte *tmpPtr;
@@ -412,37 +412,37 @@ void N3DSRenderer::loadTextureRGBA5551(Graphics::Surface *texture) {
 	}
 
 	// Swizzle temporary buffer into C3D_Tex
-	// N3D_C3D_SyncDisplayTransfer will also swizzle data (and also unswizzle it).
+	// C3D_SyncDisplayTransfer will also swizzle data (and also unswizzle it).
 	//	However, the input pixels must already be in RGBA8 little endian order, and
 	//	GSPGPU_FlushDataCache must be called on the input pixels beforehand.
 	GSPGPU_FlushDataCache(tmp, wPow2 * texture->h * texture->format.bytesPerPixel);
-	N3D_C3D_SyncDisplayTransfer((u32 *)tmp, GX_BUFFER_DIM(wPow2, texture->h), (u32 *)_textureRgba5551.data, GX_BUFFER_DIM(wPow2, hPow2),
+	C3D_SyncDisplayTransfer((u32 *)tmp, GX_BUFFER_DIM(wPow2, texture->h), (u32 *)_textureRgba5551.data, GX_BUFFER_DIM(wPow2, hPow2),
 	                            (GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_RAW_COPY(0) |
 	                             GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) |
 	                             GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO)));
 
 	// Flush the texture changes.
-	N3D_C3D_TexFlush(&_textureRgba5551);
+	C3D_TexFlush(&_textureRgba5551);
 	// Delete the temporary buffer.
 	N3D_FreeBuffer(tmp);
 }
 
 void N3DSRenderer::loadTextureRGBA4444(Graphics::Surface *texture) {
 	// For the sake of example, we will use GSPGPU_FlushDataCache and
-	//	N3D_C3D_SyncDisplayTransfer instead of N3D_DataToBlockTex.
+	//	C3D_SyncDisplayTransfer instead of N3D_DataToBlockTex.
 
 	// texture->w and texture->h are both 120
 	int wPow2 = nextHigher2(texture->w); // 128
 	int hPow2 = nextHigher2(texture->h); // 128
 	// Make an RGBA8 texture since we need all 4 components
-	N3D_C3D_TexInit(&_textureRgba4444, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
-	N3D_C3D_TexSetFilter(&_textureRgba4444, GPU_NEAREST, GPU_NEAREST);
+	C3D_TexInit(&_textureRgba4444, (u16)wPow2, (u16)hPow2, GPU_RGBA8);
+	C3D_TexSetFilter(&_textureRgba4444, GPU_NEAREST, GPU_NEAREST);
 
 	// Only create the temporary buffer AFTER initializing the C3D_Tex,
 	//	so as to prevent fragmentation of linear memory.
 	void *tmp = N3D_CreateBuffer(wPow2 * texture->h * 4);
 
-	// Convert pixels to little endian RGBA8, as N3D_C3D_SyncDisplayTransfer
+	// Convert pixels to little endian RGBA8, as C3D_SyncDisplayTransfer
 	//	does not do any byte swapping.
 	u16 *texPtr;
 	byte *tmpPtr;
@@ -458,24 +458,24 @@ void N3DSRenderer::loadTextureRGBA4444(Graphics::Surface *texture) {
 	}
 
 	// Swizzle temporary buffer into C3D_Tex
-	// N3D_C3D_SyncDisplayTransfer will also swizzle data (and also unswizzle it).
+	// C3D_SyncDisplayTransfer will also swizzle data (and also unswizzle it).
 	//	However, the input pixels must already be in RGBA8 little endian order, and
 	//	GSPGPU_FlushDataCache must be called on the input pixels beforehand.
 	GSPGPU_FlushDataCache(tmp, wPow2 * texture->h * texture->format.bytesPerPixel);
-	N3D_C3D_SyncDisplayTransfer((u32 *)tmp, GX_BUFFER_DIM(wPow2, texture->h), (u32 *)_textureRgba4444.data, GX_BUFFER_DIM(wPow2, hPow2),
+	C3D_SyncDisplayTransfer((u32 *)tmp, GX_BUFFER_DIM(wPow2, texture->h), (u32 *)_textureRgba4444.data, GX_BUFFER_DIM(wPow2, hPow2),
 	                            (GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_RAW_COPY(0) |
 	                             GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGBA8) |
 	                             GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO)));
 
 	// Flush the texture changes.
-	N3D_C3D_TexFlush(&_textureRgba4444);
+	C3D_TexFlush(&_textureRgba4444);
 	// Delete the temporary buffer.
 	N3D_FreeBuffer(tmp);
 }
 
 void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &roll) {
-	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
-	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
+	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
+	C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_DepthTestEnabled(true);
 	N3D_DepthMask(true);
 	N3D_BlendEnabled(false);
@@ -483,24 +483,27 @@ void N3DSRenderer::drawCube(const Math::Vector3d &pos, const Math::Vector3d &rol
 
 	auto rotateMatrix = (Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ)).inverse().toMatrix();
 
-	N3DS_3D::getActiveContext()->changeShader(_cubeShader);
-
+	N3DS_3D::changeShader(_cubeShader);
 	_cubeShader->setUniform("mvpMatrix", GPU_VERTEX_SHADER, _mvpMatrix);
 	_cubeShader->setUniform("rotateMatrix", GPU_VERTEX_SHADER, rotateMatrix);
 	_cubeShader->setUniform("modelPos", GPU_VERTEX_SHADER, pos);
+	// For some reason, uniform queueing anywhere causes a crash when attempting to bring up
+	//	the pause screen or virtual keybord, even on other tests where uniform queueing isn't used.
+	//N3DS_3D::changeShader(_cubeShader);
 
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 4, 4);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 8, 4);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 12, 4);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 16, 4);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 20, 4);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 4, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 8, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 12, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 16, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 20, 4);
 
 }
 
 void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vector3d &roll) {
-	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
-	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
+	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
+	C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_DepthTestEnabled(true);
 	N3D_DepthMask(true);
 	N3D_BlendEnabled(false);
@@ -509,13 +512,14 @@ void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vec
 	auto rotateMatrix = (Math::Quaternion::fromEuler(roll.x(), roll.y(), roll.z(), Math::EO_XYZ)).inverse().toMatrix();
 	Math::Vector3d colorVec = Math::Vector3d(0.0f, 1.0f, 0.0f);
 
-	N3DS_3D::getActiveContext()->changeShader(_offsetShader);
+	N3DS_3D::changeShader(_offsetShader);
 
 	_offsetShader->setUniform("mvpMatrix", GPU_VERTEX_SHADER, _mvpMatrix);
 	_offsetShader->setUniform("rotateMatrix", GPU_VERTEX_SHADER, rotateMatrix);
 	_offsetShader->setUniform("modelPos", GPU_VERTEX_SHADER, pos);
 	_offsetShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
-	N3D_C3D_DrawArrays(GPU_TRIANGLES, 0, 3);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLES, 0, 3);
 
 	N3D_PolygonOffsetEnabled(true);
 	// Positive offset -> subsequent polygons will be pushed back
@@ -524,27 +528,29 @@ void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vec
 
 	colorVec = Math::Vector3d(1.0f, 1.0f, 1.0f);
 	_offsetShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
-	N3D_C3D_DrawArrays(GPU_TRIANGLES, 3, 3);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLES, 3, 3);
 
 	N3D_PolygonOffsetEnabled(false);
 }
 
 void N3DSRenderer::dimRegionInOut(float fade) {
-	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
-	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
+	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
+	C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_DepthTestEnabled(false);
 	N3D_DepthMask(false);
 	N3D_BlendEnabled(true);
 	N3D_BlendFunc(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
-	N3DS_3D::getActiveContext()->changeShader(_fadeShader);
+	N3DS_3D::changeShader(_fadeShader);
 	_fadeShader->setUniform("alphaLevel", GPU_VERTEX_SHADER, 1.0f - fade);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 }
 
 void N3DSRenderer::drawInViewport() {
-	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
-	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
+	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
+	C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_DepthTestEnabled(false);
 	N3D_DepthMask(false);
 	N3D_BlendEnabled(true);
@@ -552,10 +558,11 @@ void N3DSRenderer::drawInViewport() {
 
 	Math::Vector3d colorVec = Math::Vector3d(0.0f, 1.0f, 0.0f);
 
-	N3DS_3D::getActiveContext()->changeShader(_viewportShader);
+	N3DS_3D::changeShader(_viewportShader);
 	_viewportShader->setUniform("offsetXY", GPU_VERTEX_SHADER, 0.0f, 0.0f);
 	_viewportShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 
 	_drawViewportPos.x() += 0.01f;
 	_drawViewportPos.y() -= 0.01f;
@@ -568,57 +575,59 @@ void N3DSRenderer::drawInViewport() {
 	_drawViewportPos.z() = 0.0f;
 
 	colorVec = Math::Vector3d(1.0f, 0.0f, 0.0f);
-	N3D_C3D_SetBufInfo(&_vpBuf2);
+	C3D_SetBufInfo(&_vpBuf2);
 	N3D_PolygonOffsetEnabled(true);
 	// Positive offset -> subsequent polygons will be pushed back
 	// Negative offset -> subsequent polygons will be pulled forward
 	N3D_PolygonOffset(-1000.f);
 	_viewportShader->setUniform("offsetXY", GPU_VERTEX_SHADER, _drawViewportPos);
 	_viewportShader->setUniform("renderColor", GPU_VERTEX_SHADER, colorVec);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 	N3D_PolygonOffsetEnabled(false);
 }
 
 void N3DSRenderer::drawRgbaTexture() {
 	Math::Vector2d offset;
-	N3D_C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_TEXTURE0/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
-	N3D_C3D_SetTexEnv(0, &_p3dTexEnv);
+	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_TEXTURE0/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
+	C3D_SetTexEnv(0, &_p3dTexEnv);
 	N3D_DepthTestEnabled(false);
 	N3D_DepthMask(false);
 	N3D_BlendEnabled(true);
 	N3D_BlendFunc(GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 
-	N3DS_3D::getActiveContext()->changeShader(_bitmapShader);
+	N3DS_3D::changeShader(_bitmapShader);
 
 	offset.setX(-0.8f);
 	offset.setY(-0.8f);
 	_bitmapShader->setUniform("offsetXY", GPU_VERTEX_SHADER, offset);
 	N3D_C3D_TexBind(0, &_textureRgba);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	N3DS_3D::getActiveContext()->applyContextState();
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 
 	offset.setX(-0.3f);
 	offset.setY(-0.8f);
 	_bitmapShader->setUniform("offsetXY", GPU_VERTEX_SHADER, offset);
 	N3D_C3D_TexBind(0, &_textureRgb);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 
 	offset.setX(0.2f);
 	offset.setY(-0.8f);
 	_bitmapShader->setUniform("offsetXY", GPU_VERTEX_SHADER, offset);
 	N3D_C3D_TexBind(0, &_textureRgb565);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 
 	offset.setX(0.7f);
 	offset.setY(-0.8f);
 	_bitmapShader->setUniform("offsetXY", GPU_VERTEX_SHADER, offset);
 	N3D_C3D_TexBind(0, &_textureRgba5551);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 
 	offset.setX(-0.8f);
 	offset.setY(-0.2f);
 	_bitmapShader->setUniform("offsetXY", GPU_VERTEX_SHADER, offset);
 	N3D_C3D_TexBind(0, &_textureRgba4444);
-	N3D_C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
+	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 }
 
 #undef CONSTRUCT_SHADER

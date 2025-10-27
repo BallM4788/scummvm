@@ -50,16 +50,7 @@ enum RenderContextFlags : u16 {
 	kDirtyAll            = 0x0FFF  // 0b111111111111 = 4095 (4096 - 1)
 };
 
-struct dirtyFVec {
-	C3D_FVec *ptr;
-	int pos;
-	int dirtyRows;
-	dirtyFVec(C3D_FVec *vec = nullptr, int startPosition = 0, int numRows = 0) : ptr(vec), pos(startPosition), dirtyRows(numRows) {}
-};
-
-typedef Common::HashMap<Common::String, int> UniformsMap;
-typedef Common::Queue<dirtyFVec> FVecQueue;
-class ShaderObj;
+//class ShaderObj;
 
 struct N3DContext {
 	u16                dirtyFlags;
@@ -116,12 +107,12 @@ struct N3DContext {
 
 	C3D_Tex *boundTexUnits[MAX_TEX_UNITS];
 
-	ShaderObj *activeShaderObj;
+	//ShaderObj *activeShaderObj;
 
 private:
 public:
 	void applyContextState(bool forceApply = false);
-	void changeShader(ShaderObj *shaderObj);
+	//void changeShader(ShaderObj *shaderObj);
 #include "graphics/3ds/opinfo.h"
 	void init(N3DContext *source = nullptr);
 	void initOGL();
@@ -132,15 +123,27 @@ extern N3DContext *activeContext;
 // Return a pointer to the active context.
 N3DContext *getActiveContext();
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//struct dirtyFVec {
+//	C3D_FVec *ptr;
+//	int pos;
+//	int dirtyRows;
+//	dirtyFVec(C3D_FVec *vec = nullptr, int startPosition = 0, int numRows = 0) : ptr(vec), pos(startPosition), dirtyRows(numRows) {}
+//};
+
+typedef Common::HashMap<Common::String, int> UniformsMap;
+//typedef Common::Queue<dirtyFVec> FVecQueue;
+
 
 #define N3DSMACRO_SHADER_INSTANCE(shaderEnum) \
 	((shaderEnum == 0) ? (_program->vertexShader) : (_program->geometryShader))
 #define N3DSMACRO_UNIF_MAP(shaderEnum) \
 	((shaderEnum == 0) ? _vert_UniformMap : _geom_UniformMap)
-#define N3DSMACRO_UNIF_FVECS(shaderEnum) \
-	((shaderEnum == 0) ? _vert_unif_FVecs : _geom_unif_FVecs)
-#define N3DSMACRO_DIRTY_FVECS(shaderEnum) \
-	((shaderEnum == 0) ? _vert_dirtyFVecs : _geom_dirtyFVecs)
+//#define N3DSMACRO_UNIF_FVECS(shaderEnum) \
+//	((shaderEnum == 0) ? _vert_unif_FVecs : _geom_unif_FVecs)
+//#define N3DSMACRO_DIRTY_FVECS(shaderEnum) \
+//	((shaderEnum == 0) ? _vert_dirtyFVecs : _geom_dirtyFVecs)
 
 //enum SHADERINSTANCEFLAG {
 //	SI_VERTEX = 0x01,
@@ -163,7 +166,7 @@ public:
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
 			if (C > 1) {
-				if (getActiveContext()->activeShaderObj == this) {
+				//if (getActiveContext()->activeShaderObj == this) {
 					// If this is the active shader object, go ahead and send to Citro3D.
 					C3D_Mtx m;
 					Mtx_Zeros(&m);
@@ -173,7 +176,7 @@ public:
 						}
 					}
 					C3D_FVUnifMtxNx4(shaderEnum, pos, &m, C);
-				} else {
+				/*} else {
 					// Otherwise, queue this up for the next time this ShaderObj is used.
 					C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 					for (int row = 0; row < R; row++) {
@@ -182,7 +185,7 @@ public:
 						}
 					}
 					N3DSMACRO_DIRTY_FVECS(shaderEnum)->push(dirtyFVec(unifPtr, pos, C));
-				}
+				}*/
 				return true;
 			} else {
 				// Handle vector uniform values.
@@ -201,17 +204,17 @@ public:
 	bool setUniform(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, const C3D_Mtx &c3dMtx, int rows = 4) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
-			if (getActiveContext()->activeShaderObj == this) {
+			//if (getActiveContext()->activeShaderObj == this) {
 				// If this is the active shader object, go ahead and send to Citro3D.
 				C3D_FVUnifMtxNx4(shaderEnum, pos, &c3dMtx, rows);
-			} else {
+			/*} else {
 				// Otherwise, queue this up for the next time this ShaderObj is used.
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				for (int R = 0; R < rows; R++) {
 					unifPtr[R] = c3dMtx.r[R];
 				}
 				N3DSMACRO_DIRTY_FVECS(shaderEnum)->push(dirtyFVec(unifPtr, pos, rows));
-			}
+			}*/
 			return true;
 		} else {
 			return false;
@@ -222,10 +225,10 @@ public:
 	bool setUniform(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, float x, float y = 0.0f, float z = 0.0f, float w = 0.0f) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
-			if (getActiveContext()->activeShaderObj == this) {
+			//if (getActiveContext()->activeShaderObj == this) {
 				// If this is the active shader object, go ahead and send to Citro3D.
 				C3D_FVUnifSet(shaderEnum, pos, x, y, z, w);
-			} else {
+			/*} else {
 				// Otherwise, queue this up for the next time this ShaderObj is used.
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				unifPtr->x = x;
@@ -233,7 +236,7 @@ public:
 				unifPtr->z = z;
 				unifPtr->w = w;
 				N3DSMACRO_DIRTY_FVECS(shaderEnum)->push(dirtyFVec(unifPtr, pos, 1));
-			}
+			}*/
 			return true;
 		} else {
 			return false;
@@ -250,7 +253,7 @@ public:
 	bool setUniformNfv(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, float *dataPtr, int vecCount, int floatsPerVec) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
-			if (getActiveContext()->activeShaderObj == this) {
+			//if (getActiveContext()->activeShaderObj == this) {
 				// If this is the active shader object, go ahead and send to Citro3D.
 				for (int v = 0; v < vecCount; v++) {
 					float temp[4] = {0.0, 0.0, 0.0, 0.0};
@@ -259,7 +262,7 @@ public:
 					}
 					C3D_FVUnifSet(shaderEnum, pos + v, temp[0], temp[1], temp[2], temp[3]);
 				}
-			} else {
+			/*} else {
 				// Otherwise, queue this up for the next time this ShaderObj is used.
 				C3D_FVec *unifPtr = N3DSMACRO_UNIF_FVECS(shaderEnum) + pos;
 				for (int v = 0; v < vecCount; v++) {
@@ -268,7 +271,7 @@ public:
 					}
 				}
 				N3DSMACRO_DIRTY_FVECS(shaderEnum)->push(dirtyFVec(unifPtr, pos, vecCount));
-			}
+			}*/
 			return true;
 		} else {
 			return false;
@@ -291,10 +294,10 @@ public:
 	bool setUniform(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, int x, int y = 0, int z = 0, int w = 0) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
-			if (getActiveContext()->activeShaderObj == this) {
+			//if (getActiveContext()->activeShaderObj == this) {
 				// If this is the active shader object, go ahead and send to Citro3D.
 				C3D_IVUnifSet(shaderEnum, pos, x, y, z, w);
-			} else {
+			/*} else {
 				// Otherwise, save this for the next time this ShaderObj is used.
 				int *unifPtr = _unif_IVecs + (pos * 4);
 				unifPtr[0] = x;
@@ -302,7 +305,7 @@ public:
 				unifPtr[2] = z;
 				unifPtr[3] = w;
 				_dirtyIVecs[pos] = true;
-			}
+			}*/
 			return true;
 		} else {
 			return false;
@@ -313,14 +316,14 @@ public:
 	bool setUniform(const Common::String &uniformID, GPU_SHADER_TYPE shaderEnum, bool boolval) {
 		int pos = getUniformLocation(uniformID, shaderEnum);
 		if (pos != -1) {
-			if (getActiveContext()->activeShaderObj == this) {
+			//if (getActiveContext()->activeShaderObj == this) {
 				// If this is the active shader object, go ahead and send to Citro3D.
 				C3D_BoolUnifSet(shaderEnum, pos, boolval);
-			} else {
+			/*} else {
 				// Otherwise, save this for the next time this ShaderObj is used.
 				_unif_bools[2 * shaderEnum + pos] = boolval;
 				_dirtyBools[2 * shaderEnum + pos] = true;
-			}
+			}*/
 			return true;
 		} else {
 			return false;
@@ -359,7 +362,7 @@ public:
 
 	// Send queued uniforms to Citro3D. Only does something when the shaderObj is the
 	//	active ShaderObj.
-	void sendDirtyUniforms();
+//	void sendDirtyUniforms();
 
 
 	// vars
@@ -370,15 +373,19 @@ public:
 private:
 	int                 _vert_numFVecs,    _geom_numFVecs;
 	UniformsMap        *_vert_UniformMap, *_geom_UniformMap;
-	C3D_FVec           *_vert_unif_FVecs, *_geom_unif_FVecs;
-	FVecQueue          *_vert_dirtyFVecs, *_geom_dirtyFVecs;
-	int                *_unif_IVecs;
-	bool               *_unif_bools;
-	bool               *_dirtyIVecs;
-	bool               *_dirtyBools;
+//	C3D_FVec           *_vert_unif_FVecs, *_geom_unif_FVecs;
+//	FVecQueue          *_vert_dirtyFVecs, *_geom_dirtyFVecs;
+//	int                *_unif_IVecs;
+//	bool               *_unif_bools;
+//	bool               *_dirtyIVecs;
+//	bool               *_dirtyBools;
 	bool                _isClone;
 
 };
+
+extern ShaderObj *activeShaderObj;
+ShaderObj *getActiveShader();
+void changeShader(ShaderObj *shaderObj);
 
 } // end of namespace N3DS_3D
 
