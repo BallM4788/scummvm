@@ -1270,9 +1270,77 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 }
 
 void GfxN3DS::createMesh(Mesh *mesh) {
+	Common::Array<GrimVertex> meshInfo;
+	meshInfo.reserve(mesh->_numVertices * 5);
+	for (int i = 0; i < mesh->_numFaces; ++i) {
+		MeshFace *face = &mesh->_faces[i];
+		face->_userData = new uint32;
+		*(uint32 *)face->_userData = meshInfo.size();
+
+		if (face->getNumVertices() < 3)
+			continue;
+
+#define VERT(j) (&mesh->_vertices[3 * face->getVertex(j)])
+#define TEXVERT(j) (face->hasTexture() ? &mesh->_textureVerts[2 * face->getTextureVertex(j)] : zero_texVerts)
+#define NORMAL(j) (&mesh->_vertNormals[3 * face->getVertex(j)])
+
+		for (int j = 2; j < face->getNumVertices(); ++j) {
+			meshInfo.push_back(GrimVertex(VERT(0), TEXVERT(0), NORMAL(0)));
+			meshInfo.push_back(GrimVertex(VERT(j - 1), TEXVERT(j - 1), NORMAL(j - 1)));
+			meshInfo.push_back(GrimVertex(VERT(j), TEXVERT(j), NORMAL(j)));
+		}
+
+#undef VERT
+#undef TEXVERT
+#undef NORMAL
+
+	}
+
+	if (meshInfo.empty()) {
+		mesh->_userData = nullptr;
+		return;
+	}
+
+	ModelUserData *mud = new ModelUserData;
+	mesh->_userData = mud;
+
+	mud->_meshInfoVBO = custom3DS_CreateBuffer(meshInfo.size() * sizeof(GrimVertex), &meshInfo[0], 0x4);
+
+	N3DS_3D::ShaderObj *actorShader = new N3DS_3D::ShaderObj(_actorShader);
+	actorShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 3);
+	actorShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	actorShader->addAttrLoader(2 /* normal */, GPU_FLOAT, 3);
+//	actorShader->disableVertexAttribute("color", Math::Vector4d(1.f, 1.f, 1.f, 1.f));
+	actorShader->addBufInfo(mud->_meshInfoVBO, 8 * sizeof(float), 3, 0x210);
+	mud->_shader = actorShader;
+
+	actorShader = new N3DS_3D::ShaderObj(_actorLightsShader);
+	actorShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 3);
+	actorShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	actorShader->addAttrLoader(2 /* normal */, GPU_FLOAT, 3);
+//	actorShader->disableVertexAttribute("color", Math::Vector4d(1.f, 1.f, 1.f, 1.f));
+	actorShader->addBufInfo(mud->_meshInfoVBO, 8 * sizeof(float), 3, 0x210);
+	mud->_shaderLights = actorShader;
 }
 
 void GfxN3DS::destroyMesh(const Mesh *mesh) {
+	ModelUserData *mud = static_cast<ModelUserData *>(mesh->_userData);
+
+	for (int i = 0; i < mesh->_numFaces; ++i) {
+		MeshFace *face = &mesh->_faces[i];
+		if (face->_userData) {
+			uint32 *data = static_cast<uint32 *>(face->_userData);
+			delete data;
+		}
+	}
+
+	if (!mud)
+		return;
+
+	custom3DS_FreeBuffer(mud->_meshInfoVBO);
+
+	delete mud->_shader;
+	delete mud;
 }
 
 //// for each row in the defined area (starting with topmost), read row into *buffer
