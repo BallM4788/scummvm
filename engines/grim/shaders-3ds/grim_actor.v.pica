@@ -1,0 +1,222 @@
+; actor shader for Grim Fandango in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	const float CONSTANT_ATTENUATION = 1.0;
+;	const float LINEAR_ATTENUATION = 0.0;
+;	const float QUADRATIC_ATTENUATION = 1.0;
+;
+;	in vec3 position;
+;	in vec2 texcoord;
+;	in vec4 color;
+;	in vec3 normal;
+;
+;	uniform highp mat4 modelMatrix;
+;	uniform highp mat4 viewMatrix;
+;	uniform highp mat4 projMatrix;
+;	uniform highp mat4 extraMatrix;
+;	uniform UBOOL textured;
+;	uniform UBOOL lightsEnabled;
+;	uniform highp vec2 texScale;
+;
+;	struct shadow_info {
+;		UBOOL _active;
+;		vec3 _color;
+;		vec3 _light;
+;		vec3 _point;
+;		vec3 _normal;
+;	};
+;
+;	uniform shadow_info shadow;
+;
+;	out vec2 Texcoord;
+;	out vec4 Color;
+;
+;	void main() {
+;		vec4 pos = modelMatrix * extraMatrix * vec4(position, 1.0);
+;
+;		// See http://en.wikipedia.org/wiki/Line-plane_intersection
+;		if (UBOOL_TEST(shadow._active)) {
+;			pos /= pos.w;
+;			vec3 l = pos.xyz - shadow._light;
+;			float d = dot(shadow._point - shadow._light, shadow._normal) / dot(l, shadow._normal);
+;			vec3 p = shadow._light + d * l;
+;			pos = vec4(p, 1.0);
+;		}
+;
+;		vec4 positionView = viewMatrix * pos;
+;		gl_Position = projMatrix * positionView;
+;
+;		if (UBOOL_TEST(shadow._active)) {
+;			Color = vec4(shadow._color, 1.0);
+;		} else {
+;			Color = color;
+;		}
+;
+;		if (UBOOL_TEST(textured)) {
+;			Texcoord = vec2(0.0, 1.0) + (texcoord / texScale);
+;		} else {
+;			Texcoord = vec2(0.0, 0.0);
+;		}
+;	}
+
+; NOTES:
+;	- "lightsEnabled" is not actually used
+;	- Input vector "normal" is passed to the shader as part of the VBO, but isn't used here
+;	- Optimize out input vector "color"; it is always (1.0, 1.0, 1.0, 1.0)
+;	- Attenuations are not needed in this shader
+;	- Shuffle around code to reduce stalling
+
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.0)
+.alias       ZEROS	 myConst.xxxx
+.alias        ONES	 myConst.yyyy
+.alias    ZERO_ONE	 myConst.xyxy
+
+
+; Inputs
+.alias    inPos		v0		; in vec3 position
+.alias inTcoord		v1		; in vec2 texcoord
+
+
+; Uniforms
+.fvec modelMatrix[4]		; mat4 modelMatrix
+.fvec  viewMatrix[4]		; mat4  viewMatrix
+.fvec  projMatrix[4]		; mat4  projMatrix
+.fvec extraMatrix[4]		; mat4 extraMatrix
+.fvec    texScale			; vec2    texScale
+
+.fvec bool_textured			; UBOOL textured
+.alias textured		bool_textured.x
+
+.fvec shadowActive		; UBOOL shadow._active
+.fvec shadowColor		;  vec3 shadow._color
+.fvec shadowLight		;  vec3 shadow._light
+.fvec shadowPoint		;  vec3 shadow._point
+.fvec shadowNormal		;  vec3 shadow._normal
+.alias shadowOn		shadowActive.x
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outTcoord	tcoord0	; out vec2 Texcoord
+.out outColor	clr		; out vec4 Color
+
+
+; Register Aliases
+.alias TMP_0			r0
+.alias TMP_1			r1
+.alias TMP_2			r2
+.alias vec4_pos			r5		;  vec4 position
+.alias vec3_shPnt		r6.xyz	;  vec3 shadowPoint, moved to temp register
+.alias vec3_shNrm		r7.xyz	;  vec3 shadowNormal, moved to temp register
+.alias vec3_shLgt		r8.xyz	;  vec3 shadowLight, moved to temp register
+.alias dp3_NrmPos		r9.x
+.alias dp3_NrmPnt		r9.y
+.alias dp3_NrmLgt		r9.z
+.alias vec4_posView		r6		;  vec4 positionView
+
+
+; Main
+.entry main
+.proc main
+	; TMP_0 = vec4(inPos, 1.0);
+	mov TMP_0.xyz,		inPos.xyz
+	mov TMP_0.w,		ONES
+
+	; Prepare in TMP_1 for comparison operation
+	mov TMP_1.x,		shadowOn
+	mov TMP_1.y,		textured
+
+	; extraVecPos (TMP_2, vec4) = extraMatrix (mat4) * TMP_0 (vec4);
+	dp4 TMP_2.x,		extraMatrix[0],		TMP_0
+	dp4 TMP_2.y,		extraMatrix[1],		TMP_0
+	dp4 TMP_2.z,		extraMatrix[2],		TMP_0
+	dp4 TMP_2.w,		extraMatrix[3],		TMP_0
+
+	; Set cmp.x and cmp.y with "shadowOn == 1.0"
+	;	and "textured == 1.0", respectively.
+	cmp ONES,			eq, eq,				TMP_1.xy
+
+	; vec4_pos = modelMatrix (mat4) * extraVec (vec4);
+	dp4 vec4_pos.x,		modelMatrix[0],		TMP_2
+	dp4 vec4_pos.y,		modelMatrix[1],		TMP_2
+	dp4 vec4_pos.z,		modelMatrix[2],		TMP_2
+	dp4 vec4_pos.w,		modelMatrix[3],		TMP_2
+
+	; if (shadowOn)
+	ifc cmp.x
+		; The line-plane intersection implementation used in
+		;	the GLSL shader does not work here for some reason.
+		;	Best I can figure, the position vector being scaled
+		;	down to 1 somehow causes final vector positions to
+		;	to go wild.
+		; Instead, we're taking the shadow projection function
+		;	used in the OpenGL renderer and implementing its
+		;	matrix calculations through shader operations. It
+		;	-would- be simpler to just create a shadow matrix
+		;	in software and pass it to the shader, but for some
+		;	reason doing that introduces crashes in various
+		;	locations.
+		mov vec3_shNrm,		shadowNormal.xyz									; vec3_shNrm   = shadowNormal(xyz)
+		mov vec3_shPnt,		shadowPoint.xyz										; vec3_shPnt   = shadowPoint(xyz)
+		mov vec3_shLgt,		shadowLight.xyz										; vec3_shLgt   = shadowLight(xyz)
+
+		dp3 dp3_NrmPnt,		vec3_shNrm,			vec3_shPnt						; dp3(vec3_shNrm, vec3_shPnt)
+		dp3 dp3_NrmLgt,		vec3_shNrm,			vec3_shLgt						; dp3(vec3_shNrm, vec3_shLgt)
+		dp3 dp3_NrmPos,		vec3_shNrm,			vec4_pos						; dp3(vec3_shNrm, VtxPos.xyz)
+
+		add TMP_0.y,		dp3_NrmPnt,			-dp3_NrmLgt						; dp3_NrmPnt - dp3_NrmLgt
+		mad TMP_0.x,		dp3_NrmPnt,			-vec4_pos.w,		dp3_NrmPos	; dp3_NrmPos - (dp3_NrmPnt * VtxPos.w)
+		mad TMP_0.z,		dp3_NrmLgt,			-vec4_pos.w,		dp3_NrmPos	; dp3_NrmPos - (dp3_NrmLgt * VtxPos.w)
+
+		mul TMP_1.xyz,		vec3_shLgt,			TMP_0.x							; vec3_shLgt * (dp3_NrmPos - (dp3_NrmPnt * VtxPos.w))
+		mul TMP_2.xyz,		vec4_pos.xyz,		TMP_0.y							; vec4_pos.xyz * (dp3_NrmPnt - dp3_NrmLgt)
+
+		mov vec4_pos.w,		TMP_0.z
+		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz
+	.end
+
+	; positionView = viewMatrix (mat4) * vec4_pos
+	dp4 vec4_posView.x,	viewMatrix[0],		vec4_pos
+	dp4 vec4_posView.y,	viewMatrix[1],		vec4_pos
+	dp4 vec4_posView.z,	viewMatrix[2],		vec4_pos
+	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
+
+	; outPos = projMatrix * positionView;
+	; dp4 outPos.x,		projMatrix[0],		vec4_posView
+	; dp4 outPos.y,		projMatrix[1],		vec4_posView
+	; dp4 outPos.z,		projMatrix[2],		vec4_posView
+	; dp4 outPos.w,		projMatrix[3],		vec4_posView
+	dp4 r11.x,			projMatrix[0],		vec4_posView
+	dp4 r11.y,			projMatrix[1],		vec4_posView
+	dp4 r11.z,			projMatrix[2],		vec4_posView
+	dp4 r11.w,			projMatrix[3],		vec4_posView
+	rcp r12.w,			r11.w
+	mul outPos,			r11,				r12.w
+
+	; if (shadowOn)
+	ifc cmp.x
+		; outColor.rgb = shadowColor;
+		; outColor.a = 1.0;
+		mov outColor.rgb,	shadowColor.rgb
+		mov outColor.a,		ONES
+	.else
+		; outColor = (1.0, 1.0, 1.0, 1.0);
+		mov outColor,		ONES
+	.end
+
+	; if (textured)
+	ifc cmp.y
+		; outTcoord = vec2(0.0, 1.0) + (inTcoord (vec2) / texScale (vec2));
+		rcp TMP_0.x,		texScale.x
+		mov TMP_1.xy,		inTcoord.xy
+		rcp TMP_0.y,		texScale.y
+		mad outTcoord,		TMP_0.xy,			TMP_1.xy,			ZERO_ONE.xy
+	.else
+		; outTcoord = vec2(0.0, 0.0)
+		mov outTcoord,		ZEROS
+	.end
+
+	end
+.end
