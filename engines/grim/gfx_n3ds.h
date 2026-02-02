@@ -307,7 +307,7 @@ private:
 	int _screenTexWidth;
 	int _screenTexHeight;
 
-	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg;
+	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex;
 
 	C3D_Tex _previousFrame;
 	void *_screenCopySpace;

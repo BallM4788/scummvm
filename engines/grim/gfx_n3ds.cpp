@@ -60,7 +60,12 @@
 #include "engines/grim/set.h"
 #include "engines/grim/sprite.h"
 
+#include "engines/grim/shaders-3ds/emi_actor_shbin.h"
+#include "engines/grim/shaders-3ds/emi_actorLights_shbin.h"
 #include "engines/grim/shaders-3ds/emi_background_shbin.h"
+#include "engines/grim/shaders-3ds/emi_sprite_shbin.h"
+#include "engines/grim/shaders-3ds/grim_actor_shbin.h"
+#include "engines/grim/shaders-3ds/grim_actorLights_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
@@ -239,6 +244,7 @@ GfxBase *CreateGfxN3DS() {
 GfxN3DS::GfxN3DS() {
 	type = Graphics::RendererType::kRendererTypeN3DS;
 //	_smushTexId = 0;
+	_matrixStack.push(Math::Matrix4());
 	_fov = -1.0;
 	_nclip = -1;
 	_fclip = -1;
@@ -292,6 +298,23 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvOpRgb(&envText, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_ALPHA*/);
 	C3D_TexEnvOpAlpha(&envText, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA*/);
 
+	// Create texEnv for actors that are textured.
+	C3D_TexEnvInit(&envActorTex);
+	C3D_TexEnvFunc(&envActorTex, C3D_Both, GPU_MODULATE);
+	C3D_TexEnvSrc(&envActorTex, C3D_Both, GPU_TEXTURE0, GPU_PRIMARY_COLOR/*, 0*/);
+	C3D_TexEnvOpRgb(&envActorTex, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_ALPHA*/);
+	C3D_TexEnvOpAlpha(&envActorTex, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA*/);
+
+	// Create texEnv for actors that are not textured.
+	C3D_TexEnvInit(&envActorNoTex);
+	C3D_TexEnvFunc(&envActorNoTex, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvSrc(&envActorNoTex, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_CONSTANT*/);
+	C3D_TexEnvOpRgb(&envActorNoTex, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA*/);
+	C3D_TexEnvOpAlpha(&envActorNoTex, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
+
+	float div = 6.0f;
+	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
+
 	// Citro3D doesn't set the initial "size" value of C3D_Tex-es to 0, so we have to do that ourselves.
 	_smushTex.size = 0;
 }
@@ -299,11 +322,14 @@ GfxN3DS::GfxN3DS() {
 GfxN3DS::~GfxN3DS() {
 	releaseMovieFrame();
 
+	delete[] _lights;
+
 	C3D_RenderTargetDelete(_gameScreenTarget);
 
 	custom3DS_FreeBuffer(_blankVBO);
 	custom3DS_FreeBuffer(_smushVBO);
 	custom3DS_FreeBuffer(_quadEBO);
+	custom3DS_FreeBuffer(_spriteVBO);
 
 	custom3DS_FreeBuffer(_blastVBO);
 
@@ -314,8 +340,15 @@ GfxN3DS::~GfxN3DS() {
 
 	bool isEMI = g_grim->getGameType() == GType_MONKEY4;
 
+	if (isEMI) {
+	} else {
+	}
+
 	DECOMPOSE_SHADER(_background);
 
+	DECOMPOSE_SHADER(_sprite);
+	DECOMPOSE_SHADER(_actor);
+	DECOMPOSE_SHADER(_actorLights);
 	DECOMPOSE_SHADER(_smush);
 	DECOMPOSE_SHADER(_text);
 
@@ -370,6 +403,28 @@ void GfxN3DS::setupTexturedQuad() {
 }
 
 void GfxN3DS::setupTexturedCenteredQuad() {
+	float sprite_textured_quad[] = {
+	//	 X   ,  Y   , Z   , S   , T
+		-0.5f, +0.5f, 0.0f, 0, 0,
+		+0.5f, +0.5f, 0.0f, 0, 0,
+		+0.5f, -0.5f, 0.0f, 0, 0,
+		-0.5f, -0.5f, 0.0f, 0, 0,
+	};
+
+	_spriteVBO = custom3DS_CreateBuffer(sizeof(float) * 20, sprite_textured_quad, 0x4);
+	_spriteShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 3);
+	_spriteShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	// Fixed vertex attribute for color. Due to how 3DS and citro3D work, and because
+	//	we're using more than one shader (the backend shader plus our engine shaders),
+	//	the values for the fixed attribute must be specified at render time.
+	// NOTE: Each fixed vertex attribute consists of four float components, and a single
+	//	shader can have no more than 12 vertex attributes total (fixed and non-fixed).
+	// TODO: For MONKEY4, store vertex colors in their own buffer to make this attribute
+	//	non-fixed.
+	_spriteShader->addFixedAttrLoader(2);
+	// Fixed attributes don't contribute to the buffer stride, and are not taken into
+	//	account for the buffer permutation.
+	_spriteShader->addBufInfo(_spriteVBO, 5 * sizeof(float), 2, 0x10);
 }
 
 void GfxN3DS::setupPrimitives() {
@@ -392,8 +447,14 @@ void GfxN3DS::setupShaders() {
 
 	if (!isEMI) {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
+		CONSTRUCT_SHADER(_actor, grim_actor, 0);
+		CONSTRUCT_SHADER(_actorLights, grim_actorLights, 0);
+		CONSTRUCT_SHADER(_sprite, grim_actor, 0);
 	} else {
 		CONSTRUCT_SHADER(_background, emi_background, 0);
+		CONSTRUCT_SHADER(_actor, emi_actor, 0);
+		CONSTRUCT_SHADER(_actorLights, emi_actorLights, 0);
+		CONSTRUCT_SHADER(_sprite, emi_sprite, 0);
 	}
 
 	setupQuadEBO();
@@ -441,12 +502,51 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 }
 
 void GfxN3DS::setupCameraFrustum(float fov, float nclip, float fclip) {
+	if (_fov == fov && _nclip == nclip && _fclip == fclip)
+		return;
+
+	_fov = fov; _nclip = nclip; _fclip = fclip;
+
+	float right = nclip * tan(fov / 2 * ((float)M_PI / 180));
+	float top = right * 0.75;
+
+	_projMatrix = makeFrustumMatrix(-right, right, -top, top, nclip, fclip);
 }
 
 void GfxN3DS::positionCamera(const Math::Vector3d &pos, const Math::Vector3d &interest, float roll) {
+	Math::Matrix4 viewMatrix = makeRotationMatrix(Math::Angle(roll), Math::Vector3d(0, 0, 1));
+	Math::Vector3d up_vec(0, 0, 1);
+
+	if (pos.x() == interest.x() && pos.y() == interest.y())
+		up_vec = Math::Vector3d(0, 1, 0);
+
+	Math::Matrix4 lookMatrix = makeLookMatrix(pos, interest, up_vec);
+
+	_viewMatrix = viewMatrix * lookMatrix;
+	_viewMatrix.transpose();
 }
 
 void GfxN3DS::positionCamera(const Math::Vector3d &pos, const Math::Matrix4 &rot) {
+	Math::Matrix4 projMatrix = _projMatrix;
+	projMatrix.transpose();
+
+	_currentPos = pos;
+	_currentRot = rot;
+
+	Math::Matrix4 invertZ;
+	invertZ(2, 2) = -1.0f;
+
+	Math::Matrix4 viewMatrix = _currentRot;
+	viewMatrix.transpose();
+
+	Math::Matrix4 camPos;
+	camPos(0, 3) = -_currentPos.x();
+	camPos(1, 3) = -_currentPos.y();
+	camPos(2, 3) = -_currentPos.z();
+
+	_viewMatrix = invertZ * viewMatrix * camPos;
+	_mvpMatrix = projMatrix * _viewMatrix;
+	_viewMatrix.transpose();
 }
 
 
@@ -576,58 +676,451 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 }
 
 void GfxN3DS::getScreenBoundingBox(const Mesh *model, int *x1, int *y1, int *x2, int *y2) {
+	if (_currentShadowArray) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	Math::Matrix4 modelMatrix = _currentActor->getFinalMatrix();
+	Math::Matrix4 mvpMatrix = _mvpMatrix * modelMatrix;
+
+	double top = 1000;
+	double right = -1000;
+	double left = 1000;
+	double bottom = -1000;
+
+	Math::Vector3d obj;
+	float *pVertices = nullptr;
+
+	for (int i = 0; i < model->_numFaces; i++) {
+		for (int j = 0; j < model->_faces[i].getNumVertices(); j++) {
+			pVertices = model->_vertices + 3 * model->_faces[i].getVertex(j);
+
+			obj.set(*(pVertices), *(pVertices + 1), *(pVertices + 2));
+
+			Math::Vector4d v = Math::Vector4d(obj.x(), obj.y(), obj.z(), 1.0f);
+			v = mvpMatrix * v;
+			v /= v.w();
+
+			double winX = (1 + v.x()) / 2.0f * _gameWidth;
+			double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+			if (winX > right)
+				right = winX;
+			if (winX < left)
+				left = winX;
+			if (winY < top)
+				top = winY;
+			if (winY > bottom)
+				bottom = winY;
+		}
+	}
+
+	double t = bottom;
+	bottom = _gameHeight - top;
+	top = _gameHeight - t;
+
+	if (left < 0)
+		left = 0;
+	if (right >= _gameWidth)
+		right = _gameWidth - 1;
+	if (top < 0)
+		top = 0;
+	if (bottom >= _gameHeight)
+		bottom = _gameHeight - 1;
+
+	if (top >= _gameHeight || left >= _gameWidth || bottom < 0 || right < 0) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	*x1 = (int)left;
+	*y1 = (int)(_gameHeight - bottom);
+	*x2 = (int)right;
+	*y2 = (int)(_gameHeight - top);
 }
 
 void GfxN3DS::getScreenBoundingBox(const EMIModel *model, int *x1, int *y1, int *x2, int *y2) {
+	if (_currentShadowArray) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	Math::Matrix4 modelMatrix = _currentActor->getFinalMatrix();
+	Math::Matrix4 mvpMatrix = _mvpMatrix * modelMatrix;
+
+	double top = 1000;
+	double right = -1000;
+	double left = 1000;
+	double bottom = -1000;
+
+	for (uint i = 0; i < model->_numFaces; i++) {
+		uint16 *indices = (uint16 *)model->_faces[i]._indexes;
+
+		for (uint j = 0; j < model->_faces[i]._faceLength * 3; j++) {
+			uint16 index = indices[j];
+			const Math::Vector3d &dv = model->_drawVertices[index];
+
+			Math::Vector4d v = Math::Vector4d(dv.x(), dv.y(), dv.z(), 1.0f);
+			v = mvpMatrix * v;
+			v /= v.w();
+
+			double winX = (1 + v.x()) / 2.0f * _gameWidth;
+			double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+			if (winX > right)
+				right = winX;
+			if (winX < left)
+				left = winX;
+			if (winY < top)
+				top = winY;
+			if (winY > bottom)
+				bottom = winY;
+		}
+	}
+
+	double t = bottom;
+	bottom = _gameHeight - top;
+	top = _gameHeight - t;
+
+	if (left < 0)
+		left = 0;
+	if (right >= _gameWidth)
+		right = _gameWidth - 1;
+	if (top < 0)
+		top = 0;
+	if (bottom >= _gameHeight)
+		bottom = _gameHeight - 1;
+
+	if (top >= _gameHeight || left >= _gameWidth || bottom < 0 || right < 0) {
+		*x1 = -1;
+		*y1 = -1;
+		*x2 = -1;
+		*y2 = -1;
+		return;
+	}
+
+	*x1 = (int)left;
+	*y1 = (int)(_gameHeight - bottom);
+	*x2 = (int)right;
+	*y2 = (int)(_gameHeight - top);
 }
 
 void GfxN3DS::getActorScreenBBox(const Actor *actor, Common::Point &p1, Common::Point &p2) {
+	// Get the actor's bounding box information (describes a 3D box)
+	Math::Vector3d bboxPos, bboxSize;
+	actor->getBBoxInfo(bboxPos, bboxSize);
+
+	// Translate the bounding box to the actor's position
+	Math::Matrix4 m = actor->getFinalMatrix();
+	bboxPos = bboxPos + actor->getWorldPos();
+
+	// Set up the camera coordinate system
+	Math::Matrix4 modelView = _currentRot;
+	Math::Matrix4 zScale;
+	zScale.setValue(2, 2, -1.0);
+	modelView = modelView * zScale;
+	modelView.transpose();
+	modelView.translate(-_currentPos);
+	modelView.transpose();
+
+	// Set values outside of the screen range
+	p1.x = 1000;
+	p1.y = 1000;
+	p2.x = -1000;
+	p2.y = -1000;
+
+	// Project all of the points in the 3D bounding box
+	Math::Vector3d p, projected;
+	for (int x = 0; x < 2; x++) {
+		for (int y = 0; y < 2; y++) {
+			for (int z = 0; z < 2; z++) {
+				Math::Vector3d added(bboxSize.x() * 0.5f * (x * 2 - 1), bboxSize.y() * 0.5f * (y * 2 - 1), bboxSize.z() * 0.5f * (z * 2 - 1));
+				m.transform(&added, false);
+				p = bboxPos + added;
+
+				Math::Vector4d v = Math::Vector4d(p.x(), p.y(), p.z(), 1.0f);
+				v = _projMatrix.transform(modelView.transform(v));
+				if (v.w() == 0.0)
+					return;
+				v /= v.w();
+
+				double winX = (1 + v.x()) / 2.0f * _gameWidth;
+				double winY = (1 + v.y()) / 2.0f * _gameHeight;
+
+				// Find the points
+				if (winX < p1.x)
+					p1.x = winX;
+				if (winY < p1.y)
+					p1.y = winY;
+				if (winX > p2.x)
+					p2.x = winX;
+				if (winY > p2.y)
+					p2.y = winY;
+			}
+		}
+	}
+
+	// Swap the p1/p2 y coorindates
+	int16 tmp = p1.y;
+	p1.y = 480 - p2.y;
+	p2.y = 480 - tmp;
 }
 
 void GfxN3DS::startActorDraw(const Actor *actor) {
+	_currentActor = actor;
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);											// NOT NEEDED?
+
+	const Math::Vector3d &pos = actor->getWorldPos();
+	const Math::Quaternion &quat = actor->getRotationQuat();
+	//const float scale = actor->getScale();
+
+	Math::Matrix4 viewMatrix = _viewMatrix;
+	viewMatrix.transpose();
+
+	N3DS_3D::ShaderObj *shaders[] = { _spriteShader, _actorShader, _actorLightsShader };
+
+	if (g_grim->getGameType() == GType_MONKEY4) {
+		glTo3DS_Enable(ENUM3DS_CAP_CULL_FACE);
+		glTo3DS_FrontFace(ENUM3DS_FRONTFACE_CW);
+
+		if (actor->isInOverworld())
+			viewMatrix = Math::Matrix4();
+
+		Math::Vector4d color(1.0f, 1.0f, 1.0f, actor->getEffectiveAlpha());
+
+		const Math::Matrix4 &viewRot = _currentRot;
+		Math::Matrix4 modelMatrix = actor->getFinalMatrix();
+
+		Math::Matrix4 normalMatrix = viewMatrix * modelMatrix;
+		normalMatrix.invertAffineOrthonormal();
+		modelMatrix.transpose();
+
+		for (int i = 0; i < 3; i++) {
+			// We don't have to set shaders as active to set their uniforms.
+			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);
+			if (actor->isInOverworld()) {
+				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewMatrix);
+				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _overworldProjMatrix);
+				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, Math::Vector3d(0,0,0));
+			} else {
+				shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, viewRot);
+				shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);
+				shaders[i]->setUniform("cameraPos", GPU_VERTEX_SHADER, _currentPos);
+			}
+			shaders[i]->setUniform("normalMatrix", GPU_VERTEX_SHADER, normalMatrix);
+
+//			shaders[i]->setUniform("useVertexAlpha", GL_FALSE);
+//			shaders[i]->setUniform("uniformColor", color);
+//			shaders[i]->setUniform1f("alphaRef", 0.0f);			// glAlphaFunc "ref" EQUIVALENT (IMPLEMENTED THIS ANOTHER WAY)
+//			shaders[i]->setUniform1f("meshAlpha", 1.0f);		// FRAGMENT SHADER UNIFORM
+		}
+	} else {
+		Math::Matrix4 modelMatrix = quat.toMatrix();
+//		bool hasZBuffer = g_grim->getCurrSet()->getCurrSetup()->_bkgndZBm;
+		Math::Matrix4 extraMatrix;
+		_matrixStack.top() = extraMatrix;
+
+		modelMatrix.transpose();
+		modelMatrix.setPosition(pos);
+		modelMatrix.transpose();
+
+		for (int i = 0; i < 3; i++) {
+			// We don't have to set shaders as active to set their uniforms.
+			shaders[i]->setUniform("modelMatrix", GPU_VERTEX_SHADER, modelMatrix);
+			shaders[i]->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);
+			shaders[i]->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);
+			shaders[i]->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);
+//			shaders[i]->setUniform("tex", 0);													// fragshader only - SAMPLES MODEL TEX            (WE DON'T NEED THIS)
+//			shaders[i]->setUniform("texZBuf", 1);												// fragshader only - SAMPLES ZBUF TEX             (WE DON'T NEED THIS)
+//			shaders[i]->setUniform("hasZBuffer", hasZBuffer);									// fragshader only - WHETHER TO RUN checkZBuffer  (WE DON'T NEED THIS)
+//			shaders[i]->setUniform("texcropZBuf", _zBufTexCrop);								// fragshader only - CROPS ZBUF TEX FOR SAMPLING  (WE DON'T NEED THIS)
+//			shaders[i]->setUniform("screenSize", Math::Vector2d(_screenWidth, _screenHeight));	// fragshader only - USED IN checkZBuffer         (WE DON'T NEED THIS)
+//			shaders[i]->setUniform1f("alphaRef", 0.5f);											// fragshader only - glAlphaFunc "ref" EQUIVALENT (IMPLEMENT ANOTHER WAY)
+		}
+	}
+
+	if (_currentShadowArray) {
+		const Sector *shadowSector = _currentShadowArray->planeList.front().sector;
+		Math::Vector3d color;
+		if (g_grim->getGameType() == GType_GRIM) {
+			color = Math::Vector3d(_shadowColorR, _shadowColorG, _shadowColorB) / 255.f;
+		} else {
+			color = Math::Vector3d(_currentShadowArray->color.getRed(), _currentShadowArray->color.getGreen(), _currentShadowArray->color.getBlue()) / 255.f;	// CONVERTED FROM UNSIGNED BYTE TO FLOAT
+		}
+		Math::Vector3d normal = shadowSector->getNormal();
+		if (!_currentShadowArray->dontNegate)
+			normal = -normal;
+
+		for (int i = 0; i < 3; i++) {
+			// We don't have to set shaders as active to set their uniforms.
+			// avoid using bools
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 1.0f);
+			shaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);
+			shaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);			// shadowProjection, PARAM 1   OF 4
+			shaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);	// shadowProjection, PARAM 2   OF 4
+			shaders[i]->setUniform("shadowNormal", GPU_VERTEX_SHADER, normal);							// shadowProjection, PARAM 3+4 OF 4
+		}
+
+		glTo3DS_DepthMask(false);
+		glTo3DS_Disable(ENUM3DS_CAP_BLEND);
+		glTo3DS_Enable(ENUM3DS_CAP_POLYGON_OFFSET);
+	}
+	else {
+		for (int i = 0; i < 3; i++) {
+			// We don't have to set shaders as active to set their uniforms.
+			// avoid using bools
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 0.0f);
+		}
+	}
+
+	_actorLightsShader->setUniform("hasAmbient", GPU_VERTEX_SHADER, _hasAmbientLight);
+	if (_lightsEnabled) {
+		// Allocate all variables in one chunk
+		static const unsigned int numUniforms = 4;
+		static const unsigned int uniformSize = _maxLights * 4;
+		float *lightsData = new float[numUniforms * uniformSize];
+		for (int i = 0; i < _maxLights; ++i) {
+			const LightObj &l = _lights[i];
+
+			// lightsPos
+			Math::Vector4d tmp = viewMatrix * l._position;
+
+			lightsData[0 * uniformSize + 4 * i + 0] = tmp.x();
+			lightsData[0 * uniformSize + 4 * i + 1] = tmp.y();
+			lightsData[0 * uniformSize + 4 * i + 2] = tmp.z();
+			lightsData[0 * uniformSize + 4 * i + 3] = tmp.w();
+
+			// lightsDir
+			Math::Vector4d direction = l._direction;
+			direction.w() = 0.0;
+			viewMatrix.transformVector(&direction);
+			direction.w() = l._direction.w();
+
+			lightsData[1 * uniformSize + 4 * i + 0] = direction.x();
+			lightsData[1 * uniformSize + 4 * i + 1] = direction.y();
+			lightsData[1 * uniformSize + 4 * i + 2] = direction.z();
+			lightsData[1 * uniformSize + 4 * i + 3] = direction.w();
+
+			// lightsClr
+			lightsData[2 * uniformSize + 4 * i + 0] = l._color.x();
+			lightsData[2 * uniformSize + 4 * i + 1] = l._color.y();
+			lightsData[2 * uniformSize + 4 * i + 2] = l._color.z();
+			lightsData[2 * uniformSize + 4 * i + 3] = l._color.w();
+
+			// lightsPar
+			lightsData[3 * uniformSize + 4 * i + 0] = l._params.x();
+			lightsData[3 * uniformSize + 4 * i + 1] = l._params.y();
+			lightsData[3 * uniformSize + 4 * i + 2] = l._params.z();
+			lightsData[3 * uniformSize + 4 * i + 3] = l._params.w();
+		}
+
+		if (!(_actorLightsShader->setUniform4fv("lightsPos", GPU_VERTEX_SHADER, &lightsData[0 * uniformSize], _maxLights))) {
+			error("No uniform named 'lightsPos'");
+		}
+
+		if (!(_actorLightsShader->setUniform4fv("lightsDir", GPU_VERTEX_SHADER, &lightsData[1 * uniformSize], _maxLights))) {
+			error("No uniform named 'lightsDir'");
+		}
+
+		if (!(_actorLightsShader->setUniform4fv("lightsClr", GPU_VERTEX_SHADER, &lightsData[2 * uniformSize], _maxLights))) {
+			error("No uniform named 'lightsClr'");
+		}
+
+		if (!(_actorLightsShader->setUniform4fv("lightsPar", GPU_VERTEX_SHADER, &lightsData[3 * uniformSize], _maxLights))) {
+			error("No uniform named 'lightsPar'");
+		}
+
+		delete[] lightsData;
+	}
 }
 
 void GfxN3DS::finishActorDraw() {
+	_currentActor = nullptr;
+	glTo3DS_Disable(ENUM3DS_CAP_POLYGON_OFFSET);
+	if (g_grim->getGameType() == GType_MONKEY4) {
+		glTo3DS_Disable(ENUM3DS_CAP_CULL_FACE);
+	}
 }
 
 void GfxN3DS::setShadow(Shadow *shadow) {
+	_currentShadowArray = shadow;
 }
 
 void GfxN3DS::drawShadowPlanes() {
 }
 
 void GfxN3DS::setShadowMode() {
+	GfxBase::setShadowMode();
 }
 
 void GfxN3DS::clearShadowMode() {
+	GfxBase::clearShadowMode();
+
+	glTo3DS_Disable(ENUM3DS_CAP_STENCIL_TEST);
+	glTo3DS_DepthMask(true);
 }
 
 void GfxN3DS::setShadowColor(byte r, byte g, byte b) {
+	_shadowColorR = r;
+	_shadowColorG = g;
+	_shadowColorB = b;
 }
 
 void GfxN3DS::getShadowColor(byte *r, byte *g, byte *b) {
+	*r = _shadowColorR;
+	*g = _shadowColorG;
+	*b = _shadowColorB;
 }
 
 void GfxN3DS::destroyShadow(Shadow *shadow) {
+	ShadowUserData *sud = static_cast<ShadowUserData *>(shadow->userData);
+	if (sud) {
+		custom3DS_FreeBuffer(sud->_verticesVBO);
+		custom3DS_FreeBuffer(sud->_indicesVBO);
+		sud->_verticesVBO = nullptr;
+		sud->_indicesVBO = nullptr;
+		delete sud;
+	}
+
+	shadow->userData = nullptr;
 }
 
 void GfxN3DS::set3DMode() {
-	debug("set3DMode");
 }
 
 void GfxN3DS::translateViewpointStart() {
+	_matrixStack.push(_matrixStack.top());
 }
 
 void GfxN3DS::translateViewpoint(const Math::Vector3d &vec) {
+	Math::Matrix4 temp;
+	temp.setPosition(vec);
+	temp.transpose();
+	_matrixStack.top() = temp * _matrixStack.top();
 }
 
 void GfxN3DS::rotateViewpoint(const Math::Angle &angle, const Math::Vector3d &axis_) {
+	Math::Matrix4 temp = makeRotationMatrix(angle, axis_) * _matrixStack.top();
+	_matrixStack.top() = temp;
 }
 
 void GfxN3DS::rotateViewpoint(const Math::Matrix4 &rot) {
+	Math::Matrix4 temp = rot * _matrixStack.top();
+	_matrixStack.top() = temp;
 }
 
 void GfxN3DS::translateViewpointFinish() {
+	_matrixStack.pop();
 }
 
 void GfxN3DS::updateEMIModel(const EMIModel* model) {
@@ -637,6 +1130,48 @@ void GfxN3DS::drawEMIModelFace(const EMIModel* model, const EMIMeshFace* face) {
 }
 
 void GfxN3DS::drawMesh(const Mesh *mesh) {
+	glTo3DS_AlphaFunc(GPU_GREATER, 128);																								// ADDED from "gfx_opengl.cpp"	128 = 0.5f converted to 0-255 int
+	glTo3DS_Enable(ENUM3DS_CAP_ALPHA_TEST);																										// ADDED from "gfx_opengl.cpp"
+
+	const ModelUserData *mud = (const ModelUserData *)mesh->_userData;
+	if (!mud)
+		return;
+	N3DS_3D::ShaderObj *actorShader;
+	if (_lightsEnabled && !isShadowModeActive())
+		actorShader = mud->_shaderLights;
+	else
+		actorShader = mud->_shader;
+
+	N3DS_3D::changeShader(actorShader);
+	actorShader->setUniform("extraMatrix", GPU_VERTEX_SHADER, _matrixStack.top());
+
+	drawStart(0, 0, 0, 640, 480);
+	const Material *curMaterial = nullptr;
+	for (int i = 0; i < mesh->_numFaces;) {
+		const MeshFace *face = &mesh->_faces[i];
+
+		curMaterial = face->getMaterial();
+		curMaterial->select();
+
+		int faces = 0;
+		for (; i < mesh->_numFaces; ++i) {
+			if (mesh->_faces[i].getMaterial() != curMaterial)
+				break;
+			faces += 3 * (mesh->_faces[i].getNumVertices() - 2);
+		}
+
+		bool textured = face->hasTexture() && !_currentShadowArray;
+		// avoid using bools
+		actorShader->setUniform("bool_textured", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);
+		actorShader->setUniform("texScale", GPU_VERTEX_SHADER, Math::Vector2d(_selectedTexture->_width, _selectedTexture->_height));
+
+		C3D_SetTexEnv(0, textured ? &envActorTex : &envActorNoTex);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawArrays(GPU_TRIANGLES, *(int *)face->_userData, faces);
+		C3D_FrameSplit(0);
+	}
+	drawEnd(0);
+	glTo3DS_Disable(ENUM3DS_CAP_ALPHA_TEST);
 }
 
 void GfxN3DS::drawDimPlane() {
@@ -649,25 +1184,156 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 }
 
 void GfxN3DS::enableLights() {
+	_lightsEnabled = true;
 }
 
 void GfxN3DS::disableLights() {
+	_lightsEnabled = false;
 }
 
 void GfxN3DS::setupLight(Grim::Light *light, int lightId) {
+	_lightsEnabled = true;
+
+	if (lightId >= _maxLights) {
+		return;
+	}
+
+	// Disable previous lights.
+	if (lightId == 0) {
+		_hasAmbientLight = false;
+		for (int id = 0; id < _maxLights; ++id)
+			_lights[id]._color.w() = 0.0;
+	}
+
+	Math::Vector4d &lightColor  = _lights[lightId]._color;
+	Math::Vector4d &lightPos    = _lights[lightId]._position;
+	Math::Vector4d &lightDir    = _lights[lightId]._direction;
+	Math::Vector4d &lightParams = _lights[lightId]._params;
+
+	lightColor.x() = (float)light->_color.getRed();
+	lightColor.y() = (float)light->_color.getGreen();
+	lightColor.z() = (float)light->_color.getBlue();
+	lightColor.w() = light->_scaledintensity;
+
+	if (light->_type == Grim::Light::Omni) {
+		lightPos = Math::Vector4d(light->_pos.x(), light->_pos.y(), light->_pos.z(), 1.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		lightParams = Math::Vector4d(light->_falloffNear, light->_falloffFar, 0.0f, 0.0f);
+	} else if (light->_type == Grim::Light::Direct) {
+		lightPos = Math::Vector4d(-light->_dir.x(), -light->_dir.y(), -light->_dir.z(), 0.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+	} else if (light->_type == Grim::Light::Spot) {
+		lightPos = Math::Vector4d(light->_pos.x(), light->_pos.y(), light->_pos.z(), 1.0f);
+		lightDir = Math::Vector4d(light->_dir.x(), light->_dir.y(), light->_dir.z(), 1.0f);
+		lightParams = Math::Vector4d(light->_falloffNear, light->_falloffFar, light->_cospenumbraangle, light->_cosumbraangle);
+	} else if (light->_type == Grim::Light::Ambient) {
+		lightPos = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		lightDir = Math::Vector4d(0.0f, 0.0f, 0.0f, -1.0f);
+		_hasAmbientLight = true;
+	}
 }
 
 void GfxN3DS::turnOffLight(int lightId) {
+	if (lightId >= _maxLights) {
+		return;
+	}
+
+	_lights[lightId]._color = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
+	_lights[lightId]._position = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
+	_lights[lightId]._direction = Math::Vector4d(0.0f, 0.0f, 0.0f, 0.0f);
 }
 
 
 void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cmap, bool clamp) {
+	texture->_texture = new C3D_Tex[1];
+
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+	// We don't need to bind textures to set their properties.
+
+	// C3D_TexInit resets texture wrap+filter settings, so
+	//	we're forced to do that after texture initialization.
+
+	if (cmap != nullptr) { // EMI doesn't have colour-maps
+		int bytes = 4;
+
+		char *texdata = new char[texture->_width * texture->_height * bytes];
+		char *texdatapos = texdata;
+
+		for (int y = 0; y < texture->_height; y++) {
+			for (int x = 0; x < texture->_width; x++) {
+				uint8 col = *(const uint8 *)(data);
+				if (col == 0) {
+					memset(texdatapos, 0, bytes); // transparent
+					if (!texture->_hasAlpha) {
+						texdatapos[3] = '\xff'; // fully opaque
+					}
+				} else {
+					memcpy(texdatapos, cmap->_colors + 3 * (col), 3);
+					texdatapos[3] = '\xff'; // fully opaque
+				}
+				texdatapos += bytes;
+				data++;
+			}
+		}
+
+//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texture->_width, texture->_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texdata);
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);
+		//GSPGPU_FlushDataCache((void *)texdata, texture->_width * texture->_height * bytes);
+		//// GX_TRANSFER_FMT_RGBA8 is already 0
+		//// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+		//C3D_SyncDisplayTransfer((u32 *)texdata,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),
+		//                            (u32 *)textures[0].data, (u32)GX_BUFFER_DIM(texture->_width, texture->_height), 3);
+		custom3DS_DataToBlockTex((u32 *)texdata, (u32 *)textures[0].data, 0, 0,
+		                         texture->_width, texture->_height, texture->_width, texture->_height, GPU_RGBA8);
+		delete[] texdata;
+	} else {
+//		GLint format = (texture->_bpp == 4) ? GL_RGBA : GL_RGB;
+//		glTexImage2D(GL_TEXTURE_2D, 0, format, texture->_width, texture->_height, 0, format, GL_UNSIGNED_BYTE, data);
+		GPU_TEXCOLOR format;
+		GX_TRANSFER_FORMAT transFmt;
+		if (texture->_bpp == 4) {
+			format = GPU_RGBA8;
+			transFmt = GX_TRANSFER_FMT_RGBA8;
+		} else {
+			format = GPU_RGB8;
+			transFmt = GX_TRANSFER_FMT_RGB8;
+		}
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);
+		// DOES THE BELOW EVEN WORK?!?!?!?!?!?!?!??!?!?!?!?!??!?!?!?!!!!!!!!!!!!!!?!?!?!?!?!?!?!??!?!?!?!?!?!?!??!?!?!?!?!?!??!?!?!?!?!??!?!?!?!?!?!?!
+		GSPGPU_FlushDataCache(static_cast<const void *>(data), texture->_width * texture->_height * texture->_bpp);
+		// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+		C3D_SyncDisplayTransfer((u32 *)const_cast<uint8 *>(data), (u32)GX_BUFFER_DIM(texture->_width, texture->_height),
+		                        (u32 *)textures[0].data,          (u32)GX_BUFFER_DIM(texture->_width, texture->_height),
+		                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt) | 3);
+	}
+
+	// Remove darkened lines in EMI intro
+	if (g_grim->getGameType() == GType_MONKEY4 && clamp) {
+		C3D_TexSetWrap(textures, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+	} else {
+		C3D_TexSetWrap(textures, GPU_REPEAT, GPU_REPEAT);
+	}
+
+	C3D_TexSetFilter(textures, GPU_LINEAR, GPU_LINEAR);
 }
 
 void GfxN3DS::selectTexture(const Texture *texture) {
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+	glTo3DS_BindTexture(0, textures);
+
+	if (texture->_hasAlpha && g_grim->getGameType() == GType_MONKEY4) {
+		glTo3DS_Enable(ENUM3DS_CAP_BLEND);
+	}
+
+	_selectedTexture = const_cast<Texture *>(texture);
 }
 
 void GfxN3DS::destroyTexture(Texture *texture) {
+	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
+	if (textures) {
+		C3D_TexDelete(textures);
+		delete[] textures;
+	}
 }
 
 void GfxN3DS::createBitmap(BitmapData *bitmap) {
