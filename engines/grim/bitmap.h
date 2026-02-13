@@ -40,6 +40,12 @@ class SeekableReadStream;
 
 namespace Grim {
 
+enum BitmapDraw {
+	BITMAPDRAW_BM = 1,
+	BITMAPDRAW_ZBM = 2,
+	BITMAPDRAW_BOTH = 3
+};
+
 /**
  * This BitmapData class keeps the actual bitmap data and can be shared
  * between Bitmap instances, by using getBitmapData.
