@@ -891,10 +891,10 @@ void Set::drawBackground() const {
 	}
 }
 
-void Set::drawBitmaps(ObjectState::Position stage) {
+void Set::drawBitmaps(ObjectState::Position stage, BitmapDraw whatToDraw) {
 	for (StateList::iterator i = _states.reverse_begin(); i != _states.end(); --i) {
 		if ((*i)->getPos() == stage && _currSetup == _setups + (*i)->getSetupID())
-			(*i)->draw();
+			(*i)->draw(whatToDraw);
 	}
 }
 
