@@ -63,7 +63,7 @@ public:
 
 	static Bitmap::Ptr loadBackground(const char *fileName);
 	void drawBackground() const;
-	void drawBitmaps(ObjectState::Position stage);
+	void drawBitmaps(ObjectState::Position stage, BitmapDraw whatToDraw = BITMAPDRAW_BOTH);
 	void setupCamera();
 
 	void setupLights(const Math::Vector3d &pos, bool inOverworld);

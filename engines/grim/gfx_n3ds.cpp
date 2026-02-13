@@ -892,6 +892,9 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 	custom3DS_DataToBlockTex((u32 *)data,     0, 0, w, h,
 	                         (u32 *)_zBuffer, x, y, nextHigher2(_gameWidth), nextHigher2(_gameHeight),
 	                         w, h, GPU_RGBA8, false);
+}
+
+void GfxN3DS::sendBitmapDepthVals() {
 	// DMA into _gameScreenTarget's depth buffer, replacing its data with _zBuffer's data.
 	GSPGPU_FlushDataCache(_zBuffer, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
 	GX_RequestDma((u32 *)_zBuffer, (u32 *)_gameScreenTarget->frameBuf.depthBuf, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);

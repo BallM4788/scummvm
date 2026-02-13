@@ -173,6 +173,12 @@ public:
 	virtual void drawBitmap(const Bitmap *bitmap, int x, int y, uint32 layer = 0) = 0;
 
 	/**
+	 * Send depth values from zbm bitmaps to the appropriate location, if needed.
+	 * Required for 3DS renderer.
+	 */
+	virtual void sendBitmapDepthVals() { }
+
+	/**
 	 * Deletes any internal references and representations of a bitmap
 	 * after this is called, it is safe to dispose of or change the external
 	 * bitmapdata.
