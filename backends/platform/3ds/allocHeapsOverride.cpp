@@ -58,9 +58,13 @@ extern "C" void __system_allocateHeaps(void) {
 
 	__ctru_heap_size = 0;
 	// New 3DS needs more linear memory than Old 3DS to boot up ScummVM; app instantly crashes otherwise.
-	// 0x00A00000 bytes = 10 MiB, for Old 3DS
-	// 0x01400000 bytes = 20 MiB, for New 3DS
-	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x00A00000 : 0x01400000;
+	// 0x00A00000 bytes (10 MiB) needed for Old 3DS to boot.
+	// 0x01400000 bytes (20 MiB) needed for New 3DS to boot.
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	// Grim Fandango runs out of memory with only 20 MiB of linear memory.
+	// Increase to 56 MiB for both 3DS versions, this seems to be enough for now.
+	// TODO: Figure out minimum linear memory needed for Grim Fandango to run comfortably.
+	__ctru_linear_heap_size = APPMEMTYPE < 6 ? 0x03800000 : 0x03800000;
 	__ctru_heap_size = remaining - __ctru_linear_heap_size;
 
 	// Allocate the application heap
