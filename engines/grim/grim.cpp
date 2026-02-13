@@ -997,6 +997,12 @@ void GrimEngine::drawNormalMode() {
 		p->draw();
 	}
 
+#if defined(__3DS__)
+	// To reduce DMA frequency, write all zbm bitmaps to _zBuffer before sending it to VRAM.
+	_currSet->drawBitmaps(ObjectState::OBJSTATE_OVERLAY, BITMAPDRAW_ZBM);
+	g_driver->sendBitmapDepthVals();
+#endif
+
 	_currSet->setupCamera();
 
 	g_driver->set3DMode();
@@ -1018,7 +1024,12 @@ void GrimEngine::drawNormalMode() {
 	// Draw overlying scene components
 	// The overlay objects should be drawn on top of everything else,
 	// including 3D objects such as Manny and the message tube
+#if defined(__3DS__)
+	// We already did the zbms of overlay objects, now do their bms.
+	_currSet->drawBitmaps(ObjectState::OBJSTATE_OVERLAY, BITMAPDRAW_BM);
+#else
 	_currSet->drawBitmaps(ObjectState::OBJSTATE_OVERLAY);
+#endif
 }
 
 void GrimEngine::doFlip() {

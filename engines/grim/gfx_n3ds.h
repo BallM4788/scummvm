@@ -128,6 +128,13 @@ public:
 	void drawBitmap(const Bitmap *bitmap, int x, int y, uint32 layer = 0) override;
 
 	/**
+	 * Send depth values from zbm bitmaps to the appropriate location, if needed.
+	 * In our case, we're DMAing _zBuffer into the depth buffer of the engine's
+	 * framebuffer, located in VRAM.
+	 */
+	void sendBitmapDepthVals() override;
+
+	/**
 	 * Deletes any internal references and representations of a bitmap
 	 * after this is called, it is safe to dispose of or change the external
 	 * bitmapdata.
