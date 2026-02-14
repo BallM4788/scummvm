@@ -258,7 +258,10 @@ void OSystem_3DS::updateSize() {
 	// _screen == (kScreenBottom | kScreenBoth)
 	//	>>> overlay renders to bottom screen
 	//	>>> bottom screen is 320 pixels wide
-	_overlay.create(_screen == kScreenTop ? 400 : 320, 240, &DEFAULT_MODE, true);
+
+	// Only initialize _overlay texture in VRAM if we're running a non-3D game.
+	_overlay.create(_screen == kScreenTop ? 400 : 320, 240, &DEFAULT_MODE,
+		(RENDER_MODE == kGfxModeNoFlags));
 
 	if (_stretchToFit) {
 		_gameTopX = _gameTopY = _gameBottomX = _gameBottomY = 0;
