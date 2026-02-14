@@ -56,9 +56,17 @@ void ScreenTex::create(uint16 width, uint16 height, const TexMode *mode, bool vr
 	bool pwrW_hChanged = (wPow != w) || (hPow != h);
 	bool sfcBppChanged = (mode->surfaceFormat.bytesPerPixel != format.bytesPerPixel);
 	bool texFmtChanged = (mode->textureFormat != texture.fmt);
+	bool texLocChanged = false;
+
+#define IN3DSVRAM(data) ((u32)data >= OS_VRAM_VADDR && (u32)data < OS_VRAM_VADDR + OS_VRAM_SIZE)
+
+	if (texture.data)
+		texLocChanged = (IN3DSVRAM(texture.data) ^ vram);
+
+#undef IN3DSVRAM
 
 	bool srfDataReinitNeeded = (pwrW_hChanged || sfcBppChanged || !pixels);
-	bool textureReinitNeeded = (pwrW_hChanged || texFmtChanged || !texture.data);
+	bool textureReinitNeeded = (pwrW_hChanged || texFmtChanged || texLocChanged || !texture.data);
 
 	actualWidth = width;
 	actualHeight = height;
