@@ -4,7 +4,7 @@ MODULE_OBJS := \
 	main.o \
 	allocHeapsOverride.o \
 	shader.shbin.o \
-	sprite.o \
+	screentex.o \
 	options.o \
 	osystem.o \
 	osystem-audio.o \
