@@ -37,10 +37,10 @@ typedef struct {
 
 struct TexMode;
 
-class Sprite : public Graphics::Surface {
+class ScreenTex : public Graphics::Surface {
 public:
-	Sprite();
-	~Sprite();
+	ScreenTex();
+	~ScreenTex();
 	void create(uint16 width, uint16 height, const TexMode *mode, bool vram = false);
 	void free();
 	void convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette = 0);
