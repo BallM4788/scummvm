@@ -20,13 +20,13 @@
  */
 
 #include "backends/platform/3ds/osystem.h"
-#include "backends/platform/3ds/sprite.h"
+#include "backends/platform/3ds/screentex.h"
 #include "common/algorithm.h"
 #include "common/util.h"
 
 namespace N3DS {
 
-Sprite::Sprite()
+ScreenTex::ScreenTex()
 	: textureTransferFlags(0)
 	, dirtyPixels(true)
 	, dirtyMatrix(true)
@@ -44,12 +44,12 @@ Sprite::Sprite()
 	vertices = (vertex *)linearAlloc(sizeof(vertex) * 4);
 }
 
-Sprite::~Sprite() {
+ScreenTex::~ScreenTex() {
 	free();
 	linearFree(vertices);
 }
 
-void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram) {
+void ScreenTex::create(uint16 width, uint16 height, const TexMode *mode, bool vram) {
 	int16 wPow = MAX<uint16>(Common::nextHigher2(width), 64u);
 	int16 hPow = MAX<uint16>(Common::nextHigher2(height), 64u);
 
@@ -100,7 +100,7 @@ void Sprite::create(uint16 width, uint16 height, const TexMode *mode, bool vram)
 	memcpy(vertices, tmp, sizeof(vertex) * 4);
 }
 
-void Sprite::free() {
+void ScreenTex::free() {
 	linearFree(pixels);
 	C3D_TexDelete(&texture);
 	pixels = 0;
@@ -109,11 +109,11 @@ void Sprite::free() {
 	format = Graphics::PixelFormat();
 }
 
-void Sprite::convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette) {
+void ScreenTex::convertToInPlace(const Graphics::PixelFormat &dstFormat, const byte *palette) {
 	//
 }
 
-void Sprite::transfer() {
+void ScreenTex::transfer() {
 	if (pixels && dirtyPixels) {
 		dirtyPixels = false;
 		GSPGPU_FlushDataCache(pixels, w * h * format.bytesPerPixel);
@@ -121,7 +121,7 @@ void Sprite::transfer() {
 	}
 }
 
-void Sprite::render() {
+void ScreenTex::render() {
 	C3D_TexBind(0, &texture);
 
 	C3D_BufInfo *bufInfo = C3D_GetBufInfo();
@@ -130,12 +130,12 @@ void Sprite::render() {
 	C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 4);
 }
 
-void Sprite::clear(uint32 color) {
+void ScreenTex::clear(uint32 color) {
 	dirtyPixels = true;
 	memset(pixels, color, w * h * format.bytesPerPixel);
 }
 
-void Sprite::setScale (float x, float y) {
+void ScreenTex::setScale (float x, float y) {
 	if (x != scaleX || y != scaleY) {
 		scaleX = x;
 		scaleY = y;
@@ -143,7 +143,7 @@ void Sprite::setScale (float x, float y) {
 	}
 }
 
-void Sprite::setPosition(int x, int y) {
+void ScreenTex::setPosition(int x, int y) {
 	if (x != posX || y != posY) {
 		posX = x;
 		posY = y;
@@ -151,13 +151,13 @@ void Sprite::setPosition(int x, int y) {
 	}
 }
 
-void Sprite::setOffset(uint16 x, uint16 y) {
+void ScreenTex::setOffset(uint16 x, uint16 y) {
 	offsetX = x;
 	offsetY = y;
 	dirtyMatrix = true;
 }
 
-C3D_Mtx* Sprite::getMatrix() {
+C3D_Mtx* ScreenTex::getMatrix() {
 	if (dirtyMatrix) {
 		dirtyMatrix = false;
 		Mtx_Identity(&modelview);
@@ -167,11 +167,11 @@ C3D_Mtx* Sprite::getMatrix() {
 	return &modelview;
 }
 
-C3D_Tex* Sprite::getTex() {
+C3D_Tex* ScreenTex::getTex() {
 	return &texture;
 }
 
-void Sprite::setFilteringMode(bool enableLinearFiltering) {
+void ScreenTex::setFilteringMode(bool enableLinearFiltering) {
 	GPU_TEXTURE_FILTER_PARAM filteringMode = enableLinearFiltering ? GPU_LINEAR : GPU_NEAREST;
 	C3D_TexSetFilter(&texture, filteringMode, filteringMode);
 }

@@ -32,7 +32,7 @@
 #include "audio/mixer_intern.h"
 #include "backends/graphics/graphics.h"
 #include "backends/log/log.h"
-#include "backends/platform/3ds/sprite.h"
+#include "backends/platform/3ds/screentex.h"
 #include "common/rect.h"
 #include "common/queue.h"
 #include "common/ustr.h"
@@ -254,11 +254,11 @@ private:
 
 	Graphics::Surface _gameScreen;
 	Graphics::DirtyRectList _dirtyRects;
-	Sprite _gameTopTexture;
-	Sprite _gameBottomTexture;
-	Sprite _overlay;
-	Sprite _activityIcon;
-	Sprite _osdMessage;
+	ScreenTex _gameTopTexture;
+	ScreenTex _gameBottomTexture;
+	ScreenTex _overlay;
+	ScreenTex _activityIcon;
+	ScreenTex _osdMessage;
 	bool _filteringEnabled;
 
 	enum {
@@ -300,7 +300,7 @@ private:
 
 	// Cursor
 	Graphics::Surface _cursor;
-	Sprite _cursorTexture;
+	ScreenTex _cursorTexture;
 	bool _cursorPaletteEnabled;
 	bool _cursorVisible;
 	bool _cursorScalable;
