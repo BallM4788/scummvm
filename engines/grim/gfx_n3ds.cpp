@@ -663,7 +663,6 @@ void GfxN3DS::destroyTexture(Texture *texture) {
 
 void GfxN3DS::createBitmap(BitmapData *bitmap) {
 	if (bitmap->_format != 1) {
-
 		// Work area to temporarily store converted depth values.
 		uint32 *zbm16to24in32 = (uint32 *)calloc(bitmap->_width * bitmap->_height, 4);
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
@@ -700,7 +699,6 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		bitmap->_texIds = textures;
 
 		byte *bmpData = nullptr;
-		const byte *pixOut = nullptr;
 
 		GPU_TEXCOLOR format = GPU_RGBA8;
 		int bytes = 4;
@@ -708,52 +706,73 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		const Graphics::PixelFormat format_16bpp(2, 5, 6, 5, 0, 11, 5, 0, 0);
 		const Graphics::PixelFormat format_32bpp = Graphics::PixelFormat::createFormatRGBA32();
 
+		// C3D texture measurements MUST be powers of two.
+		int actualWidth = nextHigher2(bitmap->_width);
+		int actualHeight = nextHigher2(bitmap->_height);
+
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
+			// Create work area in linear memory.
+			if (bmpData == nullptr)
+				bmpData = (byte *)linearAlloc(bytes * actualWidth * actualHeight);
+			byte *bmpDataPtr = bmpData;
+
 			const Graphics::Surface &imageData = bitmap->getImageData(pic);
 			if (bitmap->_format == 1 && imageData.format == format_16bpp) {
-				if (bmpData == nullptr)
-					bmpData = new byte[bytes * bitmap->_width * bitmap->_height];
 				// Convert data to 32-bit RGBA format
-				byte *bmpDataPtr = bmpData;
-				const uint16 *bitmapData = reinterpret_cast<const uint16 *>(imageData.getPixels());
-				for (int i = 0; i < bitmap->_width * bitmap->_height; i++, bmpDataPtr += bytes, bitmapData++) {
-					uint16 pixel = *bitmapData;
-					int r = pixel >> 11;
-					bmpDataPtr[0] = (r << 3) | (r >> 2);
-					int g = (pixel >> 5) & 0x3f;
-					bmpDataPtr[1] = (g << 2) | (g >> 4);
-					int b = pixel & 0x1f;
-					bmpDataPtr[2] = (b << 3) | (b >> 2);
-					if (pixel == 0xf81f) { // transparent
-						bmpDataPtr[3] = 0;
-						bitmap->_hasTransparency = true;
-					} else {
-						bmpDataPtr[3] = 255;
+				const uint16 *bitmapData16 = reinterpret_cast<const uint16 *>(imageData.getPixels());
+				for (int i = 0; i < bitmap->_height; i++, bmpDataPtr += ((actualWidth - bitmap->_width) * bytes)) {
+					for (int j = 0; j < bitmap->_width; j++, bmpDataPtr += bytes, bitmapData16++) {
+						// Convert pixel components, put them in ABGR order.
+						uint16 pixel = *bitmapData16;
+						int r = pixel >> 11;
+						bmpDataPtr[3] = (r << 3) | (r >> 2);
+						int g = (pixel >> 5) & 0x3f;
+						bmpDataPtr[2] = (g << 2) | (g >> 4);
+						int b = pixel & 0x1f;
+						bmpDataPtr[1] = (b << 3) | (b >> 2);
+						if (pixel == 0xf81f) { // transparent
+							bmpDataPtr[0] = 0;
+							bitmap->_hasTransparency = true;
+						} else {
+							bmpDataPtr[0] = 255;
+						}
 					}
 				}
-				pixOut = bmpData;
-			} else if (bitmap->_format == 1 && imageData.format != format_32bpp) {
-				bitmap->convertToColorFormat(pic, format_32bpp);
-				pixOut = (const byte *)imageData.getPixels();
 			} else {
-				pixOut = (const byte *)imageData.getPixels();
+				if (bitmap->_format == 1 && imageData.format != format_32bpp)
+					bitmap->convertToColorFormat(pic, format_32bpp);
+				const uint32 *bitmapData32 = reinterpret_cast<const uint32 *>(imageData.getPixels());
+				for (int i = 0; i < bitmap->_height; i++, bmpDataPtr += ((actualWidth - bitmap->_width) * bytes)) {
+					for (int j = 0; j < bitmap->_width; j++, bmpDataPtr += bytes, bitmapData32++) {
+						// Put pixel components in ABGR order.
+						uint32 pixel = *bitmapData32;
+						uint32 *cvtPixPtr8to32 = ((uint32 *)bmpDataPtr);
+						*cvtPixPtr8to32 = SWAP_BYTES_32(pixel);
+					}
+				}
 			}
-
-			int actualWidth = nextHigher2(bitmap->_width);
-			int actualHeight = nextHigher2(bitmap->_height);
 
 			C3D_Tex *c3dTex = &textures[bitmap->_numTex * pic];
 			C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);
 			C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);
 			C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
 			// Copy bitmap pixels into c3dTex in hardware-required sequence.
-			custom3DS_DataToBlockTex((u32 *)const_cast<uint8 *>(pixOut), 0, 0, bitmap->_width, bitmap->_height,
-			                         (u32 *)c3dTex->data,                0, 0, actualWidth,    actualHeight,
-			                         bitmap->_width, bitmap->_height, format);
+			if ((actualWidth < 64) && (actualHeight < 64)) {
+				// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
+				// "false" instructs NOT to reorder pixel components (we already did).
+				custom3DS_DataToBlockTex((u32 *)bmpData,      0, 0, bitmap->_width, bitmap->_height,
+				                         (u32 *)c3dTex->data, 0, 0, actualWidth,    actualHeight,
+				                         bitmap->_width, bitmap->_height, format, false);
+			} else {
+				GSPGPU_FlushDataCache(bmpData, bytes * actualWidth * actualHeight);
+				// GX_TRANSFER_FMT_RGBA8 is already 0
+				// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+				C3D_SyncDisplayTransfer((u32 *)bmpData, GX_BUFFER_DIM(actualWidth, actualHeight),
+				                        (u32 *)c3dTex->data, GX_BUFFER_DIM(actualWidth, actualHeight), 3);
+			}
 		}
 
-		if (bmpData)
-			delete[] bmpData;
+		linearFree(bmpData);
 		bitmap->freeData();
 
 		// Clone _backgroundShader and assign instance-specific attribute and buffer info.
