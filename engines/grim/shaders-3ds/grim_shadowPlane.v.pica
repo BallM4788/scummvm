@@ -1,0 +1,58 @@
+; shadowplane shader for Grim Fandango and Escape from Monkey Island in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec3 position;
+;
+;	uniform highp mat4 projMatrix;
+;	uniform highp mat4 viewMatrix;
+;
+;	void main() {
+;		vec4 pos = vec4(position, 1.0);
+;		gl_Position = projMatrix * viewMatrix * pos;
+;	}
+
+; FRAGMENT SHADER CODE
+;	OUTPUT
+;
+;	void main() {
+;		outColor = vec4(1.0, 1.0, 1.0, 1.0);
+;	}
+
+; Constants
+.constf myConst(0.0, 1.0, 2.0, 0.5)
+.alias        ONES	 myConst.yyyy
+
+
+; Inputs
+.alias    inPos		v0		; in vec3 position
+
+
+; Uniforms
+.fvec   projMatrix[4]		; mat4   projMatrix
+.fvec   viewMatrix[4]		; mat4   viewMatrix
+
+
+; Outputs
+.out outPos		pos		; gl_Position
+.out outColor	clr		; out vec4 Color
+
+
+; Main
+.entry main
+.proc main
+	mov r0.xyz,			inPos.xyz
+	mov r0.w,			ONES
+	mov outColor,		ONES
+
+	dp4 r1.x,			viewMatrix[0],		r0
+	dp4 r1.y,			viewMatrix[1],		r0
+	dp4 r1.z,			viewMatrix[2],		r0
+	dp4 r1.w,			viewMatrix[3],		r0
+
+	dp4 outPos.x,		projMatrix[0],		r1
+	dp4 outPos.y,		projMatrix[1],		r1
+	dp4 outPos.z,		projMatrix[2],		r1
+	dp4 outPos.w,		projMatrix[3],		r1
+
+	end
+.end
