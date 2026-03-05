@@ -66,6 +66,7 @@
 #include "engines/grim/shaders-3ds/emi_sprite_shbin.h"
 #include "engines/grim/shaders-3ds/grim_actor_shbin.h"
 #include "engines/grim/shaders-3ds/grim_actorLights_shbin.h"
+#include "engines/grim/shaders-3ds/grim_shadowPlane_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
@@ -316,6 +317,13 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvOpRgb(&envActorNoTex, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA*/);
 	C3D_TexEnvOpAlpha(&envActorNoTex, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
 
+	// Create texEnv for shadow planes.
+	C3D_TexEnvInit(&envShadowPlane);
+	C3D_TexEnvFunc(&envShadowPlane, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvSrc(&envShadowPlane, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_CONSTANT*/);
+	C3D_TexEnvOpRgb(&envShadowPlane, GPU_TEVOP_RGB_SRC_COLOR/*, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_ALPHA*/);
+	C3D_TexEnvOpAlpha(&envShadowPlane, GPU_TEVOP_A_SRC_ALPHA/*, GPU_TEVOP_A_SRC_ALPHA, GPU_TEVOP_A_SRC_ALPHA*/);
+
 	float div = 6.0f;
 	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
 
@@ -355,6 +363,8 @@ GfxN3DS::~GfxN3DS() {
 	DECOMPOSE_SHADER(_actorLights);
 	DECOMPOSE_SHADER(_smush);
 	DECOMPOSE_SHADER(_text);
+
+	DECOMPOSE_SHADER(_shadowPlane);
 
 	DECOMPOSE_SHADER(_manualClear);
 
@@ -452,6 +462,9 @@ void GfxN3DS::setupShaders() {
 
 	CONSTRUCT_SHADER(_smush, grim_smush, 0);
 	CONSTRUCT_SHADER(_text, grim_text, 0);
+
+	CONSTRUCT_SHADER(_shadowPlane, grim_shadowPlane, 0);
+	_shadowPlaneShader->addAttrLoader(0 /*texcoord*/, GPU_FLOAT, 3);
 
 	if (!isEMI) {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
@@ -1056,6 +1069,105 @@ void GfxN3DS::setShadow(Shadow *shadow) {
 }
 
 void GfxN3DS::drawShadowPlanes() {
+	// Preserve color values.
+	glTo3DS_ColorMask(false, false, false, false);
+	// Preserve depth values.
+	glTo3DS_DepthMask(false);
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	// In the 3DS hardware, stencil testing is only possible in a render target
+	// that's utilizing an interleaved "24-bit depth + 8-bit stencil" buffer.
+	// Consequentially, in this mode, there is no straightforward functionality
+	// available to clear only depth values or only stencil values; if one is
+	// being cleared, the other must be cleared as well.
+
+	// To get around this, we must draw a texture covering the entire screen using
+	// _manualClearShader, with either stencil writing or depth writing enabled.
+
+	// Copy current context into a temporary context, switching to the copy and
+	//	preserving the original.
+	N3DS_3D::ContextHandle *tmpContext = N3DS_3D::createContext(_grimContext);
+	// Write to stencil values by enabling stencil testing.
+	glTo3DS_Enable(ENUM3DS_CAP_STENCIL_TEST);
+	// Set stencil test ref value to ~0, and set stencil test to always pass.
+	// NOTE: 0xFF is 0b11111111, which for an 8-bit stencil is the same as ~0.
+	glTo3DS_StencilFunc(GPU_ALWAYS, 0xFF, (u8)~0);
+	// Write to all stencil value bits.
+	glTo3DS_StencilMask(0xFF);
+	// Replace existing stencil values.
+	glTo3DS_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);
+	// Unbind any bound textures.
+	glTo3DS_BindTexture(0, nullptr);
+	// Draw to the game screen, clearing the depth buffer.
+	drawStart(0, 0, 0, 640, 480, &envGRIMDefault);
+		N3DS_3D::changeShader(_manualClearShader);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
+	drawEnd(0);
+	// Switch back to the original context, reapplying its settings.
+	N3DS_3D::setContext(_grimContext);
+	// Destroy temporary context.
+	N3DS_3D::destroyContext(tmpContext);
+
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	glTo3DS_Enable(ENUM3DS_CAP_STENCIL_TEST);
+	glTo3DS_StencilFunc(GPU_ALWAYS, 1, (u8)~0);
+	glTo3DS_StencilOp(GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE, GPU_STENCIL_REPLACE);
+
+	if (!_currentShadowArray->userData) {
+		uint32 numVertices = 0;
+		uint32 numTriangles = 0;
+		for (SectorListType::iterator i = _currentShadowArray->planeList.begin(); i != _currentShadowArray->planeList.end(); ++i) {
+			numVertices += i->sector->getNumVertices();
+			numTriangles += i->sector->getNumVertices() - 2;
+		}
+
+		float *vertBuf = new float[3 * numVertices];
+		uint16 *idxBuf = new uint16[3 * numTriangles];
+
+		float *vert = vertBuf;
+		uint16 *idx = idxBuf;
+
+		for (SectorListType::iterator i = _currentShadowArray->planeList.begin(); i != _currentShadowArray->planeList.end(); ++i) {
+			Sector *shadowSector = i->sector;
+			memcpy(vert, shadowSector->getVertices(), 3 * shadowSector->getNumVertices() * sizeof(float));
+			uint16 first = (vert - vertBuf) / 3;
+			for (uint16 j = 2; j < shadowSector->getNumVertices(); ++j) {
+				*idx++ = first;
+				*idx++ = first + j - 1;
+				*idx++ = first + j;
+			}
+			vert += 3 * shadowSector->getNumVertices();
+		}
+
+		ShadowUserData *sud = new ShadowUserData;
+		_currentShadowArray->userData = sud;
+		sud->_numTriangles = numTriangles;
+		sud->_verticesVBO = custom3DS_CreateBuffer(3 * numVertices * sizeof(float), vertBuf, 0x4);
+		sud->_indicesVBO = custom3DS_CreateBuffer(3 * numTriangles * sizeof(uint16), idxBuf, 0x4);
+
+		delete[] vertBuf;
+		delete[] idxBuf;
+	}
+
+	const ShadowUserData *sud = (ShadowUserData *)_currentShadowArray->userData;
+	// Modify _shadowPlaneShader->_bufInfo to use sud->_verticesVBO.
+	_shadowPlaneShader->BufInfo_AddOrModify(sud->_verticesVBO, 3 * sizeof(float), 1, 0x0, 0);
+	_shadowPlaneShader->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);
+	_shadowPlaneShader->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);
+
+	drawStart(0, 0, 0, 640, 480, &envShadowPlane);
+		N3DS_3D::changeShader(_shadowPlaneShader);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawElements(GPU_TRIANGLES, 3 * sud->_numTriangles, C3D_UNSIGNED_SHORT, (void *)sud->_indicesVBO);
+	drawEnd(0);
+
+	glTo3DS_ColorMask(true, true, true, true);
+
+	glTo3DS_StencilFunc(GPU_EQUAL, 1, (u8)~0);
+	glTo3DS_StencilOp(GPU_STENCIL_KEEP, GPU_STENCIL_KEEP, GPU_STENCIL_KEEP);
 }
 
 void GfxN3DS::setShadowMode() {
