@@ -78,6 +78,7 @@ static u32 mortonOffset(u32 x, u32 y) {
 	return (i + offset);
 }
 
+__attribute__((optimize("-O3")))
 void N3DContext::opDataToBlockTex(u32 *srcBuf, int xSrc, int ySrc, int wSrc, int hSrc,
                                   u32 *dstBuf, int xDst, int yDst, int wDst, int hDst,
                                   int copyWidth, int copyHeight, GPU_TEXCOLOR format,
