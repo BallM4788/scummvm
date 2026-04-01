@@ -52,7 +52,6 @@ ShaderObj::ShaderObj(u32* shbinData, u32 shbinSize, u8 geomStride) {
 	_vert_numFVecs = _geom_numFVecs = 0;
 	_vert_UniformMap = _geom_UniformMap = nullptr;
 	_vert_unif_FVecs = _geom_unif_FVecs = nullptr;
-	_vert_dirtyFVecs = _geom_dirtyFVecs = nullptr;
 
 #define NUM_FVECS_REQUIRED(whichShader) \
 	(_program->whichShader->dvle->uniformTableData + _program->whichShader->dvle->uniformTableSize - 1)->endReg-0x10 + 1
@@ -62,26 +61,20 @@ ShaderObj::ShaderObj(u32* shbinData, u32 shbinSize, u8 geomStride) {
 		_vert_unif_FVecs = new C3D_FVec[_vert_numFVecs];
 		memset(_vert_unif_FVecs, 0, _vert_numFVecs * sizeof(C3D_FVec));
 		_vert_UniformMap = new UniformsMap();
-		_vert_dirtyFVecs = new FVecQueue();
 	}
 	if ((_program->geometryShader) && (_program->geometryShader->dvle->uniformTableSize > 0)) {
 		_geom_numFVecs = NUM_FVECS_REQUIRED(geometryShader);
 		_geom_unif_FVecs = new C3D_FVec[_geom_numFVecs];
 		memset(_geom_unif_FVecs, 0, _geom_numFVecs * sizeof(C3D_FVec));
 		_geom_UniformMap = new UniformsMap();
-		_geom_dirtyFVecs = new FVecQueue();
 	}
 
 #undef NUM_FVECS_REQUIRED
 
 	_unif_IVecs = new int[32];							// 8 integer vecs (4 vecs per shader instance), 4 ints per vec
-	_unif_bools = new bool[4];							// 4 bool values (2 bools per shader instance)
+	_unif_bools = new bool[32];							// 32 bool values (16 bools per shader instance)
 	memset(_unif_IVecs, 0, 8 * sizeof(C3D_IVec));
-	memset(_unif_bools, 0, 4 * sizeof(bool));
-	_dirtyIVecs = new bool[8];							// 8 bools (4 vecs per shader instance, 1 bool per vec)
-	_dirtyBools = new bool[4];							// 4 bools (2 bools per shader instance, 1 bool per bool)
-	memset(_dirtyIVecs, 0, 8 * sizeof(bool));
-	memset(_dirtyBools, 0, 4 * sizeof(bool));
+	memset(_unif_bools, 0, 32 * sizeof(bool));
 	_isClone = false;
 
 }
@@ -91,14 +84,10 @@ ShaderObj::ShaderObj(ShaderObj *original) : _dvlb(original->_dvlb),
                                             _program(original->_program),
                                             _vert_UniformMap(original->_vert_UniformMap),
                                             _vert_unif_FVecs(original->_vert_unif_FVecs),
-                                            _vert_dirtyFVecs(original->_vert_dirtyFVecs),
                                             _geom_UniformMap(original->_geom_UniformMap),
                                             _geom_unif_FVecs(original->_geom_unif_FVecs),
-                                            _geom_dirtyFVecs(original->_geom_dirtyFVecs),
                                             _unif_IVecs(original->_unif_IVecs),
-                                            _unif_bools(original->_unif_bools),
-                                            _dirtyIVecs(original->_dirtyIVecs),
-                                            _dirtyBools(original->_dirtyBools)
+                                            _unif_bools(original->_unif_bools)
                                             {
 	AttrInfo_Init(&_attrInfo);
 	BufInfo_Init(&_bufInfo);
@@ -111,19 +100,15 @@ ShaderObj::~ShaderObj() {
 		_program = nullptr;
 		_vert_UniformMap = _geom_UniformMap = nullptr;
 		_vert_unif_FVecs = _geom_unif_FVecs = nullptr;
-		_vert_dirtyFVecs = _geom_dirtyFVecs = nullptr;
 		_unif_IVecs = nullptr;
 		_unif_bools = nullptr;
-		_dirtyIVecs = _dirtyBools = nullptr;
 	} else {
 		if (_vert_numFVecs > 0) {
 			delete [] _vert_unif_FVecs; // C3D_FVec array on heap
-			delete _vert_dirtyFVecs;
 			delete _vert_UniformMap;
 		}
 		if (_program->geometryShader && (_geom_numFVecs > 0)) {
 			delete [] _geom_unif_FVecs; // C3D_FVec array on heap
-			delete _geom_dirtyFVecs;
 			delete _geom_UniformMap;
 		}
 		shaderProgramFree(_program);
@@ -131,8 +116,6 @@ ShaderObj::~ShaderObj() {
 		DVLB_Free(_dvlb);
 		delete [] _unif_IVecs; // int array on heap
 		delete [] _unif_bools; // bool array on heap
-		delete [] _dirtyIVecs; // bool array on heap
-		delete [] _dirtyBools; // bool array on heap
 	}
 }
 
@@ -187,8 +170,8 @@ int ShaderObj::BufInfo_AddOrModify(const void* data, ptrdiff_t stride, int attri
 	}
 }
 
-#define N3DSMACRO_IVEC_ID_POS(num, vecIdx) \
-	_unif_IVecs[(16 * num) + IV_ID + vecIdx]
+#define N3DSMACRO_IVEC_INT_POS(shader, vecIdx) \
+	_unif_IVecs[(16 * shader) + ((startReg - 0x60) * 4) + vecIdx]
 
 void ShaderObj::sendDirtyUniforms() {
 	bool hasGeomShader = _program->geometryShader ? true : false;
@@ -201,28 +184,21 @@ void ShaderObj::sendDirtyUniforms() {
 			continue;
 		}
 
-		if (N3DSMACRO_DIRTY_FVECS(shaderType)) {
-			dirtyFVec temp;
-			while (!N3DSMACRO_DIRTY_FVECS(shaderType)->empty()) {
-				temp = N3DSMACRO_DIRTY_FVECS(shaderType)->pop();
-				C3D_FVUnifMtxNx4((GPU_SHADER_TYPE)shaderType, temp.pos, (const C3D_Mtx *)temp.ptr, temp.dirtyRows);
-			}
-		}
-
-		for (int IV_ID = 0; IV_ID < 4; IV_ID++) {
-			if (_dirtyIVecs[(shaderType * 4) + IV_ID] == true) {
-				C3D_IVUnifSet((GPU_SHADER_TYPE)shaderType, IV_ID, N3DSMACRO_IVEC_ID_POS(shaderType, 0),
-				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 1),
-				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 2),
-				                                                  N3DSMACRO_IVEC_ID_POS(shaderType, 3));
-				_dirtyIVecs[(shaderType * 4) + IV_ID] = false;
-			}
-		}
-
-		for (int bool_ID = 0; bool_ID < 2; bool_ID++) {
-			if (_dirtyBools[(shaderType * 2) + bool_ID] == true) {
-				C3D_BoolUnifSet((GPU_SHADER_TYPE)shaderType, bool_ID, _unif_bools[(shaderType * 2) + bool_ID]);
-				_dirtyBools[(shaderType * 2) + bool_ID] = false;
+		DVLE_s *dvle = N3DSMACRO_SHADER_INSTANCE(shaderType)->dvle;
+		for (uint UNIF_ID = 0; UNIF_ID < dvle->uniformTableSize; UNIF_ID++) {
+			int startReg = dvle->uniformTableData[UNIF_ID].startReg-0x10;
+			if (startReg < 0x60) {								// 96 registers available for float vector uniforms.
+				int endReg = dvle->uniformTableData[UNIF_ID].endReg-0x10;
+				C3D_FVUnifMtxNx4((GPU_SHADER_TYPE)shaderType, startReg, (const C3D_Mtx *)(N3DSMACRO_UNIF_FVECS(shaderType) + startReg), endReg - startReg + 1);
+			} else if (startReg < 0x64) {						// 4 registers available for integer vector uniforms.
+				C3D_IVUnifSet((GPU_SHADER_TYPE)shaderType, startReg, N3DSMACRO_IVEC_INT_POS(shaderType, 0),
+				                                                     N3DSMACRO_IVEC_INT_POS(shaderType, 1),
+				                                                     N3DSMACRO_IVEC_INT_POS(shaderType, 2),
+				                                                     N3DSMACRO_IVEC_INT_POS(shaderType, 3));
+			} else if (startReg >= 0x68 && startReg < 0x78) {	// 16 registers available for bool uniforms; registers 100 through 103 are not used.
+				C3D_BoolUnifSet((GPU_SHADER_TYPE)shaderType, startReg, _unif_bools[(16 * shaderType) + (startReg - 0x68)]);
+			} else {
+				error("3DS: Invalid shader uniform register");
 			}
 		}
 	}
