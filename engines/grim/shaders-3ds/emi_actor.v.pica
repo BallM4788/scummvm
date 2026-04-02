@@ -98,17 +98,14 @@
 .fvec    cameraPos			; vec3    cameraPos
 .fvec uniformColor			; vec4 uniformColor
 
-.fvec bool_textured			; UBOOL textured
-.fvec bool_useVtxAl			; UBOOL useVertexAlpha
-.alias textured		bool_textured.x
-.alias useVtxAlpha	bool_useVtxAl.x
+.bool    textured			; UBOOL textured
+.bool    notVtxAlpha		; UBOOL !useVertexAlpha
 
-.fvec shadowActive		; UBOOL shadow._active
+.bool shadowActive		; UBOOL shadow._active
 .fvec shadowColor		;  vec3 shadow._color
 .fvec shadowLight		;  vec3 shadow._light
 .fvec shadowPoint		;  vec3 shadow._point
 .fvec shadowNormal		;  vec3 shadow._normal
-.alias shadowOn		shadowActive.x
 
 
 ; Outputs
@@ -137,19 +134,11 @@
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
 
-	; Prepare in TMP_1 for comparison operation
-	mov TMP_1.x,		shadowOn
-	mov TMP_1.y,		textured
-
 	; vec4_pos = modelMatrix (mat4) * TMP_0 (vec4);
 	dp4 vec4_pos.x,		modelMatrix[0],		TMP_0
 	dp4 vec4_pos.y,		modelMatrix[1],		TMP_0
 	dp4 vec4_pos.z,		modelMatrix[2],		TMP_0
 	dp4 vec4_pos.w,		modelMatrix[3],		TMP_0										;	vec4_pos     occupied;	TMP_0        no longer needed
-
-	; Set cmp.x and cmp.y with "shadowOn == 1.0"
-	;	and "textured == 1.0", respectively.
-	cmp ONES,			eq, eq,				TMP_1.xy									;							TMP_1        no longer needed
 
 ; TMP_0:     UNOCCUPIED
 ; TMP_1:     UNOCCUPIED
@@ -158,8 +147,8 @@
 ; outTcoord:  UNWRITTEN
 ; outColor:   UNWRITTEN
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		rcp TMP_0,			vec4_pos.w													; TMP_0        = (1/vec4_pos.w x4)
 		mov vec3_shPo,		shadowPoint.xyz												; vec3_shPo    = shadowPoint(xyz)
 		mov vec3_shNo,		shadowNormal.xyz											; vec3_shNo    = shadowNormal(xyz)
@@ -206,8 +195,8 @@
 ; outTcoord:     UNWRITTEN
 ; outColor:      UNWRITTEN
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; tmpColor.rgb = shadowColor;
 		; tmpColor.a = 1.0;
 		mov tmpColor.rgb,	shadowColor.rgb
@@ -218,7 +207,7 @@
 	.end																				;	tmpColor     occupied;
 
 	; if (textured)
-	ifc cmp.y
+	ifu textured
 		; outTcoord = inTcoord;
 		mov outTcoord,		inTcoord
 	.else
@@ -226,10 +215,8 @@
 		mov outTcoord,		ZEROS
 	.end																				;	outTcoord     written;
 
-	; if (!useVtxAlpha)
-	mov TMP_0.x,		ONES
-	cmp useVtxAlpha,	eq, eq,				TMP_0.x
-	ifc !cmp.x
+	; if (notVtxAlpha)
+	ifu notVtxAlpha
 		; tmpColor.a = 1.0;
 		mov tmpColor.a,		ONES
 	.end

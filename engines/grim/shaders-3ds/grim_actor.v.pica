@@ -86,15 +86,13 @@
 .fvec extraMatrix[4]		; mat4 extraMatrix
 .fvec    texScale			; vec2    texScale
 
-.fvec bool_textured			; UBOOL textured
-.alias textured		bool_textured.x
+.bool    textured			; UBOOL textured
 
-.fvec shadowActive		; UBOOL shadow._active
+.bool shadowActive		; UBOOL shadow._active
 .fvec shadowColor		;  vec3 shadow._color
 .fvec shadowLight		;  vec3 shadow._light
 .fvec shadowPoint		;  vec3 shadow._point
 .fvec shadowNormal		;  vec3 shadow._normal
-.alias shadowOn		shadowActive.x
 
 
 ; Outputs
@@ -124,33 +122,26 @@
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
 
-	; Prepare in TMP_1 for comparison operation
-	mov TMP_1.x,		shadowOn
-	mov TMP_1.y,		textured
-
 	; extraVecPos (TMP_2, vec4) = extraMatrix (mat4) * TMP_0 (vec4);
-	dp4 TMP_2.x,		extraMatrix[0],		TMP_0
-	dp4 TMP_2.y,		extraMatrix[1],		TMP_0
-	dp4 TMP_2.z,		extraMatrix[2],		TMP_0
-	dp4 TMP_2.w,		extraMatrix[3],		TMP_0
-
-	; Set cmp.x and cmp.y with "shadowOn == 1.0"
-	;	and "textured == 1.0", respectively.
-	cmp ONES,			eq, eq,				TMP_1.xy
+	dp4 TMP_1.x,		extraMatrix[0],		TMP_0
+	dp4 TMP_1.y,		extraMatrix[1],		TMP_0
+	dp4 TMP_1.z,		extraMatrix[2],		TMP_0
+	dp4 TMP_1.w,		extraMatrix[3],		TMP_0
 
 	; vec4_pos = modelMatrix (mat4) * extraVec (vec4);
-	dp4 vec4_pos.x,		modelMatrix[0],		TMP_2
-	dp4 vec4_pos.y,		modelMatrix[1],		TMP_2
-	dp4 vec4_pos.z,		modelMatrix[2],		TMP_2
-	dp4 vec4_pos.w,		modelMatrix[3],		TMP_2
+	dp4 vec4_pos.x,		modelMatrix[0],		TMP_1
+	dp4 vec4_pos.y,		modelMatrix[1],		TMP_1
+	dp4 vec4_pos.z,		modelMatrix[2],		TMP_1
+	dp4 vec4_pos.w,		modelMatrix[3],		TMP_1
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; The line-plane intersection implementation used in
-		;	the GLSL shader does not work here for some reason.
-		;	Best I can figure, the position vector being scaled
-		;	down to 1 somehow causes final vector positions to
-		;	to go wild.
+		;	the GLSL shader does not work here. It seems that
+		;	the position vector being divided by the w component
+		;	before doing shadow calculations causes the final
+		;	vector position to go wild. Eliminating the w division
+		;	fixed it, but the shadows were very choppy.
 		; Instead, we're taking the shadow projection function
 		;	used in the OpenGL renderer and implementing its
 		;	matrix calculations through shader operations. It
@@ -173,8 +164,8 @@
 		mul TMP_1.xyz,		vec3_shLgt,			TMP_0.x							; vec3_shLgt * (dp3_NrmPos - (dp3_NrmPnt * VtxPos.w))
 		mul TMP_2.xyz,		vec4_pos.xyz,		TMP_0.y							; vec4_pos.xyz * (dp3_NrmPnt - dp3_NrmLgt)
 
-		mov vec4_pos.w,		TMP_0.z
-		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz
+		mov vec4_pos.w,		TMP_0.z												; pos.w = dp3_NrmPos - (dp3_NrmLgt * VtxPos.w)
+		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz						; pos.xyz = vec3_shLgt (dp3_NrmPos - (VtxPos.w * dp3_NrmPnt)) + VtxPos.xyz (dp3_NrmPnt - dp3_NrmLgt)
 	.end
 
 	; positionView = viewMatrix (mat4) * vec4_pos
@@ -183,20 +174,18 @@
 	dp4 vec4_posView.z,	viewMatrix[2],		vec4_pos
 	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
 
-	; outPos = projMatrix * positionView;
-	; dp4 outPos.x,		projMatrix[0],		vec4_posView
-	; dp4 outPos.y,		projMatrix[1],		vec4_posView
-	; dp4 outPos.z,		projMatrix[2],		vec4_posView
-	; dp4 outPos.w,		projMatrix[3],		vec4_posView
+	; r11 = projMatrix * positionView;
 	dp4 r11.x,			projMatrix[0],		vec4_posView
 	dp4 r11.y,			projMatrix[1],		vec4_posView
 	dp4 r11.z,			projMatrix[2],		vec4_posView
 	dp4 r11.w,			projMatrix[3],		vec4_posView
+
+	; Divide by W component.
 	rcp r12.w,			r11.w
 	mul outPos,			r11,				r12.w
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; outColor.rgb = shadowColor;
 		; outColor.a = 1.0;
 		mov outColor.rgb,	shadowColor.rgb
@@ -207,7 +196,7 @@
 	.end
 
 	; if (textured)
-	ifc cmp.y
+	ifu textured
 		; outTcoord = vec2(0.0, 1.0) + (inTcoord (vec2) / texScale (vec2));
 		rcp TMP_0.x,		texScale.x
 		mov TMP_1.xy,		inTcoord.xy

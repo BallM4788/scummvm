@@ -130,8 +130,7 @@
 .fvec extraMatrix[4]		; mat4 extraMatrix
 .fvec    texScale			; vec2    texScale
 
-.fvec bool_textured			; UBOOL textured
-.alias textured		bool_textured.x
+.bool    textured			; UBOOL textured
 
 						; (maxLights = 8)
 .fvec lightsPos[8]		; vec4 lightsPosition[maxLights]
@@ -139,13 +138,11 @@
 .fvec lightsClr[8]		; vec4 lightsColor[maxLights]
 .fvec lightsPar[8]		; vec4 lightsParams[maxLights]
 
-.fvec shadowActive		; UBOOL shadow._active
+.bool shadowActive		; UBOOL shadow._active
 .fvec shadowColor		;  vec3 shadow._color
 .fvec shadowLight		;  vec3 shadow._light
 .fvec shadowPoint		;  vec3 shadow._point
 .fvec shadowNormal		;  vec3 shadow._normal
-
-.alias shadowOn		shadowActive.x
 
 
 ; Outputs
@@ -191,35 +188,27 @@
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
 
-	; Prepare in TMP_1 for comparison operation
-	mov TMP_1.x,		shadowOn
-	mov TMP_1.y,		textured
-
 	; extraVecPos (TMP_2, vec4) = extraMatrix (mat4) * TMP_0 (vec4);
-	dp4 TMP_2.x,		extraMatrix[0],		TMP_0
-	dp4 TMP_2.y,		extraMatrix[1],		TMP_0
-	dp4 TMP_2.z,		extraMatrix[2],		TMP_0
-	dp4 TMP_2.w,		extraMatrix[3],		TMP_0
+	dp4 TMP_1.x,		extraMatrix[0],		TMP_0
+	dp4 TMP_1.y,		extraMatrix[1],		TMP_0
+	dp4 TMP_1.z,		extraMatrix[2],		TMP_0
+	dp4 TMP_1.w,		extraMatrix[3],		TMP_0
 
 	; TMP_3 = vec4(inNormal, 0.0);
-	mov TMP_3.xyz,		inNormal.xyz
-	mov TMP_3.w,		ZEROS
+	mov TMP_2.xyz,		inNormal.xyz
+	mov TMP_2.w,		ZEROS
 
 	; extraVecNorm (vec4) = extraMatrix (mat4) * TMP_3 (vec4);
-	dp4 TMP_4.x,		extraMatrix[0],		TMP_3
-	dp4 TMP_4.y,		extraMatrix[1],		TMP_3
-	dp4 TMP_4.z,		extraMatrix[2],		TMP_3
-	dp4 TMP_4.w,		extraMatrix[3],		TMP_3
-
-	; Set cmp.x and cmp.y with "shadowOn == 1.0"
-	;	and "textured == 1.0", respectively.
-	cmp ONES,			eq, eq,				TMP_1.xy
+	dp4 TMP_4.x,		extraMatrix[0],		TMP_2
+	dp4 TMP_4.y,		extraMatrix[1],		TMP_2
+	dp4 TMP_4.z,		extraMatrix[2],		TMP_2
+	dp4 TMP_4.w,		extraMatrix[3],		TMP_2
 
 	; vec4_pos = modelMatrix (mat4) * extraVec (vec4);
-	dp4 vec4_pos.x,		modelMatrix[0],		TMP_2
-	dp4 vec4_pos.y,		modelMatrix[1],		TMP_2
-	dp4 vec4_pos.z,		modelMatrix[2],		TMP_2
-	dp4 vec4_pos.w,		modelMatrix[3],		TMP_2
+	dp4 vec4_pos.x,		modelMatrix[0],		TMP_1
+	dp4 vec4_pos.y,		modelMatrix[1],		TMP_1
+	dp4 vec4_pos.z,		modelMatrix[2],		TMP_1
+	dp4 vec4_pos.w,		modelMatrix[3],		TMP_1
 
 	; modelVecNorm (vec4) = modelMatrix (mat4) * extraVecNorm (vec4);
 	dp4 TMP_3.x,		modelMatrix[0],		TMP_4
@@ -237,13 +226,14 @@
 ; outTcoord:  UNWRITTEN
 ; outColor:   UNWRITTEN
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; The line-plane intersection implementation used in
-		;	the GLSL shader does not work here for some reason.
-		;	Best I can figure, the position vector being scaled
-		;	down to 1 somehow causes final vector positions to
-		;	to go wild.
+		;	the GLSL shader does not work here. It seems that
+		;	the position vector being divided by the w component
+		;	before doing shadow calculations causes the final
+		;	vector position to go wild. Eliminating the w division
+		;	fixed it, but the shadows were very choppy.
 		; Instead, we're taking the shadow projection function
 		;	used in the OpenGL renderer and implementing its
 		;	matrix calculations through shader operations. It
@@ -266,31 +256,29 @@
 		mul TMP_1.xyz,		vec3_shLgt,			TMP_0.x							; vec3_shLgt * (dp3_NrmPos - (dp3_NrmPnt * VtxPos.w))
 		mul TMP_2.xyz,		vec4_pos.xyz,		TMP_0.y							; vec4_pos.xyz * (dp3_NrmPnt - dp3_NrmLgt)
 
-		mov vec4_pos.w,		TMP_0.z
-		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz
+		mov vec4_pos.w,		TMP_0.z												; pos.w = dp3_NrmPos - (dp3_NrmLgt * VtxPos.w)
+		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz						; pos.xyz = vec3_shLgt (dp3_NrmPos - (VtxPos.w * dp3_NrmPnt)) + VtxPos.xyz (dp3_NrmPnt - dp3_NrmLgt)
 	.end
 
-	; viewVecNorm (vec4) = viewMatrix (mat4) * modelVecNorm (vec4)
+	; normalVec (vec4) = viewMatrix (mat4) * modelVecNorm (vec4)
 	dp4 TMP_4.x,		viewMatrix[0],		TMP_3
 	dp4 TMP_4.y,		viewMatrix[1],		TMP_3
 	dp4 TMP_4.z,		viewMatrix[2],		TMP_3
-	dp4 TMP_4.w,		viewMatrix[3],		TMP_3										;	TMP_4        occupied;	TMP_3        no longer needed
+	dp4 TMP_4.w,		viewMatrix[3],		TMP_3										;	STILL NEEDED:		TMP_4
 
 	; positionView = viewMatrix (mat4) * vec4_pos
 	dp4 vec4_posView.x,	viewMatrix[0],		vec4_pos
 	dp4 vec4_posView.y,	viewMatrix[1],		vec4_pos
 	dp4 vec4_posView.z,	viewMatrix[2],		vec4_pos
-	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos									;	vec4_posView occupied;	vec4_pos     no longer needed
+	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
 
-	; outPos = projMatrix * positionView;
-	; dp4 outPos.x,		projMatrix[0],		vec4_posView
-	; dp4 outPos.y,		projMatrix[1],		vec4_posView
-	; dp4 outPos.z,		projMatrix[2],		vec4_posView
-	; dp4 outPos.w,		projMatrix[3],		vec4_posView								;	outPos        written;	vec4_posView     STILL NEEDED
+	; r11 = projMatrix * positionView;
 	dp4 r11.x,			projMatrix[0],		vec4_posView
 	dp4 r11.y,			projMatrix[1],		vec4_posView
 	dp4 r11.z,			projMatrix[2],		vec4_posView
-	dp4 r11.w,			projMatrix[3],		vec4_posView								;	outPos        written;	vec4_posView     STILL NEEDED
+	dp4 r11.w,			projMatrix[3],		vec4_posView								;	STILL NEEDED:		vec4_posView
+
+	; Divide by W component.
 	rcp r12.w,			r11.w
 	mul outPos,			r11,				r12.w
 
@@ -298,7 +286,7 @@
 ; TMP_1:        UNOCCUPIED
 ; TMP_2:        UNOCCUPIED
 ; TMP_3:        UNOCCUPIED
-; TMP_4:          OCCUPIED (viewVecNorm)
+; TMP_4:          OCCUPIED (normalVec)
 ; vec4_pos:           DONE (r5)
 ; vec3_shPnt:         DONE (r6.xyz)
 ; vec3_shNrm:         DONE (r7.xyz)
@@ -308,8 +296,8 @@
 ; outTcoord:     UNWRITTEN
 ; outColor:      UNWRITTEN
 
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; tmpColor.rgb = shadowColor;
 		; tmpColor.a = 1.0;
 		mov tmpColor.rgb,	shadowColor.rgb
@@ -317,34 +305,34 @@
 	.else
 		; tmpColor = (1.0, 1.0, 1.0, 1.0);
 		mov tmpColor,		ONES
-	.end																				;	tmpColor     occupied;
+	.end
 
 	; if (textured)
-	ifc cmp.y
+	ifu textured
 		; outTcoord = vec2(0.0, 1.0) + (inTcoord (vec2) / texScale (vec2));
 		rcp TMP_0.x,		texScale.x
-		mov TMP_2.xy,		inTcoord.xy													;	TMP_2.xy     occupied;
-		rcp TMP_0.y,		texScale.y													;	TMP_0.xy     occupied;
-		mad outTcoord,		TMP_0.xy,			TMP_2.xy,			ZERO_ONE.xy			;							TMP_0,2      no longer needed
+		mov TMP_1.xy,		inTcoord.xy
+		rcp TMP_0.y,		texScale.y
+		mad outTcoord,		TMP_0.xy,			TMP_1.xy,			ZERO_ONE.xy
 	.else
 		; outTcoord = vec2(0.0, 0.0)
 		mov outTcoord,		ZEROS
-	.end																				;	outTcoord     written;
+	.end
 
 	; vec3_light = vec3(0.0, 0.0, 0.0);
-	mov vec3_light,		ZEROS															;	vec3_light   occupied;
+	mov vec3_light,		ZEROS
 
-	; vec3_nrmEye = normalize(viewVecNorm.xyz);
-	mov FUNC_IN.xyz,	TMP_4.xyz														;							TMP_1        no longer needed
+	; vec3_nrmEye = normalize(normalVec.xyz);
+	mov FUNC_IN.xyz,	TMP_4.xyz														;	no longer needed:	TMP_4
 	call normalize
-	mov vec3_nrmEye,	FUNC_OUT.xyz													;	vec3_nrmEye  occupied;
+	mov vec3_nrmEye,	FUNC_OUT.xyz
 
 	; for (int i = 0; i < maxLights; ++i)
 	for loopParams
 		; flot_intens = lightsClr[i].w;
 		; flot_liType = lightsPos[i].w;
-		mov flot_intens,	lightsClr[aL].w												;	flot_intens  occupied;
-		mov flot_liType,	lightsPos[aL].w												;	flot_liType  occupied;
+		mov flot_intens,	lightsClr[aL].w
+		mov flot_liType,	lightsPos[aL].w
 
 		; Set cmp.x and cmp.y with "flot_liType >= 0.0"
 		;	 and "flot_liType > 0.0", respectively.
@@ -354,12 +342,12 @@
 		; if (flot_liType >= 0.0) [light isn't ambient]
 		ifc cmp.x
 			; vec3_vtxToLi = lightsPos[i].xyz;
-			mov vec3_vtxToLi,	lightsPos[aL].xyz										;	vec3_vtxToLi occupied;
+			mov vec3_vtxToLi,	lightsPos[aL].xyz
 
 			; if (flot_liType > 0.0) [positional light]
 			ifc cmp.y
 				; vec3_vtxToLi -= vec4_posView.xyz;
-				add vec3_vtxToLi,	vec3_vtxToLi,		-vec4_posView.xyz				;							vec4_posView     STILL NEEDED
+				add vec3_vtxToLi,	vec3_vtxToLi,		-vec4_posView.xyz				;	no longer needed:	vec4_posView
 
 				; float dist = length(vertexToLight);
 				; flot_intensDiv = dist * (LIN_ATTEN + dist * QUAD_ATTEN) + CONST_ATTEN
@@ -372,12 +360,12 @@
 				mul TMP_0.xyz,			vec3_vtxToLi,	 vec3_vtxToLi
 				add TMP_0.x,			TMP_0.x,		 TMP_0.y
 				add TMP_0.x,			TMP_0.x,		 TMP_0.z
-				add TMP_0.x,			CONST_ATTEN,	 TMP_0.x						;	TMP_0.x      occupied;
+				add TMP_0.x,			CONST_ATTEN,	 TMP_0.x
 				cmp lightsDir[aL].w,	gt, gt,			 TMP_1.x
 
 				; flot_intens /= flot_intensDiv
 				rcp TMP_0.x,		TMP_0.x
-				mul flot_intens,	flot_intens,		TMP_0.x							;							TMP_0        no longer needed
+				mul flot_intens,	flot_intens,		TMP_0.x
 
 				; if (lightsDir[i].w > -1.0)
 				ifc cmp.x
@@ -385,24 +373,24 @@
 					mov FUNC_IN.x,		 lightsPar[aL].w
 					mov FUNC_IN.yz,		 ZERO_ONE
 					call clamp
-					mov flot_cosPenum,	 FUNC_OUT.x										;	flot_cosPenum occupied;
+					mov flot_cosPenum,	 FUNC_OUT.x
 
 					; flot_cosUmbra = clamp(lightsPar[i].z, 0.0, flot_cosPenum); // cos(phi / 2)
 					mov FUNC_IN.x,		 lightsPar[aL].z
 					mov FUNC_IN.y,		 ZEROS
 					mov FUNC_IN.z,		 flot_cosPenum
 					call clamp
-					mov flot_cosUmbra,	 FUNC_OUT.x										;	flot_cosUmbra occupied;
+					mov flot_cosUmbra,	 FUNC_OUT.x
 
 					; flot_cosAngle = -dp3(normalize(vec3_vtxToLi), normalize(lightsDir[i].xyz)); // rho
 					mov FUNC_IN.xyz,	 vec3_vtxToLi
 					call normalize
-					mov TMP_0.xyz,		 FUNC_OUT.xyz									;	TMP_0.xyz    occupied;
+					mov TMP_0.xyz,		 FUNC_OUT.xyz
 					mov FUNC_IN.xyz,	 lightsDir[aL].xyz
 					call normalize
-					mov TMP_1.xyz,		 FUNC_OUT.xyz									;	TMP_1.xyz    occupied;
-					dp3 TMP_2.x,		 TMP_1.xyz,			TMP_0.xyz					;	TMP_2.x      occupied;	TMP_0,1      no longer needed
-					mov flot_cosAngle,	-TMP_2.x										;	flot_cosAngle occupied;	TMP_2        no longer needed
+					mov TMP_1.xyz,		 FUNC_OUT.xyz
+					dp3 TMP_2.x,		 TMP_1.xyz,			TMP_0.xyz
+					mov flot_cosAngle,	-TMP_2.x
 
 					; if (flot_cosAngle <= flot_cosPenum)
 					cmp flot_cosAngle,	 le, le,			flot_cosPenum
@@ -418,26 +406,26 @@
 							mov flot_intens,	ZEROS
 						.else
 							; flot_intens *= (flot_cosAngle - flot_cosUmbra) / (flot_cosPenum - flot_cosUmbra);
-							add TMP_0.x,		flot_cosAngle,		-flot_cosUmbra		;	TMP_0.x      occupied;
-							add TMP_1.x,		flot_cosPenum,		-flot_cosUmbra		;	TMP_1.x      occupied;
-							rcp TMP_2.x,		TMP_1.x									;	TMP_2.x      occupied;	TMP_1        no longer needed
-							mul TMP_0.x,		TMP_0.x,			 TMP_2.x			;							TMP_2        no longer needed
-							mul flot_intens,	flot_intens,		 TMP_0.x			;							TMP_0        no longer needed
+							add TMP_0.x,		flot_cosAngle,		-flot_cosUmbra
+							add TMP_1.x,		flot_cosPenum,		-flot_cosUmbra
+							rcp TMP_2.x,		TMP_1.x
+							mul TMP_0.x,		TMP_0.x,			 TMP_2.x
+							mul flot_intens,	flot_intens,		 TMP_0.x
 						.end
-					nop
+					nop																	; .end can't be called consecutively - insert nop instruction between
 					.end
-				nop
+				nop																		; .end can't be called consecutively - insert nop instruction between
 				.end
-			nop
+			nop																			; .end can't be called consecutively - insert nop instruction between
 			.end
 
 			; flot_intens *= max(0.0, dp3(vec3_nrmEye, normalize(vec3_vtxToLi)));
 			mov FUNC_IN.xyz,	 vec3_vtxToLi
 			call normalize
-			mov TMP_0.xyz,		 FUNC_OUT.xyz											;	TMP_0.xyz    occupied;
-			dp3 TMP_1.x,		 vec3_nrmEye,		TMP_0.xyz							;	TMP_1.x      occupied;	TMP_0        no longer needed
-			max TMP_0.x,		 ZEROS,				TMP_1.x								;	TMP_0.x      occupied;	TMP_1        no longer needed
-			mul flot_intens,	 flot_intens,		TMP_0.x								;							TMP_0        no longer needed
+			mov TMP_0.xyz,		 FUNC_OUT.xyz
+			dp3 TMP_1.x,		 vec3_nrmEye,		TMP_0.xyz
+			max TMP_0.x,		 ZEROS,				TMP_1.x
+			mul flot_intens,	 flot_intens,		TMP_0.x
 		.end
 
 		; vec3_light += lightsClr[i].xyz * flot_intens;
@@ -457,7 +445,7 @@
 	; outColor = tmpColor
 	mov outColor,		tmpColor
 
-	end
+	end																					; "end" is different from ".end" - no nop needed
 .end
 
 
