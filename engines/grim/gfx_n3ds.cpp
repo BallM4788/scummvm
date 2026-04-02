@@ -964,7 +964,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 			normal = -normal;
 
 		for (int i = 0; i < 3; i++) {
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 1.0f);	// Avoid using bools.
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, true);
 			shaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);
 			shaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);			// shadowProjection, PARAM 1   OF 4
 			shaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);	// shadowProjection, PARAM 2   OF 4
@@ -977,7 +977,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 	}
 	else {
 		for (int i = 0; i < 3; i++) {
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, 0.0f);	// Avoid using bools.
+			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, false);
 		}
 	}
 
@@ -1159,7 +1159,7 @@ void GfxN3DS::drawMesh(const Mesh *mesh) {
 		}
 
 		bool textured = face->hasTexture() && !_currentShadowArray;
-		actorShader->setUniform("bool_textured", GPU_VERTEX_SHADER, textured ? 1.0f : 0.0f);	// Avoid using bools.
+		actorShader->setUniform("textured", GPU_VERTEX_SHADER, textured);
 		actorShader->setUniform("texScale", GPU_VERTEX_SHADER, Math::Vector2d(_selectedTexture->_width, _selectedTexture->_height));
 
 		drawStart(0, 0, 0, 640, 480);
