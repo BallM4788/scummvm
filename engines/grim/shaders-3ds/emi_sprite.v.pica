@@ -85,17 +85,14 @@
 .fvec    cameraPos			; vec3    cameraPos
 .fvec uniformColor			; vec4 uniformColor
 
-.fvec bool_textured			; UBOOL textured
-.fvec bool_useVtxAl			; UBOOL useVertexAlpha
-.alias textured		bool_textured.x
-.alias useVtxAlpha	bool_useVtxAl.x
+.bool    textured			; UBOOL textured
+.bool    notVtxAlpha		; UBOOL !useVertexAlpha
 
-.fvec shadowActive		; UBOOL shadow._active
+.bool shadowActive		; UBOOL shadow._active
 .fvec shadowColor		;  vec3 shadow._color
 .fvec shadowLight		;  vec3 shadow._light
 .fvec shadowPoint		;  vec3 shadow._point
 .fvec shadowNormal		;  vec3 shadow._normal
-.alias shadowOn		shadowActive.x
 
 
 ; Outputs
@@ -190,16 +187,8 @@
 	; outPos = vec4_projPos;
 	mov outPos,			vec4_projPos
 
-	; Prepare in TMP_0 for comparison operation
-	mov TMP_0.x,		shadowOn
-	mov TMP_0.y,		textured
-
-	; Set cmp.x and cmp.y with "shadowOn == 1.0"
-	;	and "textured == 1.0", respectively.
-	cmp ONES,			eq, eq,				TMP_1.xy
-
-	; if (shadowOn)
-	ifc cmp.x
+	; if (shadowActive)
+	ifu shadowActive
 		; tmpColor.rgb = shadowColor;
 		; tmpColor.a = 1.0;
 		mov tmpColor.rgb,	shadowColor.rgb
@@ -210,7 +199,7 @@
 	.end
 
 	; if (textured)
-	ifc cmp.y
+	ifu textured
 		; outTcoord = inTcoord;
 		mov outTcoord,		inTcoord
 	.else
@@ -218,10 +207,8 @@
 		mov outTcoord,		ZEROS
 	.end
 
-	; if (!useVtxAlpha)
-	mov TMP_0.x,		ONES
-	cmp useVtxAlpha,	eq, eq,				TMP_0.x
-	ifc !cmp.x
+	; if (notVtxAlpha)
+	ifu notVtxAlpha
 		; tmpColor.a = 1.0;
 		mov tmpColor.a,		ONES
 	.end
