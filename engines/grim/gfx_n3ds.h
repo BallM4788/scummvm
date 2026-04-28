@@ -219,7 +219,7 @@ public:
 
 	void setBlendMode(bool additive) override;
 
-	void drawStart(u8 flags = 0, u32 x = 0, u32 y = 0, u32 w = 640, u32 h = 480, C3D_TexEnv *texenv = nullptr);
+	void drawStart(u8 flags = 0, u32 x = 0, u32 y = 0, u32 w = 640, u32 h = 480, C3D_TexEnv *texenv0 = nullptr, C3D_TexEnv *texenv1 = nullptr);
 	void drawEnd(u8 flags = 0);
 
 protected:
@@ -314,7 +314,7 @@ private:
 	int _screenTexWidth;
 	int _screenTexHeight;
 
-	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane;
+	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDimSTAGE0, envGrimDimSTAGE1;
 
 	C3D_Tex _previousFrame;
 	void *_screenCopySpace;
