@@ -66,6 +66,7 @@
 #include "engines/grim/shaders-3ds/emi_sprite_shbin.h"
 #include "engines/grim/shaders-3ds/grim_actor_shbin.h"
 #include "engines/grim/shaders-3ds/grim_actorLights_shbin.h"
+#include "engines/grim/shaders-3ds/grim_dim_shbin.h"
 #include "engines/grim/shaders-3ds/grim_shadowPlane_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
@@ -78,13 +79,14 @@ namespace Grim {
 #define DECOMPOSE_SHADER(shaderName) \
 	delete shaderName##Shader
 
-void GfxN3DS::drawStart(u8 flags, u32 x, u32 y, u32 w, u32 h, C3D_TexEnv *texenv) {
+void GfxN3DS::drawStart(u8 flags, u32 x, u32 y, u32 w, u32 h, C3D_TexEnv *texenv0, C3D_TexEnv *texenv1) {
 	if (!_inFrame) {
 		C3D_FrameBegin(flags);
 		C3D_FrameDrawOn(_gameScreenTarget);
 		// Due to the way Citro3D works, we must set the viewport ourselves for every draw session.
 		C3D_SetViewport(x, y, w, h);
-		if (texenv) C3D_SetTexEnv(0, texenv);
+		if (texenv0) C3D_SetTexEnv(0, texenv0);
+		if (texenv1) C3D_SetTexEnv(1, texenv1);
 		_inFrame = true;
 	}
 }
@@ -92,6 +94,8 @@ void GfxN3DS::drawStart(u8 flags, u32 x, u32 y, u32 w, u32 h, C3D_TexEnv *texenv
 void GfxN3DS::drawEnd(u8 flags) {
 	if (_inFrame) {
 		C3D_FrameEnd(flags);
+		C3D_TexEnv *resetenv1 = C3D_GetTexEnv(1);
+		C3D_TexEnvInit(resetenv1);
 		_inFrame = false;
 	}
 }
@@ -324,6 +328,24 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvOpRgb(&envShadowPlane, GPU_TEVOP_RGB_SRC_COLOR);
 	C3D_TexEnvOpAlpha(&envShadowPlane, GPU_TEVOP_A_SRC_ALPHA);
 
+	// Create texEnvs for Grim grayscaling.
+	C3D_TexEnvInit(&envGrimDimSTAGE0);
+	C3D_TexEnvFunc(&envGrimDimSTAGE0, C3D_RGB, GPU_ADD);
+	C3D_TexEnvSrc(&envGrimDimSTAGE0, C3D_RGB, GPU_TEXTURE0, GPU_TEXTURE0);
+	C3D_TexEnvOpRgb(&envGrimDimSTAGE0, GPU_TEVOP_RGB_SRC_R, GPU_TEVOP_RGB_SRC_G);
+	C3D_TexEnvFunc(&envGrimDimSTAGE0, C3D_Alpha, GPU_REPLACE);
+	C3D_TexEnvSrc(&envGrimDimSTAGE0, C3D_Alpha, GPU_TEXTURE0);
+	C3D_TexEnvOpAlpha(&envGrimDimSTAGE0, GPU_TEVOP_A_SRC_ALPHA);
+
+	C3D_TexEnvInit(&envGrimDimSTAGE1);
+	C3D_TexEnvFunc(&envGrimDimSTAGE1, C3D_RGB, GPU_ADD_MULTIPLY);
+	C3D_TexEnvSrc(&envGrimDimSTAGE1, C3D_RGB, GPU_PREVIOUS, GPU_TEXTURE0, GPU_PRIMARY_COLOR);
+	C3D_TexEnvOpRgb(&envGrimDimSTAGE1, GPU_TEVOP_RGB_SRC_COLOR, GPU_TEVOP_RGB_SRC_B, GPU_TEVOP_RGB_SRC_COLOR);
+	C3D_TexEnvFunc(&envGrimDimSTAGE1, C3D_Alpha, GPU_REPLACE);
+	C3D_TexEnvSrc(&envGrimDimSTAGE1, C3D_Alpha, GPU_PREVIOUS);
+	C3D_TexEnvOpAlpha(&envGrimDimSTAGE1, GPU_TEVOP_A_SRC_ALPHA);
+
+
 	float div = 6.0f;
 	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
 
@@ -343,6 +365,8 @@ GfxN3DS::~GfxN3DS() {
 	custom3DS_FreeBuffer(_quadEBO);
 	custom3DS_FreeBuffer(_spriteVBO);
 
+	custom3DS_FreeBuffer(_dimVBO);
+	custom3DS_FreeBuffer(_dimRegionVBO);
 	custom3DS_FreeBuffer(_blastVBO);
 
 
@@ -354,6 +378,8 @@ GfxN3DS::~GfxN3DS() {
 
 	if (isEMI) {
 	} else {
+		DECOMPOSE_SHADER(_dimRegion);
+		DECOMPOSE_SHADER(_dim);
 	}
 
 	DECOMPOSE_SHADER(_background);
@@ -367,6 +393,10 @@ GfxN3DS::~GfxN3DS() {
 	DECOMPOSE_SHADER(_shadowPlane);
 
 	DECOMPOSE_SHADER(_manualClear);
+
+	C3D_TexDelete(&_storedDisplay);
+
+	custom3DS_FreeBuffer(_screenCopySpace);
 
 	// Set backend context settings; otherwise, launcher will be blank screen.
 	N3DS_3D::setContext(_backendContext);
@@ -446,6 +476,28 @@ void GfxN3DS::setupTexturedCenteredQuad() {
 }
 
 void GfxN3DS::setupPrimitives() {
+	// 640x480 image on 1024x512 texture.
+	float points[24] = {
+		0.0f, 0.0f, 0.0f,   0.0f,
+		1.0f, 0.0f, 0.625f, 0.0f,
+		1.0f, 1.0f, 0.625f, 0.9375f,
+		1.0f, 1.0f, 0.625f, 0.9375f,
+		0.0f, 1.0f, 0.0f,   0.9375f,
+		0.0f, 0.0f, 0.0f,   0.0f,
+	};
+
+	_dimVBO = custom3DS_CreateBuffer(24 * sizeof(float), points, 0x4);
+
+	_dimShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_dimShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	_dimShader->addBufInfo(_dimVBO, 4 * sizeof(float), 2, 0x10);	// combined buffer
+
+
+	_dimRegionVBO = custom3DS_CreateBuffer(24 * sizeof(float), nullptr, 0x4);
+
+	_dimRegionShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_dimRegionShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	_dimRegionShader->addBufInfo(_dimRegionVBO, 4 * sizeof(float), 2, 0x10);
 }
 
 void *GfxN3DS::nextPrimitive() {
@@ -471,6 +523,10 @@ void GfxN3DS::setupShaders() {
 		CONSTRUCT_SHADER(_actor, grim_actor, 0);
 		CONSTRUCT_SHADER(_actorLights, grim_actorLights, 0);
 		CONSTRUCT_SHADER(_sprite, grim_actor, 0);
+
+
+		CONSTRUCT_SHADER(_dim, grim_dim, 0);
+		CONSTRUCT_SHADER(_dimRegion, grim_dim, 0);
 	} else {
 		CONSTRUCT_SHADER(_background, emi_background, 0);
 		CONSTRUCT_SHADER(_actor, emi_actor, 0);
@@ -506,10 +562,15 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 	// Stencil + Depth: 0x00 << 24 | 0xFFFFFF = 0x00FFFFFF
 	C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0, 0x00FFFFFF);
 
+	_screenCopySpace = custom3DS_CreateBuffer(640 * 480 * 4);
+
 	setupZBuffer();
 	setupShaders();
 
 	// Due to the way Citro3D works, we must set the viewport ourselves for every draw.
+
+	C3D_TexInit(&_storedDisplay, (u16)_screenTexWidth, (u16)_screenTexHeight, GPU_RGBA8);
+	C3D_TexSetFilter(&_storedDisplay, GPU_LINEAR, GPU_LINEAR);
 
 	glTo3DS_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
 	if (g_grim->getGameType() == GType_MONKEY4) {
@@ -1985,15 +2046,128 @@ void GfxN3DS::destroyTextObject(TextObject *text) {
 }
 
 void GfxN3DS::storeDisplay() {
+	// In C3D_SyncTextureCopy ONLY, for the macro GX_BUFFER_DIM(w, h):
+	//	w = number of bytes to copy from/write to per row, bit-shifted right 4 places
+	//	h = number of bytes to skip between copied/written segments, bit-shifted right 4 places
+	// The fifth parameter of C3D_SyncTextureCopy is the number of 8-bytes blocks to copy.
+	u32 *srcCopyStart =  (u32 *)_gameScreenTex->data + ((_screenTexHeight - _screenHeight) * _screenTexWidth);
+	u32 *dstWriteStart = (u32 *)_storedDisplay.data + ((_screenTexHeight - _screenHeight) * _screenTexWidth);
+	u32 srcBytesSkip = (_screenTexWidth - _screenWidth) * 8 * 4;
+	u32 dstBytesSkip = srcBytesSkip;
+	C3D_SyncTextureCopy(
+		srcCopyStart, GX_BUFFER_DIM((_screenWidth * 8 * 4) >> 4, srcBytesSkip >> 4),
+		dstWriteStart, GX_BUFFER_DIM((_screenWidth * 8 * 4) >> 4, dstBytesSkip >> 4),
+		_screenWidth * _screenHeight * 4,
+		// Cropping bit is at x << 2.
+		GX_TRANSFER_RAW_COPY(1) | ((srcBytesSkip || dstBytesSkip) ? 4 : 0)
+	);
 }
 
 void GfxN3DS::copyStoredToDisplay() {
+	if (!_dimShader)
+		return;
+
+	N3DS_3D::changeShader(_dimShader);
+	_dimShader->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f, 1.f));
+
+	glTo3DS_BindTexture(0, &_storedDisplay);
+
+	glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(false);
+
+	drawStart(0, 0, 0, 640, 480, &envGrimDimSTAGE0, &envGrimDimSTAGE1);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawArrays(GPU_TRIANGLES, 0, 6);
+	drawEnd(0);
+
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(true);
 }
 
 void GfxN3DS::dimScreen() {
 }
 
 void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
+	// _screenWidth = 640, _screenTexWidth = 1042
+	// _screenHeight = 480, _screenTexHeight = 512
+	xin = (int)(xin * _scaleW);
+	yReal = (int)(yReal * _scaleH);
+	w = (int)(w * _scaleW);
+	h = (int)(h * _scaleH);
+	// Since our render target is a texture, and 3DS texture dimensions
+	//	must be powers of two, its height is 512 instead of 480.
+	int yin = _screenTexHeight - yReal - h;
+	// Get coordinates of region corner opposite to (xin, yin).
+	int wcoord = xin + w;
+	int hcoord = yin + h;
+	// C3D_SyncTextureCopy only accepts dimensions that are multiples of 8.
+	// Round xin and yin DOWN to the next multiple of 8 (if necessary).
+	int xin8 = xin >> 3 << 3;
+	int yin8 = yin >> 3 << 3;
+	// Round wcoord and hcoord UP to the next multiple of 8 (if necessary),
+	//	then subtract by xin8 and yin8, respectively.
+	int w8 = (wcoord % 8 == 0) ? (wcoord - xin8) : ((((wcoord >> 3) + 1) << 3) - xin8);
+	int h8 = (hcoord % 8 == 0) ? (hcoord - yin8) : ((((hcoord >> 3) + 1) << 3) - yin8);
+
+	C3D_Tex texture;
+
+	// 3DS texture dimensions must be powers of two.
+	C3D_TexInit(&texture, (u16)nextHigher2(w8), (u16)nextHigher2(h8), GPU_RGBA8);
+	C3D_TexSetFilter(&texture, GPU_LINEAR, GPU_LINEAR);
+
+	// In C3D_SyncTextureCopy ONLY, for the macro GX_BUFFER_DIM(w, h):
+	//	w = number of bytes to copy from/write to per row, bit-shifted right 4 places
+	//	h = number of bytes to skip between copied/written segments, bit-shifted right 4 places
+	// The fifth parameter of C3D_SyncTextureCopy is the number of 8-bytes blocks to copy.
+	u32 *srcCopyStart = (u32 *)_gameScreenTex->data + (yin8 * _screenTexWidth + (xin8 * 8));
+	u32 *dstWriteStart = (u32 *)texture.data + ((texture.height - h8) * texture.width);
+	u32 srcBytesSkip = (_screenTexWidth - w8) * 8 * 4;
+	u32 dstBytesSkip = (texture.width - w8) * 8 * 4;
+	C3D_SyncTextureCopy(
+		srcCopyStart, GX_BUFFER_DIM((w8 * 8 * 4) >> 4, srcBytesSkip >> 4),
+		dstWriteStart, GX_BUFFER_DIM((w8 * 8 * 4) >> 4, dstBytesSkip >> 4),
+		w8 * h8 * 4,
+		// Cropping bit is at x << 2.
+		GX_TRANSFER_RAW_COPY(1) | ((srcBytesSkip || dstBytesSkip) ? 4 : 0)
+	);
+
+	float width = w;
+	float height = h;
+	float x = xin;
+	float y = yReal;
+	float texL = (xin - xin8)                             / (float)texture.width;
+	float texR = (xin - xin8 + w)                         / (float)texture.width;
+	float texT = (yin8 + h8 - (_screenTexHeight - y))     / (float)texture.height;
+	float texB = (yin8 + h8 - (_screenTexHeight - y - h)) / (float)texture.height;
+	float points[24] = {	// xy, uv
+		// triangle 1
+		x,         y,          texL, texT,
+		x + width, y,          texR, texT,
+		x + width, y + height, texR, texB,
+		// triangle 2
+		x + width, y + height, texR, texB,
+		x,         y + height, texL, texB,
+		x,         y,          texL, texT,
+	};
+
+	memcpy(_dimRegionVBO, points, 24 * sizeof(float));
+
+	N3DS_3D::changeShader(_dimRegionShader);
+	_dimRegionShader->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _screenWidth, 1.f / _screenHeight));
+	glTo3DS_BindTexture(0, &texture);
+
+	glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(false);
+
+	drawStart(0, 0, 0, 640, 480, &envGrimDimSTAGE0, &envGrimDimSTAGE1);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawArrays(GPU_TRIANGLES, 0, 6);
+	drawEnd(0);
+
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(true);
+
+	C3D_TexDelete(&texture);
 }
 
 void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
@@ -2221,8 +2395,38 @@ void GfxN3DS::makeScreenTextures() {									// DEFINITE? - ADDED
 #undef SUBTEXTURE_WIDTH													// DEFINITE? - ADDED
 
 Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
-	// Temporary hack until this function is properly implemented.
+	Graphics::Surface src;
+	// In C3D_SyncDisplayTransfer, the destination buffer must be in linear memory.
+	src.setPixels(_screenCopySpace);
+	// Set the rest of src manually.
+	src.w = _screenWidth;
+	src.h = _screenHeight;
+	// 3DS display data is in ABGR order.
+	src.format = Graphics::PixelFormat::createFormatABGR32();
+	src.pitch = src.w * src.format.bytesPerPixel;
 	Bitmap *bmp;
+
+	// Leaving GX_TRANSFER_OUT_TILED at 0 instructs the GPU to ~UN~tile the data copied from the source buffer
+	//	before sending it to the destination buffer.
+	// Do NOT reflip with GX_TRANSFER_FLIP_VERT(1) - we want to keep the upper-left corner of the display image
+	//	at the beginning of the destination buffer. If flipping is enabled while either dimension of the source
+	//	buffer (width or height) is greater than its respective dimension in the destination buffer, the untiled
+	//	data will be written to an address determined by the following equation:
+	//		offsetAddr = destBufferAddr + ((sourceWidth - destWidth) * (destHeight - 1) * bytesPerPixel)
+	// Cropping bit is at x << 2.
+	// 0 << 0 | 0 << 1 | 1 << 2 = 0b0100 = 4
+	if (useStored) {
+		C3D_SyncDisplayTransfer((u32 *)_storedDisplay.data, GX_BUFFER_DIM(_storedDisplay.width, _storedDisplay.height),
+		                        (u32 *)_screenCopySpace,    GX_BUFFER_DIM(src.w, src.h), 4);
+	} else {
+		C3D_SyncDisplayTransfer((u32 *)_gameScreenTex->data, GX_BUFFER_DIM(_gameScreenTex->width, _gameScreenTex->height),
+		                        (u32 *)_screenCopySpace,     GX_BUFFER_DIM(src.w, src.h), 4);
+	}
+	// Since our data is already in the correct image orientation, do not flip it.
+	bmp = createScreenshotBitmap(&src, w, h, false);
+	src.setPixels(0);
+	src.w = src.h = src.pitch = 0;
+	src.format = Graphics::PixelFormat();
 	return bmp;
 }
 
