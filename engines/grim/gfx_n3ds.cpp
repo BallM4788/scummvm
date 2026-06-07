@@ -407,6 +407,7 @@ GfxN3DS::~GfxN3DS() {
 
 void GfxN3DS::setupZBuffer() {
 	// Create buffer to hold values from depth bitmaps.
+	// GX_RequestDma requires the source data to be in linear memory.
 	_zBuffer = custom3DS_CreateBuffer(nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4, nullptr, 0x4);
 }
 
@@ -1422,15 +1423,16 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
 
-	// C3D_TexInit resets texture wrap+filter settings, so
-	//	we're forced to do that after texture initialization.
-
 	char *texdata = nullptr;
 	char *texdatapos = nullptr;
 
 	if (cmap != nullptr) { // EMI doesn't have colour-maps
 		int bytes = 4;
 
+		// Allocate linear memory for texture data via texture initialization.
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);
+		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
+		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
 		texdata = (char *)linearAlloc(texture->_width * texture->_height * 4);
 		texdatapos = texdata;
 
@@ -1456,9 +1458,8 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			}
 		}
 
-		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);
+		// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 		if ((texture->_width < 64) || (texture->_height < 64)) {
-			// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 			// "false" instructs NOT to reorder pixel components (we already did).
 			custom3DS_DataToBlockTex((u32 *)texdata,          0, 0, texture->_width, texture->_height,
 			                         (u32 *)textures[0].data, 0, 0, texture->_width, texture->_height,
@@ -1473,9 +1474,13 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			drawEnd();
 			GSPGPU_FlushDataCache(texdata, texture->_width * texture->_height * bytes);
 			// GX_TRANSFER_FMT_RGBA8 is already 0
-			// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+			// Transfer data to the texture in a tiled order.
+			// Flip the image vertically so that the upper-left corner of the image is at the beginning
+			//	of the tiled data.
 			C3D_SyncDisplayTransfer((u32 *)texdata,          GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        (u32 *)textures[0].data, GX_BUFFER_DIM(texture->_width, texture->_height), 3);
+			                        (u32 *)textures[0].data, GX_BUFFER_DIM(texture->_width, texture->_height),
+			                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1));
+			GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
 		}
 	} else {
 		int bytes = texture->_bpp;
@@ -1490,6 +1495,10 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			transFmt = GX_TRANSFER_FMT_RGB8;
 		}
 
+		// Allocate linear memory for texture data via texture initialization.
+		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);
+		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
+		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
 		texdata = (char *)linearAlloc(texture->_width * texture->_height * bytes);
 		texdatapos = texdata;
 
@@ -1504,9 +1513,8 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			}
 		}
 
-		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);
+		// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 		if ((texture->_width < 64) || (texture->_height < 64)) {
-			// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 			// "false" instructs NOT to reorder pixel components (we already did).
 			custom3DS_DataToBlockTex((u32 *)texdata,          0, 0, texture->_width, texture->_height,
 			                         (u32 *)textures[0].data, 0, 0, texture->_width, texture->_height,
@@ -1520,14 +1528,22 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 			// To do so, we'll call drawEnd() to end the frame (if we are in one).
 			drawEnd();
 			GSPGPU_FlushDataCache(texdata, texture->_width * texture->_height * bytes);
-			// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+			// Transfer data to the texture in a tiled order.
+			// Flip the texture vertically so that the upper-left corner of the texture is at the beginning
+			//	of the tiled data.
 			C3D_SyncDisplayTransfer((u32 *)texdata,          GX_BUFFER_DIM(texture->_width, texture->_height),
 			                        (u32 *)textures[0].data, GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt) | 3);
+			                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1) |
+			                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt));
+			GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
 		}
 	}
 
+	// Free temporary data.
 	linearFree(texdata);
+
+	// C3D_TexInit resets texture wrap+filter settings, so
+	//	we're forced to do those after texture initialization.
 
 	// Remove darkened lines in EMI intro
 	if (g_grim->getGameType() == GType_MONKEY4 && clamp) {
@@ -1553,7 +1569,7 @@ void GfxN3DS::selectTexture(const Texture *texture) {
 void GfxN3DS::destroyTexture(Texture *texture) {
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
 	if (textures) {
-		C3D_TexDelete(textures);
+		C3D_TexDelete(textures);			// NOTE: This only deletes textures->data, NOT textures itself.
 		delete[] textures;
 	}
 }
@@ -1595,17 +1611,29 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		C3D_Tex *textures = new C3D_Tex[bitmap->_numTex * bitmap->_numImages];
 		bitmap->_texIds = textures;
 
-		byte *bmpData = nullptr;
+		// C3D texture measurements MUST be powers of two.
+		int actualWidth = nextHigher2(bitmap->_width);
+		int actualHeight = nextHigher2(bitmap->_height);
 
 		GPU_TEXCOLOR format = GPU_RGBA8;
 		int bytes = 4;
 
+		// Allocate linear memory for texture data via texture initialization.
+		for (int pic = 0; pic < bitmap->_numImages; pic++) {
+			C3D_Tex *c3dTex = &textures[bitmap->_numTex * pic];
+			C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);
+			assert(c3dTex);
+			assert(c3dTex->data);
+			C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);
+			C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+		}
+
+		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
+		// Allocate bmpdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space
+		byte *bmpData = (byte *)linearAlloc(bytes * actualWidth * actualHeight);
+
 		const Graphics::PixelFormat format_16bpp(2, 5, 6, 5, 0, 11, 5, 0, 0);
 		const Graphics::PixelFormat format_32bpp = Graphics::PixelFormat::createFormatRGBA32();
-
-		// C3D texture measurements MUST be powers of two.
-		int actualWidth = nextHigher2(bitmap->_width);
-		int actualHeight = nextHigher2(bitmap->_height);
 
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
 			// Create work area in linear memory.
@@ -1650,22 +1678,22 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			}
 
 			C3D_Tex *c3dTex = &textures[bitmap->_numTex * pic];
-			C3D_TexInit(c3dTex, (u16)actualWidth, (u16)actualHeight, format);
-			C3D_TexSetFilter(c3dTex, GPU_NEAREST, GPU_NEAREST);
-			C3D_TexSetWrap(c3dTex, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
-			// Copy bitmap pixels into c3dTex in hardware-required sequence.
+			// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 			if ((actualWidth < 64) || (actualHeight < 64)) {
-				// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 				// "false" instructs NOT to reorder pixel components (we already did).
 				custom3DS_DataToBlockTex((u32 *)bmpData,      0, 0, bitmap->_width, bitmap->_height,
 				                         (u32 *)c3dTex->data, 0, 0, actualWidth,    actualHeight,
 				                         bitmap->_width, bitmap->_height, format, false);
 			} else {
 				GSPGPU_FlushDataCache(bmpData, bytes * actualWidth * actualHeight);
-				// GX_TRANSFER_FMT_RGBA8 is already 0
-				// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
+				// GX_TRANSFER_FMT_RGBA8 is already 0.
+				// Transfer data to the texture in a tiled order.
+				// Flip the texture vertically so that the upper-left corner of the image is at the
+				//	beginning of the tiled data.
 				C3D_SyncDisplayTransfer((u32 *)bmpData, GX_BUFFER_DIM(actualWidth, actualHeight),
-				                        (u32 *)c3dTex->data, GX_BUFFER_DIM(actualWidth, actualHeight), 3);
+				                        (u32 *)c3dTex->data, GX_BUFFER_DIM(actualWidth, actualHeight),
+				                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1));
+				GSPGPU_InvalidateDataCache(c3dTex->data, c3dTex->size);
 			}
 		}
 
@@ -1784,7 +1812,7 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 	prevH = h;
 	prevData = data;
 
-	// Swizzle the depth data into _zBuffer at the appropriate location, taking into account the dimensions of the buffer (1024 by 512).
+	// Tile the depth data into _zBuffer at the appropriate location, taking into account the dimensions of the buffer (1024 by 512).
 	// NOTE: the "false" here is an indicator to NOT reverse the byte order in each pixel.
 	custom3DS_DataToBlockTex((u32 *)data,     0, 0, w, h,
 	                         (u32 *)_zBuffer, x, y, nextHigher2(_gameWidth), nextHigher2(_gameHeight),
@@ -1910,7 +1938,7 @@ void GfxN3DS::createFont(Font *f) {
 			++row;
 	}
 
-	// Swizzle texels into C3D_Tex.
+	// Tile texels into C3D_Tex.
 //	GSPGPU_FlushDataCache((void *)temp, sizeof(byte) * (u32)arraySize);
 //	// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
 //	C3D_SyncDisplayTransfer((u32 *)temp,                   GX_BUFFER_DIM(pixelsWide, pixelsHigh),
@@ -2416,12 +2444,15 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	// Cropping bit is at x << 2.
 	// 0 << 0 | 0 << 1 | 1 << 2 = 0b0100 = 4
 	if (useStored) {
+		GSPGPU_FlushDataCache(_storedDisplay.data, _storedDisplay.size);
 		C3D_SyncDisplayTransfer((u32 *)_storedDisplay.data, GX_BUFFER_DIM(_storedDisplay.width, _storedDisplay.height),
 		                        (u32 *)_screenCopySpace,    GX_BUFFER_DIM(src.w, src.h), 4);
 	} else {
+		GSPGPU_FlushDataCache(_gameScreenTex->data, _gameScreenTex->size);
 		C3D_SyncDisplayTransfer((u32 *)_gameScreenTex->data, GX_BUFFER_DIM(_gameScreenTex->width, _gameScreenTex->height),
 		                        (u32 *)_screenCopySpace,     GX_BUFFER_DIM(src.w, src.h), 4);
 	}
+	GSPGPU_InvalidateDataCache(_screenCopySpace, src.pitch * src.h);
 	// Since our data is already in the correct image orientation, do not flip it.
 	bmp = createScreenshotBitmap(&src, w, h, false);
 	src.setPixels(0);
