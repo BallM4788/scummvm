@@ -1423,70 +1423,70 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 
 	C3D_Tex *textures = static_cast<C3D_Tex *>(texture->_texture);
 
+	GPU_TEXCOLOR format;
+	GX_TRANSFER_FORMAT transFmt;
+
+	int bytes;
 	char *texdata = nullptr;
-	char *texdatapos = nullptr;
+
+	// C3D_Texes cannot have a width or height less than 8 texels. If the incoming texture
+	//	data has a width and/or height less than that, we must upscale the texture so that
+	//	the shortest dimension of the C3D_Tex meets the 8 texel minimum.
+	u16 c3dWidth, c3dHeight, upscaleFactor;
+
+	if (texture->_width < texture->_height) {
+		c3dWidth = (u16)MAX(texture->_width, 8);
+		upscaleFactor = (u16)MAX(8/texture->_width, 1);
+		c3dHeight = (u16)texture->_height * upscaleFactor;
+	} else {
+		c3dHeight = (u16)MAX(texture->_height, 8);
+		upscaleFactor = (u16)MAX(8/texture->_height, 1);
+		c3dWidth = (u16)texture->_width * upscaleFactor;
+	}
 
 	if (cmap != nullptr) { // EMI doesn't have colour-maps
-		int bytes = 4;
+		bytes = 4;
+		char colorComponents[bytes];
+
+		format = GPU_RGBA8;
+		transFmt = GX_TRANSFER_FMT_RGBA8;
 
 		// Allocate linear memory for texture data via texture initialization.
-		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, GPU_RGBA8);
+		C3D_TexInit(textures, c3dWidth, c3dHeight, GPU_RGBA8);
 		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
 		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
-		texdata = (char *)linearAlloc(texture->_width * texture->_height * 4);
-		texdatapos = texdata;
+		texdata = (char *)linearAlloc(c3dHeight * c3dHeight * 4);
 
-		for (int y = 0; y < texture->_height; y++) {
-			for (int x = 0; x < texture->_width; x++) {
+		for (u16 y = 0; y < texture->_height; y++) {
+			for (u16 x = 0; x < texture->_width; x++) {
 				uint8 col = *(const uint8 *)(data);
 				if (col == 0) {
-					memset(texdatapos, 0, bytes); // transparent
+					memset(colorComponents, 0, bytes); // transparent
 					if (!texture->_hasAlpha) {
 						// C3D_SyncDisplayTransfer requires ABGR-order input.
-						texdatapos[0] = '\xff'; // fully opaque
+						colorComponents[0] = '\xff'; // fully opaque
 					}
 				} else {
 					// C3D_SyncDisplayTransfer requires ABGR-order input.
 					const char *components = cmap->_colors + 3 * (col);
-					texdatapos[3] = components[0];			// R
-					texdatapos[2] = components[1];			// G
-					texdatapos[1] = components[2];			// B
-					texdatapos[0] = '\xff'; // fully opaque
+					colorComponents[3] = components[0];			// R
+					colorComponents[2] = components[1];			// G
+					colorComponents[1] = components[2];			// B
+					colorComponents[0] = '\xff'; // fully opaque
 				}
-				texdatapos += bytes;
+				// Upscale data if needed.
+				for (u16 c3dY = y * upscaleFactor; c3dY < (y + 1) * upscaleFactor; c3dY++) {
+					for (u16 c3dX = x * upscaleFactor; c3dX < (x + 1) * upscaleFactor; c3dX++) {
+						((u32 *)texdata)[c3dY * c3dWidth + c3dX] = *(u32 *)colorComponents;
+					}
+				}
 				data++;
 			}
 		}
-
-		// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
-		if ((texture->_width < 64) || (texture->_height < 64)) {
-			// "false" instructs NOT to reorder pixel components (we already did).
-			custom3DS_DataToBlockTex((u32 *)texdata,          0, 0, texture->_width, texture->_height,
-			                         (u32 *)textures[0].data, 0, 0, texture->_width, texture->_height,
-			                         texture->_width, texture->_height, GPU_RGBA8, false);
-		} else {
-			// If Citro3D is not in the middle of a frame, C3D_SyncDisplayTransfer immediately processes a
-			//	GX_DisplayTransfer request. If Citro3D -IS- in a frame, however, C3D_SyncDisplayTransfer adds
-			//	the GX request to its internal GX command queue, which will only be run once the frame has ended.
-			// Since the memory pointed to by texdata is only guaranteed to have the correct data during this
-			//	fucntion call, we must force Citro3D to process the GX request immediately.
-			// To do so, we'll call drawEnd() to end the frame (if we are in one).
-			drawEnd();
-			GSPGPU_FlushDataCache(texdata, texture->_width * texture->_height * bytes);
-			// GX_TRANSFER_FMT_RGBA8 is already 0
-			// Transfer data to the texture in a tiled order.
-			// Flip the image vertically so that the upper-left corner of the image is at the beginning
-			//	of the tiled data.
-			C3D_SyncDisplayTransfer((u32 *)texdata,          GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        (u32 *)textures[0].data, GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1));
-			GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
-		}
 	} else {
-		int bytes = texture->_bpp;
+		bytes = texture->_bpp;
+		char colorComponents[bytes];
 
-		GPU_TEXCOLOR format;
-		GX_TRANSFER_FORMAT transFmt;
 		if (bytes == 4) {
 			format = GPU_RGBA8;
 			transFmt = GX_TRANSFER_FMT_RGBA8;
@@ -1496,56 +1496,62 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 		}
 
 		// Allocate linear memory for texture data via texture initialization.
-		C3D_TexInit(textures, (u16)texture->_width, (u16)texture->_height, format);
+		C3D_TexInit(textures, c3dWidth, c3dHeight, format);
 		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
 		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
-		texdata = (char *)linearAlloc(texture->_width * texture->_height * bytes);
-		texdatapos = texdata;
+		texdata = (char *)linearAlloc(c3dWidth * c3dHeight * bytes);
 
 		// C3D_SyncDisplayTransfer requires ABGR-order input.
-		for (int y = 0; y < texture->_height; y++) {
-			for (int x = 0; x < texture->_width; x++) {
-				for (int i = 0; i < bytes; i++) {
-					texdatapos[i] = data[(bytes - 1) - i];
+		for (u16 y = 0; y < texture->_height; y++) {
+			for (u16 x = 0; x < texture->_width; x++) {
+				for (u16 i = 0; i < bytes; i++) {
+					colorComponents[i] = data[(bytes - 1) - i];
 				}
-				texdatapos += bytes;
+				// Upscale data if needed.
+				for (u16 c3dY = y * upscaleFactor; c3dY < (y + 1) * upscaleFactor; c3dY++) {
+					for (u16 c3dX = x * upscaleFactor; c3dX < (x + 1) * upscaleFactor; c3dX++) {
+						for (u16 i = 0; i < bytes; i++) {
+							texdata[((c3dY * c3dWidth + c3dX) * bytes) + i] = colorComponents[i];
+						}
+					}
+				}
 				data += bytes;
 			}
 		}
-
-		// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
-		if ((texture->_width < 64) || (texture->_height < 64)) {
-			// "false" instructs NOT to reorder pixel components (we already did).
-			custom3DS_DataToBlockTex((u32 *)texdata,          0, 0, texture->_width, texture->_height,
-			                         (u32 *)textures[0].data, 0, 0, texture->_width, texture->_height,
-			                         texture->_width, texture->_height, format, false);
-		} else {
-			// If Citro3D is not in the middle of a frame, C3D_SyncDisplayTransfer immediately processes a
-			//	GX_DisplayTransfer request. If Citro3D -IS- in a frame, however, C3D_SyncDisplayTransfer adds
-			//	the GX request to its internal GX command queue, which will only be run once the frame has ended.
-			// Since the memory pointed to by texdata is only guaranteed to have the correct data during this
-			//	fucntion call, we must force Citro3D to process the GX request immediately.
-			// To do so, we'll call drawEnd() to end the frame (if we are in one).
-			drawEnd();
-			GSPGPU_FlushDataCache(texdata, texture->_width * texture->_height * bytes);
-			// Transfer data to the texture in a tiled order.
-			// Flip the texture vertically so that the upper-left corner of the texture is at the beginning
-			//	of the tiled data.
-			C3D_SyncDisplayTransfer((u32 *)texdata,          GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        (u32 *)textures[0].data, GX_BUFFER_DIM(texture->_width, texture->_height),
-			                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1) |
-			                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt));
-			GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
-		}
 	}
+
+	// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 texels.
+	if ((texture->_width < 64) || (texture->_height < 64)) {
+		// "false" instructs NOT to reorder texel components (we already did).
+		custom3DS_DataToBlockTex((u32 *)texdata,          0, 0, c3dWidth, c3dHeight,
+		                         (u32 *)textures[0].data, 0, 0, c3dWidth, c3dHeight,
+		                         c3dWidth, c3dHeight, format, false);
+	} else {
+		// If Citro3D is not in the middle of a frame, C3D_SyncDisplayTransfer immediately processes a
+		//	GX_DisplayTransfer request. If Citro3D -IS- in a frame, however, C3D_SyncDisplayTransfer adds
+		//	the GX request to its internal GX command queue, which will only be run once the frame has ended.
+		// Since the memory pointed to by texdata is only guaranteed to have the correct data during this
+		//	fucntion call, we must force Citro3D to process the GX request immediately.
+		// To do so, we'll call drawEnd() to end the frame (if we are in one).
+		drawEnd();
+		GSPGPU_FlushDataCache(texdata, c3dWidth * c3dHeight * bytes);
+		// Transfer data to the texture in a tiled order.
+		// Flip the image vertically so that the upper-left corner of the image is at the beginning
+		//	of the tiled data.
+		C3D_SyncDisplayTransfer((u32 *)texdata,          GX_BUFFER_DIM(c3dWidth, c3dHeight),
+		                        (u32 *)textures[0].data, GX_BUFFER_DIM(c3dWidth, c3dHeight),
+		                        GX_TRANSFER_OUT_TILED(1) | GX_TRANSFER_FLIP_VERT(1) |
+		                        GX_TRANSFER_IN_FORMAT(transFmt) | GX_TRANSFER_OUT_FORMAT(transFmt));
+		GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
+	}
+
 
 	// Free temporary data.
 	linearFree(texdata);
 
-	// C3D_TexInit resets texture wrap+filter settings, so
-	//	we're forced to do those after texture initialization.
-
 	// Remove darkened lines in EMI intro
+	// C3D_TexInit resets texture wrap+filter settings, so we're setting those here,
+	//	after texture initialization has been done.
 	if (g_grim->getGameType() == GType_MONKEY4 && clamp) {
 		C3D_TexSetWrap(textures, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
 	} else {
@@ -2325,6 +2331,7 @@ void GfxN3DS::destroyEMIModel(EMIModel *model) {
 void GfxN3DS::createMesh(Mesh *mesh) {
 	Common::Array<GrimVertex> meshInfo;
 	meshInfo.reserve(mesh->_numVertices * 5);
+
 	for (int i = 0; i < mesh->_numFaces; ++i) {
 		MeshFace *face = &mesh->_faces[i];
 		face->_userData = new uint32;
