@@ -135,6 +135,11 @@ public:
 	void sendBitmapDepthVals() override;
 
 	/**
+	 * Clear _zBuffer.
+	 */
+	void clearSpecialDepthBuffer() override;
+
+	/**
 	 * Deletes any internal references and representations of a bitmap
 	 * after this is called, it is safe to dispose of or change the external
 	 * bitmapdata.
