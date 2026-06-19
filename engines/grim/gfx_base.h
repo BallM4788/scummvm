@@ -178,6 +178,12 @@ public:
 	virtual void sendBitmapDepthVals() { }
 
 	/**
+	 * Clear a specialized depth buffer.
+	 * Required for 3DS renderer.
+	 */
+	virtual void clearSpecialDepthBuffer() { }
+
+	/**
 	 * Deletes any internal references and representations of a bitmap
 	 * after this is called, it is safe to dispose of or change the external
 	 * bitmapdata.

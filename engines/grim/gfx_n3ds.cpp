@@ -409,6 +409,7 @@ void GfxN3DS::setupZBuffer() {
 	// Create buffer to hold values from depth bitmaps.
 	// GX_RequestDma requires the source data to be in linear memory.
 	_zBuffer = custom3DS_CreateBuffer(nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4, nullptr, 0x4);
+	clearSpecialDepthBuffer();
 }
 
 void GfxN3DS::setupQuadEBO() {
@@ -1830,6 +1831,10 @@ void GfxN3DS::sendBitmapDepthVals() {
 	GSPGPU_FlushDataCache(_zBuffer, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
 	GX_RequestDma((u32 *)_zBuffer, (u32 *)_gameScreenTarget->frameBuf.depthBuf, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
 	gspWaitForDMA();
+}
+
+void GfxN3DS::clearSpecialDepthBuffer() {
+	Common::fill((u32 *)_zBuffer, (u32 *)_zBuffer + (nextHigher2(_gameWidth) * nextHigher2(_gameHeight)), 0x00FFFFFF);
 }
 
 void GfxN3DS::destroyBitmap(BitmapData *bitmap) {
