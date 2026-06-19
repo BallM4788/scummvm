@@ -933,6 +933,12 @@ void GrimEngine::drawNormalMode() {
 	_prevSmushFrame = 0;
 	_movieTime = 0;
 
+	if (_setupChanged) {
+		// 3DS uses an intermediary depth buffer that must be cleared upon
+		//	entering a new setup, in case the setup has no associated zbm.
+		g_driver->clearSpecialDepthBuffer();
+	}
+
 	_currSet->drawBackground();
 
 	// Draw underlying scene components
