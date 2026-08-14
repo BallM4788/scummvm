@@ -44,6 +44,7 @@
 #include "common/system.h"
 #include "common/textconsole.h"
 
+#include "graphics/cursorman.h"
 #include "graphics/surface.h"
 
 #include "engines/grim/actor.h"
@@ -555,7 +556,7 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 	_screenTexWidth = nextHigher2(_screenWidth);
 	_screenTexHeight = nextHigher2(_screenHeight);
 
-	g_system->showMouse(false);
+	CursorMan.showMouse(false);
 
 	// Clear the render target.
 	// Color: 0x00000000 (OpenGL default)
