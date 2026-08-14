@@ -537,6 +537,9 @@ void N3DSRenderer::drawPolyOffsetTest(const Math::Vector3d &pos, const Math::Vec
 	glTo3DS_Disable(ENUM3DS_CAP_POLYGON_OFFSET);
 }
 
+void N3DSRenderer::drawQuadStripTest() {
+}
+
 void N3DSRenderer::dimRegionInOut(float fade) {
 	C3D_TexEnvSrc(&_p3dTexEnv, C3D_Both, GPU_PRIMARY_COLOR/*, GPU_PRIMARY_COLOR, GPU_PRIMARY_COLOR*/);
 	C3D_SetTexEnv(0, &_p3dTexEnv);
