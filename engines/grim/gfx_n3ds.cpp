@@ -1050,7 +1050,10 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 
 		glTo3DS_DepthMask(false);
 		glTo3DS_Disable(ENUM3DS_CAP_BLEND);
-		glTo3DS_Enable(ENUM3DS_CAP_POLYGON_OFFSET);
+//		glTo3DS_Enable(ENUM3DS_CAP_POLYGON_OFFSET);
+//		// Positive offset -> subsequent polygons will be pushed back
+//		// Negative offset -> subsequent polygons will be pulled forward
+//		glTo3DS_PolygonOffset(-1000.f);
 	}
 	else {
 		for (int i = 0; i < 3; i++) {
@@ -1122,7 +1125,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 void GfxN3DS::finishActorDraw() {
 	drawEnd(0);
 	_currentActor = nullptr;
-	glTo3DS_Disable(ENUM3DS_CAP_POLYGON_OFFSET);
+//	glTo3DS_Disable(ENUM3DS_CAP_POLYGON_OFFSET);
 	if (g_grim->getGameType() == GType_MONKEY4) {
 		glTo3DS_Disable(ENUM3DS_CAP_CULL_FACE);
 	}
@@ -1588,32 +1591,32 @@ void GfxN3DS::destroyTexture(Texture *texture) {
 void GfxN3DS::createBitmap(BitmapData *bitmap) {
 	if (bitmap->_format != 1) {
 		// Work area to temporarily store converted depth values.
-		uint32 *zbm16to24in32 = (uint32 *)calloc(bitmap->_width * bitmap->_height, 4);
+		uint32 *zbmConverted = (uint32 *)calloc(bitmap->_width * bitmap->_height, 4);
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
 			uint16 *zbufPtr = reinterpret_cast<uint16 *>(const_cast<void *>(bitmap->getImageData(pic).getPixels()));
 
-			// On 3DS, the stencil buffer can only be used in an s8z24 combined buffer, and the buffer can only be
-			// written to via DMA commands to VRAM. Change pixels to uint32, shift scaled depth values 8 bits to the
-			// left.
+			// On 3DS, the stencil buffer can only be used in an s8z24 combined buffer.
+			// Change pixels to uint32, map depth values to the 24-bit range.
 
 			for (int i = 0; i < (bitmap->_width * bitmap->_height); i++) {
-				uint32 val = zbufPtr[i];
+				uint32 val = ((uint32)(zbufPtr[i]) << 8) | ((zbufPtr[i]) >> 8);
 				// fix the value if it is incorrectly set to the bitmap transparency color
-				if (val == 0xf81f) {
+				// 0xf81f in the 16-bit range converts to 0xf81ff8 in the 24-bit range.
+				if (val == 0xf81ff8) {
 					val = 0;
 				}
-				zbm16to24in32[i] = (0xffff - val * 0x10000 / 100 / (0x10000 - val)) << 8;
+				zbmConverted[i] = 0xffffff - ((uint64)val) * 0x1000000 / 100 / (0x1000000 - val);
 			}
 
 			// Re-init bitmap->getImageData(pic) with 32-bit pixels.
 			Graphics::PixelFormat pixelFormat(4, 8, 8, 8, 8, 24, 16, 8, 0);
 			const_cast<Graphics::Surface &>(bitmap->getImageData(pic)).create(bitmap->_width, bitmap->_height, pixelFormat);
-			// Copy pixels from zbm16to24in32 to bitmap->getImageData(pic)'s pixels.
+			// Copy pixels from zbmConverted to bitmap->getImageData(pic)'s pixels.
 			uint32 *newZbufPtr = (uint32 *)const_cast<void *>(bitmap->getImageData(pic).getPixels());
-			memcpy(newZbufPtr, zbm16to24in32, bitmap->_width * bitmap->_height * 4);
+			memcpy(newZbufPtr, zbmConverted, bitmap->_width * bitmap->_height * 4);
 		}
 		// Free work area.
-		free(zbm16to24in32);
+		free(zbmConverted);
 	}
 
 	bitmap->_hasTransparency = false;
