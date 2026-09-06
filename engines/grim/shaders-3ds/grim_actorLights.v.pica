@@ -164,6 +164,7 @@
 .fvec modelMatrix[4]		; mat4 modelMatrix
 .fvec  viewMatrix[4]		; mat4  viewMatrix
 .fvec  projMatrix[4]		; mat4  projMatrix
+.fvec     projFix[4]
 .fvec extraMatrix[4]		; mat4 extraMatrix
 .fvec    texScale			; vec2    texScale
 
@@ -317,7 +318,13 @@
 
 	; Divide by W component.
 	rcp r12.w,			r11.w
-	mul outPos,			r11,				r12.w
+	mul r13,			r11,				r12.w
+
+	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
+	dp4 outPos.x,		projFix[0],			r13
+	dp4 outPos.y,		projFix[1],			r13
+	dp4 outPos.z,		projFix[2],			r13
+	dp4 outPos.w,		projFix[3],			r13
 
 ; TMP_0:        UNOCCUPIED
 ; TMP_1:        UNOCCUPIED

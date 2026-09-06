@@ -29,6 +29,7 @@
 
 ; Uniforms
 .fvec   projMatrix[4]		; mat4   projMatrix
+.fvec      projFix[4]
 .fvec   viewMatrix[4]		; mat4   viewMatrix
 
 
@@ -49,10 +50,16 @@
 	dp4 r1.z,			viewMatrix[2],		r0
 	dp4 r1.w,			viewMatrix[3],		r0
 
-	dp4 outPos.x,		projMatrix[0],		r1
-	dp4 outPos.y,		projMatrix[1],		r1
-	dp4 outPos.z,		projMatrix[2],		r1
-	dp4 outPos.w,		projMatrix[3],		r1
+	dp4 r2.x,			projMatrix[0],		r1
+	dp4 r2.y,			projMatrix[1],		r1
+	dp4 r2.z,			projMatrix[2],		r1
+	dp4 r2.w,			projMatrix[3],		r1
+
+	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
+	dp4 outPos.x,		projFix[0],			r2
+	dp4 outPos.y,		projFix[1],			r2
+	dp4 outPos.z,		projFix[2],			r2
+	dp4 outPos.w,		projFix[3],			r2
 
 	end
 .end
