@@ -230,16 +230,13 @@ Math::Matrix4 makeRotationMatrix(const Math::Angle& angle, Math::Vector3d axis) 
 Math::Matrix4 makeFrustumMatrix(double left, double right, double bottom, double top, double nclip, double fclip) {
 	Math::Matrix4 proj;
 	// (row, col), except each row is a col and vice versa
-	// For 3DS perspective matrices, flip Y coordinate value and scale depth range to [-1, 0]
-	// https://www.wolframalpha.com/input?i={{1,0,0,0},{0,-1,0,0},{0,0,0.5,-0.5},{0,0,0,1}}{{(2n)/(r-l),0,(r%2Bl)/(r-l),0},{0,(2n)/(t-b),(t%2Bb)/(t-b),0},{0,0,-(f%2Bn)/(f-n),-(2fn)/(f-n)},{0,0,-1,0}}
-	// https://www.wolframalpha.com/input?i=simplify%20(0.5(-f-n))/(f-n)%2B0.5
 	proj(0, 0) = (2.0f * nclip) / (right - left);
-	proj(1, 1) = (2.0f * nclip) / (bottom - top);
+	proj(1, 1) = (2.0f * nclip) / (top - bottom);
 	proj(2, 0) = (right + left) / (right - left);
-	proj(2, 1) = (bottom + top) / (bottom - top);
-	proj(2, 2) = -(nclip) / (fclip - nclip);
+	proj(2, 1) = (top + bottom) / (top - bottom);
+	proj(2, 2) = -(fclip + nclip) / (fclip - nclip);
 	proj(2, 3) = -1.0f;
-	proj(3, 2) = -(fclip * nclip) / (fclip - nclip);
+	proj(3, 2) = -(2.0f * fclip * nclip) / (fclip - nclip);
 	proj(3, 3) = 0.0f;
 
 	return proj;
@@ -352,6 +349,14 @@ GfxN3DS::GfxN3DS() {
 
 	// Citro3D doesn't set the initial "size" value of C3D textures to 0, so we have to do that ourselves.
 	_smushTex.size = 0;
+
+	// For 3DS final calculations, flip Y coordinate value (because we're rendering to a texture)
+	//	and scale depth range to [-1, 0].
+	_3DSProjFix(0, 0) = 1.0f;
+	_3DSProjFix(1, 1) = -1.0f;
+	_3DSProjFix(2, 2) = 0.5f;
+	_3DSProjFix(3, 2) = -0.5f;
+	_3DSProjFix(3, 3) = 1.0f;
 }
 
 GfxN3DS::~GfxN3DS() {
@@ -975,6 +980,11 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 	viewMatrix.transpose();
 
 	N3DS_3D::ShaderObj *shaders[] = { _spriteShader, _actorShader, _actorLightsShader };
+
+	// TODO: Alter EMI actor shaders.
+	for (int i = 0; i < 3; i++) {
+		shaders[i]->setUniform("projFix", GPU_VERTEX_SHADER, _3DSProjFix);
+	}
 
 	if (g_grim->getGameType() == GType_MONKEY4) {
 		glTo3DS_Enable(ENUM3DS_CAP_CULL_FACE);
