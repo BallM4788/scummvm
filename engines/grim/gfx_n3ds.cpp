@@ -1236,6 +1236,7 @@ void GfxN3DS::drawShadowPlanes() {
 	// Modify _shadowPlaneShader->_bufInfo to use sud->_verticesVBO.
 	_shadowPlaneShader->BufInfo_AddOrModify(sud->_verticesVBO, 3 * sizeof(float), 1, 0x0, 0);
 	_shadowPlaneShader->setUniform("projMatrix", GPU_VERTEX_SHADER, _projMatrix);
+	_shadowPlaneShader->setUniform("projFix", GPU_VERTEX_SHADER, _3DSProjFix);
 	_shadowPlaneShader->setUniform("viewMatrix", GPU_VERTEX_SHADER, _viewMatrix);
 
 	drawStart(0, 0, 0, 640, 480, &envShadowPlane);
