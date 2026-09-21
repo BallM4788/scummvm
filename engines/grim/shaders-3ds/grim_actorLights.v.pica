@@ -224,33 +224,36 @@
 ; Main
 .entry main
 .proc main
-	; TMP_0 = vec4(inPos, 1.0);
+
+	; vec4_pos = modelMatrix * extraMatrix * vec4(position, 1.0);
+	;	; Step 1/3: TMP_0 = vec4(inPos, 1.0);
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
-
-	; extraVecPos (TMP_2, vec4) = extraMatrix (mat4) * TMP_0 (vec4);
+	;	; Step 2/3: TMP_1 = extraMatrix * TMP_0;
 	dp4 TMP_1.x,		extraMatrix[0],		TMP_0
 	dp4 TMP_1.y,		extraMatrix[1],		TMP_0
 	dp4 TMP_1.z,		extraMatrix[2],		TMP_0
 	dp4 TMP_1.w,		extraMatrix[3],		TMP_0
 
-	; TMP_3 = vec4(inNormal, 0.0);
+	; vec3_nrmEye = normalize((viewMatrix * (modelMatrix * extraMatrix * vec4(normal, 0.0))).xyz);
+	;	; Step 1/5: TMP_2 = vec4(inNormal, 0.0);
 	mov TMP_2.xyz,		inNormal.xyz
 	mov TMP_2.w,		ZEROS
-
-	; extraVecNorm (vec4) = extraMatrix (mat4) * TMP_3 (vec4);
+	;	; Step 2/5: TMP_4 = extraMatrix * TMP_2;
 	dp4 TMP_4.x,		extraMatrix[0],		TMP_2
 	dp4 TMP_4.y,		extraMatrix[1],		TMP_2
 	dp4 TMP_4.z,		extraMatrix[2],		TMP_2
 	dp4 TMP_4.w,		extraMatrix[3],		TMP_2
 
-	; vec4_pos = modelMatrix (mat4) * extraVec (vec4);
+	; vec4_pos = modelMatrix * extraMatrix * vec4(position, 1.0);
+	;	; Step 3/3: vec4_pos = modelMatrix * TMP_1;
 	dp4 vec4_pos.x,		modelMatrix[0],		TMP_1
 	dp4 vec4_pos.y,		modelMatrix[1],		TMP_1
 	dp4 vec4_pos.z,		modelMatrix[2],		TMP_1
 	dp4 vec4_pos.w,		modelMatrix[3],		TMP_1
 
-	; modelVecNorm (vec4) = modelMatrix (mat4) * extraVecNorm (vec4);
+	; vec3_nrmEye = normalize((viewMatrix * (modelMatrix * extraMatrix * vec4(normal, 0.0))).xyz);
+	;	; Step 3/5: TMP_3 = modelMatrix * TMP_4;
 	dp4 TMP_3.x,		modelMatrix[0],		TMP_4
 	dp4 TMP_3.y,		modelMatrix[1],		TMP_4
 	dp4 TMP_3.z,		modelMatrix[2],		TMP_4
@@ -259,7 +262,7 @@
 ; TMP_0:     UNOCCUPIED
 ; TMP_1:     UNOCCUPIED
 ; TMP_2:     UNOCCUPIED
-; TMP_3:       OCCUPIED (modelVecNorm)
+; TMP_3:       OCCUPIED (normalEye (3 out of 5 steps))
 ; TMP_4:     UNOCCUPIED
 ; vec4_pos:    OCCUPIED (r5)
 ; outPos:     UNWRITTEN
@@ -300,19 +303,20 @@
 		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz						; pos.xyz = vec3_shLgt (dp3_NrmPos - (VtxPos.w * dp3_NrmPnt)) + VtxPos.xyz (dp3_NrmPnt - dp3_NrmLgt)
 	.end
 
-	; normalVec (vec4) = viewMatrix (mat4) * modelVecNorm (vec4)
+	; vec3_nrmEye = normalize((viewMatrix * (modelMatrix * extraMatrix * vec4(normal, 0.0))).xyz);
+	;	; Step 4/5: TMP_4 = viewMatrix * TMP_3;
 	dp4 TMP_4.x,		viewMatrix[0],		TMP_3
 	dp4 TMP_4.y,		viewMatrix[1],		TMP_3
 	dp4 TMP_4.z,		viewMatrix[2],		TMP_3
 	dp4 TMP_4.w,		viewMatrix[3],		TMP_3										;	STILL NEEDED:		TMP_4
 
-	; positionView = viewMatrix (mat4) * vec4_pos
+	; vec4_posView = viewMatrix * vec4_pos;
 	dp4 vec4_posView.x,	viewMatrix[0],		vec4_pos
 	dp4 vec4_posView.y,	viewMatrix[1],		vec4_pos
 	dp4 vec4_posView.z,	viewMatrix[2],		vec4_pos
 	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
 
-	; r11 = projMatrix * positionView;
+	; r11 = projMatrix * vec4_posView;
 	dp4 r11.x,			projMatrix[0],		vec4_posView
 	dp4 r11.y,			projMatrix[1],		vec4_posView
 	dp4 r11.z,			projMatrix[2],		vec4_posView
@@ -345,7 +349,7 @@
 ; TMP_1:        UNOCCUPIED
 ; TMP_2:        UNOCCUPIED
 ; TMP_3:        UNOCCUPIED
-; TMP_4:          OCCUPIED (normalVec)
+; TMP_4:          OCCUPIED (normalEye (4 out of 5 steps))
 ; vec4_pos:           DONE (r5)
 ; vec3_shPnt:         DONE (r6.xyz)
 ; vec3_shNrm:         DONE (r7.xyz)
@@ -381,7 +385,8 @@
 	; vec3_light = vec3(0.0, 0.0, 0.0);
 	mov vec3_light,		ZEROS
 
-	; vec3_nrmEye = normalize(normalVec.xyz);
+	; vec3_nrmEye = normalize((viewMatrix * (modelMatrix * extraMatrix * vec4(normal, 0.0))).xyz);
+	;	; Step 5/5: vec3_nrmEye = normalize(TMP_4.xyz);
 	mov FUNC_IN.xyz,	TMP_4.xyz														;	no longer needed:	TMP_4
 	call normalize
 	mov vec3_nrmEye,	FUNC_OUT.xyz
@@ -442,26 +447,28 @@
 					mov flot_cosUmbra,	 FUNC_OUT.x
 
 					; flot_cosAngle = -dp3(normalize(vec3_vtxToLi), normalize(lightsDir[i].xyz)); // rho
+					;	; TMP_0.xyz = normalize(vec3_vtxToLi);
 					mov FUNC_IN.xyz,	 vec3_vtxToLi
 					call normalize
 					mov TMP_0.xyz,		 FUNC_OUT.xyz
+					;	; TMP_1.xyz = normalize(lightsDir[i].xy);
 					mov FUNC_IN.xyz,	 lightsDir[aL].xyz
 					call normalize
 					mov TMP_1.xyz,		 FUNC_OUT.xyz
+					;	; flot_cosAngle = -dp3(TMP_0.xyz, TMP1.xyz);
 					dp3 TMP_2.x,		 TMP_1.xyz,			TMP_0.xyz
 					mov flot_cosAngle,	-TMP_2.x
 
 					; if (flot_cosAngle <= flot_cosPenum)
 					cmp flot_cosAngle,	 le, le,			flot_cosPenum
-
 					ifc cmp.x
-						; if (cosAngle < cosUmbra || cosPenumbra == cosUmbra)
+						; if (flot_cosAngle < flot_cosUmbra || flot_cosPenum == flot_cosUmbra)
 						mov TMP_0.x,		flot_cosAngle
-						mov TMP_0.z,		flot_cosPenum
-						mov TMP_0.yw,		flot_cosUmbra
+						mov TMP_0.y,		flot_cosPenum
+						mov TMP_0.zw,		flot_cosUmbra
 						cmp TMP_0.xy,		gt, eq,				TMP_0.zw
-
 						ifc cmp.x || cmp.y
+							; flot_intens = 0.0;
 							mov flot_intens,	ZEROS
 						.else
 							; flot_intens *= (flot_cosAngle - flot_cosUmbra) / (flot_cosPenum - flot_cosUmbra);
@@ -479,11 +486,15 @@
 			.end
 
 			; flot_intens *= max(0.0, dp3(vec3_nrmEye, normalize(vec3_vtxToLi)));
+			;	; TMP_0.xyz = normalize(vec3_vtxToLi);
 			mov FUNC_IN.xyz,	 vec3_vtxToLi
 			call normalize
 			mov TMP_0.xyz,		 FUNC_OUT.xyz
+			;	; TMP_1.x = dp3(vec3_nrmEye, TMP_0.xyz);
 			dp3 TMP_1.x,		 vec3_nrmEye,		TMP_0.xyz
+			;	; TMP_0.x = max(0.0, TMP_1.x);
 			max TMP_0.x,		 ZEROS,				TMP_1.x
+			;	; flot_intens *= TMP_0.x;
 			mul flot_intens,	 flot_intens,		TMP_0.x
 		.end
 
