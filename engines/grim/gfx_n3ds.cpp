@@ -86,6 +86,7 @@ void GfxN3DS::drawStart(u8 flags, u32 x, u32 y, u32 w, u32 h, C3D_TexEnv *texenv
 		C3D_FrameDrawOn(_gameScreenTarget);
 		// Due to the way Citro3D works, we must set the viewport ourselves for every draw session.
 		C3D_SetViewport(x, y, w, h);
+		C3D_SetScissor(GPU_SCISSOR_NORMAL, x, y, x + w, y + h);
 		if (texenv0) C3D_SetTexEnv(0, texenv0);
 		if (texenv1) C3D_SetTexEnv(1, texenv1);
 		_inFrame = true;
