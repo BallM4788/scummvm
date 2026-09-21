@@ -19,8 +19,11 @@
 ;	}
 
 ; Constants
-.constf myConst(0.0, 1.0, 2.0, 0.5)
+.constf myConst(0.0, 1.0, 1 / 16777215.0, 16777215.0)
+.alias       ZEROS	 myConst.xxxx
 .alias        ONES	 myConst.yyyy
+.alias     EPSILON	 myConst.zzzz
+.alias EPSILON_RCP	 myConst.wwww
 
 
 ; Inputs
@@ -56,10 +59,27 @@
 	dp4 r2.w,			projMatrix[3],		r1
 
 	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
-	dp4 outPos.x,		projFix[0],			r2
-	dp4 outPos.y,		projFix[1],			r2
-	dp4 outPos.z,		projFix[2],			r2
-	dp4 outPos.w,		projFix[3],			r2
+	dp4 r3.x,			projFix[0],			r2
+	dp4 r3.y,			projFix[1],			r2
+	dp4 r3.z,			projFix[2],			r2
+	dp4 r3.w,			projFix[3],			r2
+
+	; Before perspective division, compare value in r12.w to zero.
+	cmp ZEROS,			lt, gt,				r3.w
+	ifc cmp.x																	; If w component is positive...
+		rcp r0.w,			r3.w												; ...just get the reciprocal.
+	.else
+		ifc cmp.y																; If w component is negative...
+			rcp r0.w,			-r3.w											; ...get the negative of the reciprocal, to preserve xyz signage.
+		.else
+			mov r3.w,			EPSILON											; w is zero, change it to 1 / 0xffffff.
+			mov r0.w,			EPSILON_RCP										; get 16777215 (reciprocal of smallest non-zero 24-bit depth value).
+		.end
+	nop																			; .end can't be called consecutively - insert nop instruction between.
+	.end
+
+	; Perspective division.
+	mul outPos,			r3,				r0.w
 
 	end
 .end

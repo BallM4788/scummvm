@@ -105,11 +105,12 @@
 
 
 ; Constants
-.constf myConst(0.0, 1.0, 2.0, 0.0)
-.alias       ZEROS	 myConst.xxxx
-.alias        ONES	 myConst.yyyy
-.alias    ZERO_ONE	 myConst.xyxy
-
+.constf myConst(0.0, 1.0, 1 / 16777215.0, 16777215.0)
+.alias              ZEROS	 myConst.xxxx
+.alias               ONES	 myConst.yyyy
+.alias           ZERO_ONE	 myConst.xyxy
+.alias            EPSILON	 myConst.zzzz
+.alias        EPSILON_RCP	 myConst.wwww
 
 ; Inputs
 .alias    inPos		v0		; in vec3 position
@@ -218,15 +219,28 @@
 	dp4 r11.z,			projMatrix[2],		vec4_posView
 	dp4 r11.w,			projMatrix[3],		vec4_posView
 
-	; Divide by W component.
-	rcp r12.w,			r11.w
-	mul r13,			r11,				r12.w
-
 	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
-	dp4 outPos.x,		projFix[0],			r13
-	dp4 outPos.y,		projFix[1],			r13
-	dp4 outPos.z,		projFix[2],			r13
-	dp4 outPos.w,		projFix[3],			r13
+	dp4 r12.x,			projFix[0],			r11
+	dp4 r12.y,			projFix[1],			r11
+	dp4 r12.z,			projFix[2],			r11
+	dp4 r12.w,			projFix[3],			r11
+
+	; Before perspective division, compare value in r12.w to zero.
+	cmp ZEROS,			lt, gt,				r12.w
+	ifc cmp.x																	; If w component is positive...
+		rcp r13.w,			r12.w												; ...just get the reciprocal.
+	.else
+		ifc cmp.y																; If w component is negative...
+			rcp r13.w,			-r12.w											; ...get the negative of the reciprocal, to preserve xyz signage.
+		.else
+			mov r12.w,			EPSILON											; w is zero, change it to 1 / 0xffffff.
+			mov r13.w,			EPSILON_RCP										; get 16777215 (reciprocal of smallest non-zero 24-bit depth value).
+		.end
+	nop																			; .end can't be called consecutively - insert nop instruction between.
+	.end
+
+	; Perspective division.
+	mul outPos,			r12,				r13.w
 
 	; if (shadowActive)
 	ifu shadowActive
