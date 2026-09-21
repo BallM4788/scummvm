@@ -157,17 +157,16 @@
 ; Main
 .entry main
 .proc main
-	; TMP_0 = vec4(inPos, 1.0);
+	; vec4_pos = modelMatrix * extraMatrix * vec4(position, 1.0);
+	;	; TMP_0 = vec4(inPos, 1.0);
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
-
-	; extraVecPos (TMP_2, vec4) = extraMatrix (mat4) * TMP_0 (vec4);
+	;	; TMP_1 = extraMatrix * TMP_0;
 	dp4 TMP_1.x,		extraMatrix[0],		TMP_0
 	dp4 TMP_1.y,		extraMatrix[1],		TMP_0
 	dp4 TMP_1.z,		extraMatrix[2],		TMP_0
 	dp4 TMP_1.w,		extraMatrix[3],		TMP_0
-
-	; vec4_pos = modelMatrix (mat4) * extraVec (vec4);
+	;	; vec4_pos = modelMatrix * TMP_1;
 	dp4 vec4_pos.x,		modelMatrix[0],		TMP_1
 	dp4 vec4_pos.y,		modelMatrix[1],		TMP_1
 	dp4 vec4_pos.z,		modelMatrix[2],		TMP_1
@@ -207,13 +206,13 @@
 		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz						; pos.xyz = vec3_shLgt (dp3_NrmPos - (VtxPos.w * dp3_NrmPnt)) + VtxPos.xyz (dp3_NrmPnt - dp3_NrmLgt)
 	.end
 
-	; positionView = viewMatrix (mat4) * vec4_pos
+	; vec4_posView = viewMatrix * vec4_pos;
 	dp4 vec4_posView.x,	viewMatrix[0],		vec4_pos
 	dp4 vec4_posView.y,	viewMatrix[1],		vec4_pos
 	dp4 vec4_posView.z,	viewMatrix[2],		vec4_pos
 	dp4 vec4_posView.w,	viewMatrix[3],		vec4_pos
 
-	; r11 = projMatrix * positionView;
+	; r11 = projMatrix * vec4_posView;
 	dp4 r11.x,			projMatrix[0],		vec4_posView
 	dp4 r11.y,			projMatrix[1],		vec4_posView
 	dp4 r11.z,			projMatrix[2],		vec4_posView
