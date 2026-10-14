@@ -1707,8 +1707,8 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			// C3D_SyncDisplayTransfer causes a thread hang if either dimension is less than 64 pixels.
 			if ((actualWidth < 64) || (actualHeight < 64)) {
 				// "false" instructs NOT to reorder pixel components (we already did).
-				custom3DS_DataToBlockTex((u32 *)bmpData,      0, 0, bitmap->_width, bitmap->_height,
-				                         (u32 *)c3dTex->data, 0, 0, actualWidth,    actualHeight,
+				custom3DS_DataToBlockTex((u32 *)bmpData,      0, 0, actualWidth, actualHeight,
+				                         (u32 *)c3dTex->data, 0, 0, actualWidth, actualHeight,
 				                         bitmap->_width, bitmap->_height, format, false);
 			} else {
 				GSPGPU_FlushDataCache(bmpData, bytes * actualWidth * actualHeight);
