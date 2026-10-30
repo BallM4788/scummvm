@@ -140,9 +140,9 @@ void custom3DS_FreeBuffer(void *linearBuffer) {
 //	return gsys3DS->freeBuffer(linearBuffer);
 }
 
-void custom3DS_DataToBlockTex(u32 *srcBuf, int xSrc, int ySrc, int wSrc, int hSrc,
-                              u32 *dstBuf, int xDst, int yDst, int wDst, int hDst,
-                              int copyWidth, int copyHeight, GPU_TEXCOLOR format,
+void custom3DS_DataToBlockTex(u32 *srcBuf, const u32 xSrc, const u32 ySrc, const u32 wSrc, const u32 hSrc,
+                              u32 *dstBuf, const u32 xDst, const u32 yDst, const u32 wDst, const u32 hDst,
+                              const u32 copyWidth, const u32 copyHeight, GPU_TEXCOLOR format,
                               bool reorderComponents, bool isBlockSrc) {
 	N3DS_3D::getActiveContext()->opDataToBlockTex(srcBuf, xSrc, ySrc, wSrc, hSrc,
 	                                              dstBuf, xDst, yDst, wDst, hDst,

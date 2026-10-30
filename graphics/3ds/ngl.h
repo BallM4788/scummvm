@@ -115,32 +115,42 @@ void    *custom3DS_CreateBuffer(size_t size, const void *data = nullptr, size_t 
 // Free a buffer that was created in linear memory.
 void     custom3DS_FreeBuffer(void *linearBuffer);
 
-// Copy a rectangular area of arbitrary size from one buffer, Morton-swizzle it (if it isn't already),
-//	and paste it into an arbitrary location of another buffer. If you simply need to convert texture
-//	data to 3DS format, the pixels are RGBA8 and in ABGR order, and your data isn't less than 32x32
-//	pixels, use C3D_SyncDisplayTransfer
-// !!! NOTE !!! - wDst and hDst MUST be powers of two.
+// custom3DS_DataToBlockTex
+// Takes a copyWidth-by-copyHeight-sized subsection at coordinates (xSrc, ySrc)
+//	from the texture data in srcBuf, transforms it into 3DS block order, and
+//	deposits the transformed data at coordinates (xDst, yDst) in dstBuf.
+// NOTE: wDst and hDst MUST be powers of two.
+// NOTE: Here, "linear coordinates" are defined as "coordinates at which texel 'T'
+//	would be if the relevant buffer's data was in linear order."
+// NOTE: If you simply need to convert texture data to block order, the texels are
+//	RGBA8 and in ABGR order, and your data isn't less than 64x64 texels, use
+//	C3D_SyncDisplayTransfer.
 
 // PARAMETERS:
-//	srcBuf:            pointer to the source buffer
-//	dstBuf:            pointer to the destination buffer
-//	copyWidth:         width of the area to copy
-//	copyHeight:        height of the area to copy
-//	xSrc:              unswizzled X offset of the copy area's top-left corner
-//	ySrc:              unswizzled, unflipped Y offset of the copy area's top-left corner
-//	wSrc:              width of the source buffer (not just the copy area)
-//	hSrc:              height of the source buffer (not just the copy area)
-//	xDst:              unswizzled X offset of the paste area's top-left corner
-//	yDst:              unswizzled, unflipped Y offset of the paste area's top-left corner
-//	wDst:              width of the destination buffer (not just the paste area)
-//	hDst:              height of the destination buffer (not just the paste area)
-//	format:            texture format of the source and destination buffers (Search "GPU_TEXCOLOR" at https://libctru.devkitpro.org/)
-//	reorderComponents: whether or not to reorder color component order as needed by 3DS hardware; default is "true"
-//	isBlockSrc:        whether or not the source buffer is already in a Morton-swizzled pixel order; default is "false", "true" overrides "reorderComponents"
-
-void     custom3DS_DataToBlockTex(u32 *srcBuf, int xSrc, int ySrc, int wSrc, int hSrc,
-                                  u32 *dstBuf, int xDst, int yDst, int wDst, int hDst,
-                                  int copyWidth, int copyHeight,
+// srcBuf:            Pointer to source texture data (linear or block order).
+// xSrc:              Linear x coordinate of the subsection to be copied.
+// ySrc:              Linear y coordinate of the subsection to be copied.
+// wSrc:              Width of the ENTIRE source texture data, in texels.
+// hSrc:              Height of the ENTIRE source texture data, in texels.
+// dstBuf:            Pointer to destination texture data (block order).
+// xDst:              Linear x coordinate where the transformed data is to be deposited.
+// yDst:              Linear y coordinate where the transformed data is to be deposited.
+// wDst:              Width of the ENTIRE destination texture data, in texels
+// hDst:              Height of the ENTIRE destination texture data, in texels.
+// copyWidth:         Width of the subsection to copy from srcBuf, in texels.
+// copyHeight:        Height of the subsection to copy from srcBuf, in texels.
+// format:            Texture format of the source and destination data.
+// reorderComponents: Whether or not texels taken from srcBuf should have their color
+//                    	components reordered before being deposited into dstBuf, if needed
+//                    	(3DS requires some color formats to have their component order
+//                    	reversed). Defaults to 'true'. Set this to 'false' if srcBuf's
+//                    	components are already in the correct order for its texture format.
+// isBlockSrc:        Whether or not the texture data in srcBuf is already in block order.
+//                    	Defaults to 'false'. 'True' overrides reorderComponents; texture data
+//                    	in block order already has correctly-ordered color components.
+void     custom3DS_DataToBlockTex(u32 *srcBuf, const u32 xSrc, const u32 ySrc, const u32 wSrc, const u32 hSrc,
+                                  u32 *dstBuf, const u32 xDst, const u32 yDst, const u32 wDst, const u32 hDst,
+                                  const u32 copyWidth, const u32 copyHeight,
                                   GPU_TEXCOLOR format, bool reorderComponents = true, bool isBlockSrc = false);
 
 #endif // GRAPHICS_3DS_NGL_H
