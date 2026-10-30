@@ -38,168 +38,116 @@ void N3DContext::opFreeBuffer(void *linearBuffer) {
 	return gsys3DS->freeBuffer(linearBuffer);
 }
 
-static u32 getPixelSizeInBytes(GPU_TEXCOLOR format, u32 *isHalfByte) {
-	switch(format) {
-		case GPU_RGBA8:
-			return 4;
-		case GPU_RGB8:
-			return 3;
-		case GPU_LA8:
-		case GPU_HILO8:
-		case GPU_RGB565:
-		case GPU_RGBA5551:
-		case GPU_RGBA4:
-			return 2;
-		case GPU_A8:
-		case GPU_L8:
-		case GPU_LA4:
-			return 1;
-		case GPU_L4:
-		case GPU_A4:
-			if (isHalfByte != nullptr) *isHalfByte = 1;
-			return 1;
-		default:
-			return 0;
-	}
+static int getPixelSizeInBytes(GPU_TEXCOLOR format) {
+	if (format == GPU_RGBA8) return 4;
+	if (format == GPU_RGB8) return 3;
+	// RGB565, RGBA5551, RGBA4, LA8, HILO8
+	if ((format >= GPU_RGB565) && (format <= GPU_HILO8)) return 2;
+	// A8, L8, LA4, L4, A4
+	if ((format >= GPU_LA8) && (format <= GPU_LA4)) return 1;
+	// ETC1, ETC1A4 (we don't wanna use these)
+	return 0;
 }
 
-static u32 mortonInterleave(u32 x, u32 y) {
-	static u32 xlut[] = {0x00, 0x01, 0x04, 0x05, 0x10, 0x11, 0x14, 0x15};
-	static u32 ylut[] = {0x00, 0x02, 0x08, 0x0a, 0x20, 0x22, 0x28, 0x2a};
+alignas(32) static const u32 mortonLUT[8][8] = {
+	{ 0,  1,  4,  5, 16, 17, 20, 21 },
+	{ 2,  3,  6,  7, 18, 19, 22, 23 },
+	{ 8,  9, 12, 13, 24, 25, 28, 29 },
+	{10, 11, 14, 15, 26, 27, 30, 31 },
+	{32, 33, 36, 37, 48, 49, 52, 53 },
+	{34, 35, 38, 39, 50, 51, 54, 55 },
+	{40, 41, 44, 45, 56, 57, 60, 61 },
+	{42, 43, 46, 47, 58, 59, 62, 63 }
+};
 
-	return xlut[x % 8] + ylut[y % 8];
-}
-
-static u32 mortonOffset(u32 x, u32 y) {
-	u32 i = mortonInterleave(x, y);
-	u32 xCoarse = x & ~7;
-	u32 offset = xCoarse << 3;
-
-	return (i + offset);
+static inline u32 getMortonOffset(u32 x, u32 y) {
+	return mortonLUT[y & 7][x & 7] + ((x & ~7) << 3);
 }
 
 __attribute__((optimize("-O3")))
-void N3DContext::opDataToBlockTex(u32 *srcBuf, int xSrc, int ySrc, int wSrc, int hSrc,
-                                  u32 *dstBuf, int xDst, int yDst, int wDst, int hDst,
-                                  int copyWidth, int copyHeight, GPU_TEXCOLOR format,
+void N3DContext::opDataToBlockTex(u32 *srcBuf, const u32 xSrc, const u32 ySrc, const u32 wSrc, const u32 hSrc,
+                                  u32 *dstBuf, const u32 xDst, const u32 yDst, const u32 wDst, const u32 hDst,
+                                  const u32 copyWidth, const u32 copyHeight, GPU_TEXCOLOR format,
                                   bool reorderComponents, bool isBlockSrc) {
-	u32 pixSize = 4, halfByte = 0;
-	int yFlip   = !isBlockSrc;
 
-	pixSize = getPixelSizeInBytes(format, &halfByte);
+	const u32 pixSize = getPixelSizeInBytes(format);
+	// Textures are flipped vertically in 3DS block format.
+	const bool isYFlipped   = !isBlockSrc;
+	// L4 and A4 texels are half a byte each, not a full byte.
+	const bool halfByte = ((format == GPU_L4) || (format == GPU_A4));
+	// Texel components in block textures are already in the correct order.
+	const bool swapBytes = (reorderComponents && !isBlockSrc);
+	// Of the supported 16-bit formats, only LA8 and HILO8 need their color
+	//	components reordered.
+	const bool swappable16 = (format == GPU_LA8) || (format == GPU_HILO8);
 
-	u32 wSrc32 = wSrc;
-	u32 hSrc32 = hSrc;
-	u32 wDst32 = wDst;
-	u32 hDst32 = hDst;
-	u32 copyW = copyWidth;
-	u32 copyH = copyHeight;
-	u32 ySrc32 = ySrc;
-	u32 xSrc32 = xSrc;
-	u32 yDst32 = yDst;
-	u32 xDst32 = xDst;
-	u32 x, y;
-	u8 *srcConverted;
+	// u8 pointers to srcBuf and dstBuf.
+	u8*  src8 =  (u8  *)srcBuf;
+	u8*  dst8 =  (u8  *)dstBuf;
+	// u16 pointers to srcBuf and dstBuf.
+	u16* src16 = (u16 *)srcBuf;
+	u16* dst16 = (u16 *)dstBuf;
 
-	if (reorderComponents && !isBlockSrc) {
-		int idx;
-		int size = wSrc * hSrc * pixSize;
-		if (halfByte) size /= 2;
+	// Final indices in srcBuf and dstBuf.
+	const u32 maxSrcIndex = (wSrc * hSrc) - 1;
+	const u32 maxDstIndex = (wDst * hDst) - 1;
 
-		srcConverted = (u8 *)linearAlloc((size_t)size);
+	for (u32 y = 0; y < copyHeight; y++) {
+		// In block order textures, the image is flipped vertically.
+		u32 yOffSrc = isYFlipped ?             (ySrc + y)
+		                         : (hSrc - 1 - (ySrc + y));
+		u32 yOffDst =               hDst - 1 - (yDst + y);
 
-		// some color formats have reversed component positions under the 3DS's native texture format
-		u16 *srcBuf16;
-		switch (format) {
-			case GPU_RGBA8:
-				for (idx = 0; idx < wSrc * hSrc; idx++) {
-					((u32 *)srcConverted)[idx] = (((srcBuf[idx] << 24) & 0xff000000) |
-					                              ((srcBuf[idx] << 8)  & 0x00ff0000) |
-					                              ((srcBuf[idx] >> 8)  & 0x0000ff00) |
-					                              ((srcBuf[idx] >> 24) & 0x000000ff));
+		// Linear index at which the row of 8x8 tiles containing row yOffSrc begins. This
+		//	is only used if 'isBlockSrc' is true.
+		u32 yOffSrcCoarseRow = (yOffSrc & ~7) * wSrc;
+		// Linear index at which the row of 8x8 tiles containing row yOffDst begins.
+		u32 yOffDstCoarseRow = (yOffDst & ~7) * wDst;
+
+		for (u32 x = 0; x < copyWidth; x++) {
+			u32 xOffSrc = xSrc + x;
+			// Compute array index of source texel at linear coordinate (xOffSrc, yOffSrc).
+			u32 srcIndex = (!isBlockSrc) ? (xOffSrc + yOffSrc * wSrc)
+			                             : (getMortonOffset(xOffSrc, yOffSrc) + yOffSrcCoarseRow);
+			if (srcIndex > maxSrcIndex) continue;
+
+			u32 xOffDst = xDst + x;
+			// Compute array index of destination texel at linear coordinate (xOffDst, yOffDst).
+			u32 dstIndex = getMortonOffset(xOffDst, yOffDst) + yOffDstCoarseRow;
+			if (dstIndex > maxDstIndex) continue;
+
+			if (!halfByte) {
+				switch (pixSize) {
+					case 4:
+						if (swapBytes)
+							dstBuf[dstIndex] = SWAP_BYTES_32(srcBuf[srcIndex]);
+						else
+							dstBuf[dstIndex] =               srcBuf[srcIndex];
+						break;
+					case 2:
+						if (swapBytes && swappable16)
+							dst16[dstIndex] = SWAP_BYTES_16(src16[srcIndex]);
+						else
+							dst16[dstIndex] =               src16[srcIndex];
+						break;
+					default: {
+						u8 *srcByte = &src8[srcIndex * pixSize];
+						u8 *dstByte = &dst8[dstIndex * pixSize];
+						for (u32 i = 0; i < pixSize; i++) {
+							dstByte[i] = swapBytes ? srcByte[pixSize - 1 - i] : srcByte[i];
+						}
+					}
 				}
-				break;
-			case GPU_RGB8:
-				for (idx = 0; idx < wSrc * hSrc; idx++) {
-					int pxl = idx * 3;
-					srcConverted[pxl + 2] = ((u8 *)srcBuf)[pxl + 0];
-					srcConverted[pxl + 1] = ((u8 *)srcBuf)[pxl + 1];
-					srcConverted[pxl + 0] = ((u8 *)srcBuf)[pxl + 2];
-				}
-				break;
-			case GPU_LA8:
-			case GPU_HILO8:
-				srcBuf16 = (u16 *)srcBuf;
-				for (idx = 0; idx < wSrc * hSrc; idx++) {
-					((u16 *)srcConverted)[idx] = (((srcBuf16[idx] << 8) & 0xff00) |
-					                              ((srcBuf16[idx] >> 8) & 0x00ff));
-				}
-				break;
-			case GPU_RGB565:
-			case GPU_RGBA5551:
-			case GPU_RGBA4:
-				for (idx = 0; idx < wSrc * hSrc; idx++)
-					((u16 *)srcConverted)[idx] = ((u16 *)srcBuf)[idx];
-				break;
-			case GPU_A8:
-			case GPU_L8:
-			case GPU_LA4:
-				for (idx = 0; idx < wSrc * hSrc; idx++)
-					srcConverted[idx] = ((u8 *)srcBuf)[idx];
-				break;
-			case GPU_L4:
-			case GPU_A4:
-				for (idx = 0; idx < wSrc * hSrc / 2; idx++)
-					srcConverted[idx] = ((u8 *)srcBuf)[idx];
-				break;
-			case GPU_ETC1:
-			case GPU_ETC1A4:
-				linearFree(srcConverted);
-				return;
-		}
-	} else
-		srcConverted = (u8 *)srcBuf;
-
-	for (y = 0; y < copyH; y++) {
-		u32 yOffSrc = (yFlip) ? ySrc32 + y : hSrc32 - 1 - (ySrc32 + y);
-		u32 yOffSrcCoarse = yOffSrc & ~7;
-
-		u32 yOffDst = hDst32 - 1 - (yDst32 + y);
-		u32 yOffDstCoarse = yOffDst & ~7;
-
-		for (x = 0; x < copyW; x++) {
-			u32 xOffDst = x + xDst32;
-			u32 offset = mortonOffset(xOffDst, yOffDst) + yOffDstCoarse * wDst32;
-
-			u32 xOffSrc = (xSrc32 + x);
-			u32 locate = (isBlockSrc) ? (mortonOffset(xOffSrc, yOffSrc) + yOffSrcCoarse * wSrc32)
-			                          : (xOffSrc + yOffSrc * wSrc);
-
-			if (offset >= wDst32 * hDst32) continue;
-			if (locate >= (u32)(wSrc * hSrc)) continue;
-
-			u8 *dstByte, *srcByte;
-
-			if (halfByte) {
-				srcByte = &srcConverted[(locate * pixSize) >> 1];
-				dstByte = &((u8 *)dstBuf)[(offset * pixSize) >> 1];
-				if (x & 1)
-					*dstByte = (*srcByte & 0xf0) | (*dstByte & 0x0f);
-				else
-					*dstByte = (*dstByte & 0xf0) | (*srcByte & 0x0f);
 			} else {
-				srcByte = &srcConverted[locate * pixSize];
-				dstByte = &((u8 *)dstBuf)[offset * pixSize];
-				for (int i = 0; i < (int)pixSize; i++)
-					*dstByte++ = *srcByte++;
+				u8  srcByte =  src8[srcIndex >> 1];
+				u8 *dstByte = &dst8[dstIndex >> 1];
+				if (x & 1)
+					*dstByte = ( srcByte & 0xf0) | (*dstByte & 0x0f);
+				else
+					*dstByte = (*dstByte & 0xf0) | ( srcByte & 0x0f);
 			}
 		}
 	}
-
-	if (reorderComponents && !isBlockSrc)
-		linearFree((void *)srcConverted);
-
-	return;
 }
 
 } // end namespace N3DS_3D
