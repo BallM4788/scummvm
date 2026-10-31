@@ -323,7 +323,7 @@ private:
 	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDimSTAGE0, envGrimDimSTAGE1;
 
 	C3D_Tex _previousFrame;
-	void *_screenCopySpace;
+	void *_linearScratchPad;
 
 
 
