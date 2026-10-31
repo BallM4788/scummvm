@@ -358,6 +358,9 @@ GfxN3DS::GfxN3DS() {
 	_3DSProjFix(2, 2) = 0.5f;
 	_3DSProjFix(3, 2) = -0.5f;
 	_3DSProjFix(3, 3) = 1.0f;
+
+	// Dedicated scratchpad in linear memory.
+	_linearScratchPad = custom3DS_CreateBuffer(1024 * 512 * 4);
 }
 
 GfxN3DS::~GfxN3DS() {
@@ -403,7 +406,7 @@ GfxN3DS::~GfxN3DS() {
 
 	C3D_TexDelete(&_storedDisplay);
 
-	custom3DS_FreeBuffer(_screenCopySpace);
+	custom3DS_FreeBuffer(_linearScratchPad);
 
 	// Set backend context settings; otherwise, launcher will be blank screen.
 	N3DS_3D::setContext(_backendContext);
@@ -570,8 +573,6 @@ void GfxN3DS::setupScreen(int screenW, int screenH) {
 	// Depth:   1.f (OpenGL default) converted to 24-bit unsigned int = 0xFFFFFF
 	// Stencil + Depth: 0x00 << 24 | 0xFFFFFF = 0x00FFFFFF
 	C3D_RenderTargetClear(_gameScreenTarget, C3D_CLEAR_ALL, 0, 0x00FFFFFF);
-
-	_screenCopySpace = custom3DS_CreateBuffer(640 * 480 * 4);
 
 	setupZBuffer();
 	setupShaders();
@@ -1473,9 +1474,10 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 
 		// Allocate linear memory for texture data via texture initialization.
 		C3D_TexInit(textures, c3dWidth, c3dHeight, GPU_RGBA8);
+
 		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
-		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
-		texdata = (char *)linearAlloc(c3dHeight * c3dHeight * 4);
+		texdata = (char *)_linearScratchPad;
+		memset(texdata, 0, c3dHeight * c3dHeight * 4);
 
 		for (u16 y = 0; y < texture->_height; y++) {
 			for (u16 x = 0; x < texture->_width; x++) {
@@ -1517,9 +1519,10 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 
 		// Allocate linear memory for texture data via texture initialization.
 		C3D_TexInit(textures, c3dWidth, c3dHeight, format);
+
 		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
-		// Allocate texdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space.
-		texdata = (char *)linearAlloc(c3dWidth * c3dHeight * bytes);
+		texdata = (char *)_linearScratchPad;
+		memset(texdata, 0, c3dWidth * c3dHeight * bytes);
 
 		// C3D_SyncDisplayTransfer requires ABGR-order input.
 		for (u16 y = 0; y < texture->_height; y++) {
@@ -1565,9 +1568,7 @@ void GfxN3DS::createTexture(Texture *texture, const uint8 *data, const CMap *cma
 		GSPGPU_InvalidateDataCache(textures[0].data, textures[0].size);
 	}
 
-
-	// Free temporary data.
-	linearFree(texdata);
+	texdata = nullptr;
 
 	// Remove darkened lines in EMI intro
 	// C3D_TexInit resets texture wrap+filter settings, so we're setting those here,
@@ -1655,16 +1656,13 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 		}
 
 		// C3D_SyncDisplayTransfer requires the source data to be in linear memory.
-		// Allocate bmpdata in linear memory AFTER texture data, to prevent fragmentation of unoccupied space
-		byte *bmpData = (byte *)linearAlloc(bytes * actualWidth * actualHeight);
+		byte *bmpData = (byte *)_linearScratchPad;
+		memset(bmpData, 0, bytes * actualWidth * actualHeight);
 
 		const Graphics::PixelFormat format_16bpp(2, 5, 6, 5, 0, 11, 5, 0, 0);
 		const Graphics::PixelFormat format_32bpp = Graphics::PixelFormat::createFormatRGBA32();
 
 		for (int pic = 0; pic < bitmap->_numImages; pic++) {
-			// Create work area in linear memory.
-			if (bmpData == nullptr)
-				bmpData = (byte *)linearAlloc(bytes * actualWidth * actualHeight);
 			byte *bmpDataPtr = bmpData;
 
 			const Graphics::Surface &imageData = bitmap->getImageData(pic);
@@ -1723,7 +1721,7 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 			}
 		}
 
-		linearFree(bmpData);
+		bmpData = nullptr;
 		bitmap->freeData();
 
 		// Clone _backgroundShader and assign instance-specific attribute and buffer info.
@@ -1846,8 +1844,10 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 }
 
 void GfxN3DS::sendBitmapDepthVals() {
-	// DMA into _gameScreenTarget's depth buffer, replacing its data with _zBuffer's data.
+	// Ensure all _zBuffer changes have been committed to main memory. Without this, the DMA request
+	//	can occur before _zBuffer has been completely written to.
 	GSPGPU_FlushDataCache(_zBuffer, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
+	// DMA into _gameScreenTarget's depth buffer, replacing its data with _zBuffer's data.
 	GX_RequestDma((u32 *)_zBuffer, (u32 *)_gameScreenTarget->frameBuf.depthBuf, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
 	gspWaitForDMA();
 }
@@ -1931,9 +1931,9 @@ void GfxN3DS::createFont(Font *f) {
 	C3D_TexSetFilter(&userData->texture, GPU_NEAREST, GPU_NEAREST);
 	C3D_TexSetWrap(&userData->texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
 
-	// Allocate temp in linear memory AFTER subTextures and texture, to prevent fragmentation of unoccupied space.
 	uint arraySize = size * size * bpp * charsWide * charsHigh;
-	byte *temp = (byte *)custom3DS_CreateBuffer(sizeof(byte) * arraySize/*, nullptr, 0x4*/);
+	byte *temp = (byte *)_linearScratchPad;
+	memset(temp, 0, arraySize);
 
 	for (int i = 0, row = 0; i < 256; ++i) {
 		// Precalculate subtexture coordinates.
@@ -1969,16 +1969,18 @@ void GfxN3DS::createFont(Font *f) {
 	}
 
 	// Tile texels into C3D_Tex.
+	// For some reason, using C3D_SyncDisplayTransfer eats the drop shadows.
 //	GSPGPU_FlushDataCache((void *)temp, sizeof(byte) * (u32)arraySize);
 //	// GX_TRANSFER_FLIP_VERT(1) | GX_TRANSFER_OUT_TILED(1) = (1 << 0) | (1 << 1) = 0b01 | 0b10 = 0b11 = 3
 //	C3D_SyncDisplayTransfer((u32 *)temp,                   GX_BUFFER_DIM(pixelsWide, pixelsHigh),
 //	                        (u32 *)userData->texture.data, GX_BUFFER_DIM(pixelsWide, pixelsHigh), 3);
+//	GSPGPU_InvalidateDataCache((u32 *)userData->texture.data, userData->texture.size);
 	custom3DS_DataToBlockTex((u32 *)const_cast<uint8 *>(temp), 0, 0, pixelsWide, pixelsHigh,
 	                         (u32 *)userData->texture.data,    0, 0, pixelsWide, pixelsHigh,
 	                         pixelsWide, pixelsHigh, GPU_RGBA8);
 
 	delete[] fntData;
-	custom3DS_FreeBuffer(temp);
+	temp = nullptr;
 }
 
 void GfxN3DS::destroyFont(Font *font) {
@@ -2015,8 +2017,9 @@ void GfxN3DS::createTextObject(TextObject *text) {
 		numCharacters += lines[j].size();
 	}
 
-	float *bufData = new float[numCharacters * 16];
-	float *cur = bufData;
+	void *vbo  = (text->isBlastDraw()) ? _blastVBO
+	                                   : custom3DS_CreateBuffer(numCharacters * 16 * sizeof(float), nullptr, 0x4);
+	float *cur = (float *)vbo;
 
 	const Tex3DS_SubTexture *subTexes = userData->subTextures;
 
@@ -2046,13 +2049,6 @@ void GfxN3DS::createTextObject(TextObject *text) {
 			x += font->getCharKernedWidth(character);
 		}
 	}
-	void *vbo;
-	if (text->isBlastDraw()) {
-		vbo = _blastVBO;
-		memcpy(vbo, bufData, numCharacters * 16 * sizeof(float));
-	} else {
-		vbo = custom3DS_CreateBuffer(numCharacters * 16 * sizeof(float), bufData, 0x4);
-	}
 
 	N3DS_3D::ShaderObj *textShader = new N3DS_3D::ShaderObj(_textShader);
 
@@ -2066,7 +2062,6 @@ void GfxN3DS::createTextObject(TextObject *text) {
 	td->color = color;
 	td->texture = const_cast<C3D_Tex *>(&userData->texture);
 	text->setUserData(td);
-	delete[] bufData;
 }
 
 void GfxN3DS::drawTextObject(const TextObject *text) {
@@ -2456,7 +2451,7 @@ void GfxN3DS::makeScreenTextures() {									// DEFINITE? - ADDED
 Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	Graphics::Surface src;
 	// In C3D_SyncDisplayTransfer, the destination buffer must be in linear memory.
-	src.setPixels(_screenCopySpace);
+	src.setPixels(_linearScratchPad);
 	// Set the rest of src manually.
 	src.w = _screenWidth;
 	src.h = _screenHeight;
@@ -2477,13 +2472,13 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	if (useStored) {
 		GSPGPU_FlushDataCache(_storedDisplay.data, _storedDisplay.size);
 		C3D_SyncDisplayTransfer((u32 *)_storedDisplay.data, GX_BUFFER_DIM(_storedDisplay.width, _storedDisplay.height),
-		                        (u32 *)_screenCopySpace,    GX_BUFFER_DIM(src.w, src.h), 4);
+		                        (u32 *)_linearScratchPad,   GX_BUFFER_DIM(src.w, src.h), 4);
 	} else {
 		GSPGPU_FlushDataCache(_gameScreenTex->data, _gameScreenTex->size);
 		C3D_SyncDisplayTransfer((u32 *)_gameScreenTex->data, GX_BUFFER_DIM(_gameScreenTex->width, _gameScreenTex->height),
-		                        (u32 *)_screenCopySpace,     GX_BUFFER_DIM(src.w, src.h), 4);
+		                        (u32 *)_linearScratchPad,    GX_BUFFER_DIM(src.w, src.h), 4);
 	}
-	GSPGPU_InvalidateDataCache(_screenCopySpace, src.pitch * src.h);
+	GSPGPU_InvalidateDataCache(_linearScratchPad, src.pitch * src.h);
 	// Since our data is already in the correct image orientation, do not flip it.
 	bmp = createScreenshotBitmap(&src, w, h, false);
 	src.setPixels(0);
