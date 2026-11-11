@@ -71,6 +71,7 @@
 #include "engines/grim/shaders-3ds/grim_shadowPlane_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
+#include "engines/grim/shaders-3ds/grim_primRect_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
 
 namespace Grim {
@@ -344,6 +345,13 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvSrc(&envGrimDimSTAGE1, C3D_Alpha, GPU_PREVIOUS);
 	C3D_TexEnvOpAlpha(&envGrimDimSTAGE1, GPU_TEVOP_A_SRC_ALPHA);
 
+	// Create texEnv for iris.
+	C3D_TexEnvInit(&envIris);
+	C3D_TexEnvFunc(&envIris, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvSrc(&envIris, C3D_Both, GPU_PRIMARY_COLOR);
+	C3D_TexEnvOpRgb(&envIris, GPU_TEVOP_RGB_SRC_COLOR);
+	C3D_TexEnvOpAlpha(&envIris, GPU_TEVOP_A_SRC_ALPHA);
+
 
 	float div = 6.0f;
 	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
@@ -375,11 +383,12 @@ GfxN3DS::~GfxN3DS() {
 	custom3DS_FreeBuffer(_quadEBO);
 	custom3DS_FreeBuffer(_spriteVBO);
 
+	custom3DS_FreeBuffer(_irisVBO);
 	custom3DS_FreeBuffer(_dimVBO);
 	custom3DS_FreeBuffer(_dimRegionVBO);
 	custom3DS_FreeBuffer(_blastVBO);
 
-
+	custom3DS_FreeBuffer(_primVBOChunk);
 
 	custom3DS_FreeBuffer(_zBuffer);
 
@@ -388,6 +397,7 @@ GfxN3DS::~GfxN3DS() {
 
 	if (isEMI) {
 	} else {
+		DECOMPOSE_SHADER(_iris);
 		DECOMPOSE_SHADER(_dimRegion);
 		DECOMPOSE_SHADER(_dim);
 	}
@@ -400,6 +410,9 @@ GfxN3DS::~GfxN3DS() {
 	DECOMPOSE_SHADER(_smush);
 	DECOMPOSE_SHADER(_text);
 
+	// _irisShader is a clone of _primRectShader, so delete _primRectShader only
+	//	after _irisShader has been deleted.
+	DECOMPOSE_SHADER(_primRect);
 	DECOMPOSE_SHADER(_shadowPlane);
 
 	DECOMPOSE_SHADER(_manualClear);
@@ -488,6 +501,29 @@ void GfxN3DS::setupTexturedCenteredQuad() {
 }
 
 void GfxN3DS::setupPrimitives() {
+#define SIZEOF_PRIMVBO sizeof(float) * 8
+	uint32 numVBOs = ARRAYSIZE(_primitiveVBOs);
+	_primVBOChunk = (float *)custom3DS_CreateBuffer(numVBOs * SIZEOF_PRIMVBO, nullptr, 0x4);
+	_lastPrimitive = 0;
+	_currentPrimitive = 0;
+#undef SIZEOF_PRIMVBO
+
+	for (uint32 i = 0; i < numVBOs; ++i) {
+		_primitiveVBOs[i] = (float *)_primVBOChunk + (i * 8);
+
+	}
+
+	_primRectShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_primRectShader->addBufInfo(_primVBOChunk, 2 * sizeof(float), 1, 0x0);
+
+	if (g_grim->getGameType() == GType_MONKEY4)
+		return;
+
+	_irisVBO = custom3DS_CreateBuffer(20 * sizeof(float), nullptr, 0x4);
+
+	_irisShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_irisShader->addBufInfo(_irisVBO, 2 * sizeof(float), 1, 0x0);
+
 	// 640x480 image on 1024x512 texture.
 	float points[24] = {
 		0.0f, 0.0f, 0.0f,   0.0f,
@@ -529,6 +565,7 @@ void GfxN3DS::setupShaders() {
 
 	CONSTRUCT_SHADER(_shadowPlane, grim_shadowPlane, 0);
 	_shadowPlaneShader->addAttrLoader(0 /*texcoord*/, GPU_FLOAT, 3);
+	CONSTRUCT_SHADER(_primRect, grim_primRect, 0);
 
 	if (!isEMI) {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
@@ -536,6 +573,7 @@ void GfxN3DS::setupShaders() {
 		CONSTRUCT_SHADER(_actorLights, grim_actorLights, 0);
 		CONSTRUCT_SHADER(_sprite, grim_actor, 0);
 
+		CONSTRUCT_SHADER(_iris, grim_primRect, 0);
 
 		CONSTRUCT_SHADER(_dim, grim_dim, 0);
 		CONSTRUCT_SHADER(_dimRegion, grim_dim, 0);
@@ -2221,6 +2259,44 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 }
 
 void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
+	// use GPU_SCISSOR_INVERT?
+
+	N3DS_3D::changeShader(_irisShader);
+	_irisShader->setUniform("color", GPU_VERTEX_SHADER, Math::Vector3d(0.0f, 0.0f, 0.0f));
+	_irisShader->setUniform("scaleWH", GPU_VERTEX_SHADER, Math::Vector2d(1.f / _gameWidth, 1.f / _gameHeight));
+
+	float fx1 = x1;
+	float fx2 = x2;
+	float fy1 = y1;
+	float fy2 = y2;
+	float width = _screenWidth;
+	float height = _screenHeight;
+	float points[20] = {
+		0.0f,  0.0f,
+		0.0f,  fy1,
+		width, 0.0f,
+		fx2,   fy1,
+		width, height,
+		fx2,   fy2,
+		0.0f,  height,
+		fx1,   fy2,
+		0.0f,  fy1,
+		fx1,   fy1
+	};
+
+	memcpy(_irisVBO, points, 20 * sizeof(float));
+	glTo3DS_BindTexture(0, nullptr);
+
+	glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(false);
+
+	drawStart(0, 0, 0, 640, 480, &envIris);
+		N3DS_3D::getActiveContext()->applyContextState();
+		C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 10);
+	drawEnd(0);
+
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(true);
 }
 
 void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgColor) {
