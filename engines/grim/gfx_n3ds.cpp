@@ -1014,7 +1014,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 
 	const Math::Vector3d &pos = actor->getWorldPos();
 	const Math::Quaternion &quat = actor->getRotationQuat();
-	//const float scale = actor->getScale();
+	const float scale = actor->getScale();
 
 	Math::Matrix4 viewMatrix = _viewMatrix;
 	viewMatrix.transpose();
@@ -1062,6 +1062,9 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 		}
 	} else {
 		Math::Matrix4 modelMatrix = quat.toMatrix();
+		modelMatrix *= scale;
+		modelMatrix.setValue(3, 3, 1.0f);
+
 		Math::Matrix4 extraMatrix;
 		_matrixStack.top() = extraMatrix;
 
