@@ -95,8 +95,6 @@ public:
 
 	void enableLights() override;
 	void disableLights() override;
-	void setupLight(Light *light, int lightId) override;
-	void turnOffLight(int lightId) override;
 
 	void createTexture(Texture *texture, const uint8 *data, const CMap *cmap, bool clamp) override;
 	void selectTexture(const Texture *texture) override;
@@ -232,6 +230,8 @@ protected:
 ////	GLuint compileShader(const char *vertex, const char *fragment);
 ////	GLuint compileShader(const char *shader) { return compileShader(shader, shader); }
 	void createSpecialtyTextureFromScreen(uint id, uint8 *data, int x, int y, int width, int height) override;
+	void setupLight(Light *light, int lightId) override;
+	void turnOffLight(int lightId) override;
 
 private:
 	N3DS_3D::ContextHandle *_backendContext, *_grimContext;
@@ -239,7 +239,6 @@ private:
 	const Actor *_currentActor;
 	Math::Vector4d _color;					// DEFINITE? - ADDED
 	float _alpha;
-	int _maxLights;
 	C3D_Tex _emergTexture;
 	N3DS_3D::ShaderObj *_emergShader;
 
