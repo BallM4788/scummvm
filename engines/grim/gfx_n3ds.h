@@ -320,7 +320,7 @@ private:
 	int _screenTexWidth;
 	int _screenTexHeight;
 
-	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDimSTAGE0, envGrimDimSTAGE1;
+	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDimSTAGE0, envGrimDimSTAGE1, envIris;
 
 	C3D_Tex _previousFrame;
 	void *_linearScratchPad;
