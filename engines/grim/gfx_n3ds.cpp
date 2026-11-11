@@ -257,7 +257,6 @@ GfxN3DS::GfxN3DS() {
 	_fclip = -1;
 	_selectedTexture = nullptr;
 //	_emergTexture = 0;
-	_maxLights = 8;
 	_lights = new LightObj[_maxLights];
 	_lightsEnabled = false;
 	_hasAmbientLight = false;
