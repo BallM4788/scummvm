@@ -311,6 +311,8 @@ private:
 	void    *_dimRegionVBO;
 	void    *_blastVBO;
 	C3D_Tex  _storedDisplay;
+	C3D_Tex  _dimmedDisplay;
+	bool     _storedDimmed;
 
 //	ADDED THINGS --- ADDED THINGS --- ADDED THINGS --- ADDED THINGS --- ADDED THINGS --- ADDED THINGS --- ADDED THINGS --- ADDED THINGS
 
@@ -319,7 +321,7 @@ private:
 	int _screenTexWidth;
 	int _screenTexHeight;
 
-	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDimSTAGE0, envGrimDimSTAGE1, envIris;
+	C3D_TexEnv envGRIMDefault, envBG_Smush, envText, envEmerg, envActorTex, envActorNoTex, envShadowPlane, envGrimDim, envIris;
 
 	C3D_Tex _previousFrame;
 	void *_linearScratchPad;
