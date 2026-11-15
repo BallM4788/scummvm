@@ -18,6 +18,23 @@
 ;		gl_Position = vec4(pos, 0.0, 1.0);
 ;	}
 
+; FRAGMENT SHADER CODE
+;	in vec2 Texcoord;
+;
+;	OUTPUT
+;
+;	uniform sampler2D tex;
+;	// DimScreen: 1, 1. DimRegion (blended): 0, 1 - level
+;	uniform float colorScale;
+;	uniform float alpha;
+;
+;	void main() {
+;		vec4 c = texture(tex, Texcoord);
+;		float grey = max(max(c.r, c.g), c.b / 8.0) / 4.0;
+;		outColor = vec4(vec3(grey * colorScale), alpha);
+;	}
+
+
 ; NOTES
 ;	- The 3DS does not support custom fragment shaders, so we
 ;		do the dimming with a texture environment.
@@ -34,24 +51,22 @@
 
 ; Inputs
 .alias    inPos		v0		; in vec2 position
-.alias inTcoord		v1		; in vec2 texcoord
 
 
 ; Uniforms
-.fvec scaleWH				; vec2 scaleWH
+
+.fvec combinedUnif			; vec4(scaleW, scaleH, colorScale, alpha)
 
 
 ; Outputs
 .out outPos			pos		; gl_Position
-.out outTcoord		tcoord0	; out vec2 Texcoord
 .out outColor		clr		; output 0.1 in RGB components for dimming
 
 
 ; Main
 .entry main
 .proc main
-	mov outTcoord,		 inTcoord.xy
-	mul r0.xy,			 scaleWH.xy,		inPos.xy
+	mul r0.xy,			 combinedUnif.xy,		inPos.xy
 	mov r1.xy,			 TWOS
 	; Do NOT flip Y-sign
 	mad outPos.xy,		 r0.xy,				r1.xy,				NEGONES
@@ -60,7 +75,7 @@
 	mov outPos.z,		 NEGONES
 	mov outPos.w,		 ONES
 
-	mov outColor.xyz,	 DIVTEN
-	mov outColor.w,		 ONES
+	mov outColor.rgb,	 combinedUnif.z
+	mov outColor.a,		 combinedUnif.w
 	end
 .end
