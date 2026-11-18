@@ -70,6 +70,7 @@
 #include "engines/grim/shaders-3ds/grim_dim_shbin.h"
 #include "engines/grim/shaders-3ds/grim_shadowPlane_shbin.h"
 #include "engines/grim/shaders-3ds/grim_smush_shbin.h"
+#include "engines/grim/shaders-3ds/grim_sprite_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "engines/grim/shaders-3ds/grim_primRect_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
@@ -453,10 +454,6 @@ void GfxN3DS::setupTexturedQuad() {
 	_smushShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
 	_smushShader->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);
 
-	_textShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
-	_textShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
-
-
 
 	if (g_grim->getGameType() == GType_GRIM) {
 		_backgroundShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
@@ -466,7 +463,15 @@ void GfxN3DS::setupTexturedQuad() {
 }
 
 void GfxN3DS::setupTexturedCenteredQuad() {
-	float sprite_textured_quad[] = {
+	float sprite_textured_quadGRIM[] = {
+	//	 X   , Y   , Z   , S   , T
+		+0.5f, 0.0f, 0.0f, 0.0f, 1.0f,
+		+0.5f, 1.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, 1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
+	};
+
+	float sprite_textured_quadEMI[] = {
 	//	 X   ,  Y   , Z   , S   , T
 		-0.5f, +0.5f, 0.0f, 0, 0,
 		+0.5f, +0.5f, 0.0f, 0, 0,
@@ -474,19 +479,13 @@ void GfxN3DS::setupTexturedCenteredQuad() {
 		-0.5f, -0.5f, 0.0f, 0, 0,
 	};
 
-	_spriteVBO = custom3DS_CreateBuffer(sizeof(float) * 20, sprite_textured_quad, 0x4);
+	if (g_grim->getGameType() == GType_GRIM) {
+		_spriteVBO = custom3DS_CreateBuffer(sizeof(float) * 20, sprite_textured_quadGRIM, 0x4);
+	} else {
+		_spriteVBO = custom3DS_CreateBuffer(sizeof(float) * 20, sprite_textured_quadEMI, 0x4);
+	}
 	_spriteShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 3);
 	_spriteShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
-	// Fixed vertex attribute for color. Due to how 3DS and citro3D work, and because
-	//	we're using more than one shader (the backend shader plus our engine shaders),
-	//	the values for the fixed attribute must be specified at render time.
-	// NOTE: Each fixed vertex attribute consists of four float components, and a single
-	//	shader can have no more than 12 vertex attributes total (fixed and non-fixed).
-	// TODO: For MONKEY4, store vertex colors in their own buffer to make this attribute
-	//	non-fixed.
-	_spriteShader->addFixedAttrLoader(2);
-	// Fixed attributes don't contribute to the buffer stride, and are not taken into
-	//	account for the buffer permutation.
 	_spriteShader->addBufInfo(_spriteVBO, 5 * sizeof(float), 2, 0x10);
 }
 
@@ -543,7 +542,7 @@ void GfxN3DS::setupShaders() {
 		CONSTRUCT_SHADER(_background, grim_smush, 0);
 		CONSTRUCT_SHADER(_actor, grim_actor, 0);
 		CONSTRUCT_SHADER(_actorLights, grim_actorLights, 0);
-		CONSTRUCT_SHADER(_sprite, grim_actor, 0);
+		CONSTRUCT_SHADER(_sprite, grim_sprite, 0);
 
 		CONSTRUCT_SHADER(_iris, grim_primRect, 0);
 
@@ -1054,6 +1053,7 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 		}
 	}
 
+	N3DS_3D::ShaderObj *actorShaders[] = { _actorShader, _actorLightsShader };
 	if (_currentShadowArray) {
 		const Sector *shadowSector = _currentShadowArray->planeList.front().sector;
 		Math::Vector3d color;
@@ -1066,12 +1066,12 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 		if (!_currentShadowArray->dontNegate)
 			normal = -normal;
 
-		for (int i = 0; i < 3; i++) {
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, true);
-			shaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);
-			shaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);			// shadowProjection, PARAM 1   OF 4
-			shaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);	// shadowProjection, PARAM 2   OF 4
-			shaders[i]->setUniform("shadowNormal", GPU_VERTEX_SHADER, normal);							// shadowProjection, PARAM 3+4 OF 4
+		for (int i = 0; i < 2; i++) {
+			actorShaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, true);
+			actorShaders[i]->setUniform("shadowColor", GPU_VERTEX_SHADER, color);
+			actorShaders[i]->setUniform("shadowLight", GPU_VERTEX_SHADER, _currentShadowArray->pos);			// shadowProjection, PARAM 1   OF 4
+			actorShaders[i]->setUniform("shadowPoint", GPU_VERTEX_SHADER, shadowSector->getVertices()[0]);	// shadowProjection, PARAM 2   OF 4
+			actorShaders[i]->setUniform("shadowNormal", GPU_VERTEX_SHADER, normal);							// shadowProjection, PARAM 3+4 OF 4
 		}
 
 		glTo3DS_DepthMask(false);
@@ -1082,8 +1082,8 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 //		glTo3DS_PolygonOffset(-1000.f);
 	}
 	else {
-		for (int i = 0; i < 3; i++) {
-			shaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, false);
+		for (int i = 0; i < 2; i++) {
+			actorShaders[i]->setUniform("shadowActive", GPU_VERTEX_SHADER, false);
 		}
 	}
 
@@ -1387,6 +1387,74 @@ void GfxN3DS::drawModelFace(const Mesh *mesh, const MeshFace *face) {
 }
 
 void GfxN3DS::drawSprite(const Sprite *sprite) {
+	glTo3DS_DepthMask(true);
+	glTo3DS_Enable(ENUM3DS_CAP_BLEND);
+
+	if (sprite->_flags1 & Sprite::BlendAdditive) {
+		glTo3DS_BlendFunc(GPU_SRC_ALPHA, GPU_ONE);
+	} else {
+		glTo3DS_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+	}
+	if (sprite->_flags2 & Sprite::DepthTest) {
+		glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
+	} else {
+		glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+	}
+
+	_spriteShader->setUniform("textured", GPU_VERTEX_SHADER, true);
+
+	if (g_grim->getGameType() == GType_GRIM) {
+		N3DS_3D::changeShader(_spriteShader);
+		_spriteShader->setUniform("extraMatrix", GPU_VERTEX_SHADER, _matrixStack.top());
+		_spriteShader->setUniform("spritePos", GPU_VERTEX_SHADER, sprite->_pos);
+		_spriteShader->setUniform("spriteSize", GPU_VERTEX_SHADER, Math::Vector2d(sprite->_width, sprite->_height));
+		// 0.5f converted to 0-255 int = 128
+		glTo3DS_Enable(ENUM3DS_CAP_ALPHA_TEST);																									// ~~~~~~~~OPENGL.CPP~~~~~~~~
+		glTo3DS_AlphaFunc(GPU_GEQUAL, 128);																								// ~~~~~~~~OPENGL.CPP~~~~~~~~
+	} else {
+		Math::Matrix4 rotateMatrix;
+		rotateMatrix.buildAroundZ(_currentActor->getYaw());
+
+		Math::Matrix4 extraMatrix;
+		extraMatrix.setPosition(sprite->_pos);
+		extraMatrix(0, 0) = sprite->_width;
+		extraMatrix(1, 1) = sprite->_height;
+
+		extraMatrix = rotateMatrix * extraMatrix;
+		extraMatrix.transpose();
+		_spriteShader->setUniform("extraMatrix", GPU_VERTEX_SHADER, extraMatrix);
+		if (sprite->_flags2 & Sprite::AlphaTest) {
+//			_spriteProgram->setUniform1f("alphaRef", 0.1f);
+			// 0.1f converted to 0-255 int = 26
+			glTo3DS_Enable(ENUM3DS_CAP_ALPHA_TEST);																									// ~~~~~~~~OPENGL.CPP~~~~~~~~
+			glTo3DS_AlphaFunc(GPU_GEQUAL, 26);																								// ~~~~~~~~OPENGL.CPP~~~~~~~~
+		} else {
+//			_spriteProgram->setUniform1f("alphaRef", 0.0f);
+			glTo3DS_Disable(ENUM3DS_CAP_ALPHA_TEST);																								// ~~~~~~~~OPENGL.CPP~~~~~~~~
+		}
+
+		// FIXME: Currently vertex-specific colors are not supported for sprites.
+		// It is unknown at this time if this is really needed anywhere.
+		Math::Vector4d color(sprite->_red[0] / 255.0f, sprite->_green[0] / 255.0f, sprite->_blue[0] / 255.0f, sprite->_alpha[0] / 255.0f);
+		// Don't overwrite the actor's alpha value  which is set via uniformColor in startActorDraw()
+		_spriteShader->setUniform("spriteColor", GPU_VERTEX_SHADER, color);
+
+		float *spriteQuad = (float *)_spriteShader->getAttachedBuffer(0);
+		spriteQuad[3]  = sprite->_texCoordX[0]; spriteQuad[4]  = sprite->_texCoordY[0];
+		spriteQuad[8]  = sprite->_texCoordX[1]; spriteQuad[9]  = sprite->_texCoordY[1];
+		spriteQuad[13] = sprite->_texCoordX[2]; spriteQuad[14] = sprite->_texCoordY[2];
+		spriteQuad[18] = sprite->_texCoordX[3]; spriteQuad[19] = sprite->_texCoordY[3];
+	}
+
+	N3DS_3D::changeShader(_spriteShader);
+
+	drawStart(0, 0, 0, 640, 480, &envActorTex);
+		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
+	drawEnd(0);
+	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_DepthMask(true);
+	glTo3DS_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
+	glTo3DS_Disable(ENUM3DS_CAP_ALPHA_TEST);																									// ADDED from "gfx_opengl.cpp"
 }
 
 void GfxN3DS::enableLights() {

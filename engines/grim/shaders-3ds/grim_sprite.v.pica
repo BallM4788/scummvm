@@ -1,0 +1,149 @@
+; sprite shader for Grim Fandango in SCUMMVM
+
+; ORIGINAL GLSL CODE
+;	in vec3 position;
+;	in vec2 texcoord;
+;	in vec4 color;
+;
+;	uniform highp mat4 modelMatrix;
+;	uniform highp mat4 viewMatrix;
+;	uniform highp mat4 projMatrix;
+;	uniform highp mat4 extraMatrix;
+;	uniform highp vec3 spritePos;
+;	uniform highp vec2 spriteSize;
+;
+;	out vec2 Texcoord;
+;	out vec4 Color;
+;	out float ClipDist;
+;
+;	void main() {
+;		vec4 anchor = modelMatrix * extraMatrix * vec4(spritePos, 1.0);
+;		vec4 viewPos = viewMatrix * anchor;
+;		viewPos.xy += position.xy * spriteSize;
+;		gl_Position = projMatrix * viewPos;
+;
+;		ClipDist = 1.0;
+;		Color = color;
+;		Texcoord = texcoord;
+;	}
+
+
+; FRAGMENT SHADER CODE
+;	in vec2 Texcoord;
+;	in vec4 Color;
+;
+;	uniform sampler2D tex;
+;	uniform sampler2D texZBuf;
+;	uniform UBOOL textured;
+;	uniform UBOOL hasZBuffer;
+;	uniform vec2 texcropZBuf;
+;	uniform vec2 screenSize;
+;	uniform float alphaRef;
+;
+;	const float offsetY = 0.0;
+;
+;	OUTPUT
+;
+;	void checkZBuffer() {
+;		vec2 zCoord = vec2((gl_FragCoord.x - 0.5) / screenSize.x, 1.0 - (gl_FragCoord.y - offsetY - 0.5) / screenSize.y);
+;		vec2 sampled = texture(texZBuf, zCoord * texcropZBuf).ra;
+;		float sceneZ = sampled.y + sampled.x / 256.0;
+;
+;		if (gl_FragCoord.z * 1.0039 > sceneZ)
+;			discard;
+;	}
+;
+;	void main() {
+;		if (UBOOL_TEST(hasZBuffer))
+;			checkZBuffer();
+;		outColor = Color;
+;		if (UBOOL_TEST(textured)) {
+;			outColor *= texture(tex, Texcoord);
+;		}
+;
+;		if (outColor.a < alphaRef)
+;			discard;
+;	}
+
+; NOTES:
+;	- Optimize out input vector "color"; it is always (1.0, 1.0, 1.0, 1.0)
+
+
+; Constants
+.constf myConst(0.0, 1.0, 1 / 16777215.0, 16777215.0)
+.alias              ZEROS	 myConst.xxxx
+.alias               ONES	 myConst.yyyy
+.alias           ZERO_ONE	 myConst.xyxy
+.alias            EPSILON	 myConst.zzzz
+.alias        EPSILON_RCP	 myConst.wwww
+
+; Inputs
+.alias    inPos		v0			; in vec3 position
+.alias inTcoord		v1			; in vec2 texcoord
+
+
+; Uniforms
+.fvec modelMatrix[4]			; mat4 modelMatrix
+.fvec  viewMatrix[4]			; mat4  viewMatrix
+.fvec  projMatrix[4]			; mat4  projMatrix
+.fvec     projFix[4]
+.fvec extraMatrix[4]			; mat4 extraMatrix
+.fvec   spritePos				; vec3 spritePos
+.fvec  spriteSize				; vec2 spriteSize
+
+; Outputs
+.out outPos		pos				; gl_Position
+.out outTcoord	tcoord0			; out vec2 Texcoord
+.out outColor	clr				; out vec4 Color
+                        		; out float ClipDist???????????????????????
+
+
+; Register Aliases
+.alias TMP_0			r0
+.alias TMP_1			r1
+.alias vec4_anchor		r5		;  vec4 anchor
+.alias vec4_viewPos		r6		;  vec4 viewPos
+
+
+; Main
+.entry main
+.proc main
+	; vec4_anchor = modelMatrix * extraMatrix * vec4(spritePos, 1.0);
+	mov TMP_0.xyz,			spritePos.xyz
+	mov TMP_0.w,		ONES
+	dp4 TMP_1.x,			extraMatrix[0],		TMP_0
+	dp4 TMP_1.y,			extraMatrix[1],		TMP_0
+	dp4 TMP_1.z,			extraMatrix[2],		TMP_0
+	dp4 TMP_1.w,			extraMatrix[3],		TMP_0
+	dp4 vec4_anchor.x,		modelMatrix[0],		TMP_1
+	dp4 vec4_anchor.y,		modelMatrix[1],		TMP_1
+	dp4 vec4_anchor.z,		modelMatrix[2],		TMP_1
+	dp4 vec4_anchor.w,		modelMatrix[3],		TMP_1
+
+	; vec4_viewPos = viewMatrix * vec4_anchor;
+	dp4 vec4_viewPos.x,		viewMatrix[0],		vec4_anchor
+	dp4 vec4_viewPos.y,		viewMatrix[1],		vec4_anchor
+	dp4 vec4_viewPos.z,		viewMatrix[2],		vec4_anchor
+	dp4 vec4_viewPos.w,		viewMatrix[3],		vec4_anchor
+
+	; vec4_viewPos.xy += position.xy * spriteSize;
+	mad vec4_viewPos.xy,	inPos.xy,			spriteSize.xy,		vec4_viewPos.xy
+
+	; TMP_0 = projMatrix * vec4_viewPos;
+	dp4 TMP_0.x,			projMatrix[0],		vec4_viewPos
+	dp4 TMP_0.y,			projMatrix[1],		vec4_viewPos
+	dp4 TMP_0.z,			projMatrix[2],		vec4_viewPos
+	dp4 TMP_0.w,			projMatrix[3],		vec4_viewPos
+
+	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
+	dp4 outPos.x,			projFix[0],			TMP_0
+	dp4 outPos.y,			projFix[1],			TMP_0
+	dp4 outPos.z,			projFix[2],			TMP_0
+	dp4 outPos.w,			projFix[3],			TMP_0
+
+	; ClipDist out?????????????????????
+
+	mov outColor,			ONES
+	mov outTcoord,			inTcoord.xy
+	end
+.end
