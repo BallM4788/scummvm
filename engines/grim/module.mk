@@ -169,6 +169,7 @@ MODULE_OBJS += \
 	shaders-3ds/grim_dim.shbin.o \
 	shaders-3ds/grim_smush.shbin.o \
 	shaders-3ds/grim_shadowPlane.shbin.o \
+	shaders-3ds/grim_sprite.shbin.o \
 	shaders-3ds/grim_text.shbin.o \
 	shaders-3ds/grim_primRect.shbin.o \
 	../../backends/platform/3ds/shaders/common_manualClear.shbin.o \
