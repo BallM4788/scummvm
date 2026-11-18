@@ -561,7 +561,7 @@ void GfxN3DS::setupShaders() {
 	setupPrimitives();
 
 	if (!isEMI) {
-		_blastVBO = custom3DS_CreateBuffer(size_t(128 * 16) * sizeof(float), nullptr, 0x4);
+		_blastVBO = custom3DS_CreateBuffer(size_t(192 * 16) * sizeof(float), nullptr, 0x4);
 	}
 }
 
