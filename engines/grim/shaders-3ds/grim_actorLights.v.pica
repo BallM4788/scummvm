@@ -354,6 +354,9 @@
 ; vec3_shPnt:         DONE (r6.xyz)
 ; vec3_shNrm:         DONE (r7.xyz)
 ; vec3_shLgt:         DONE (r8.xyz)
+; dp3_NrmPos:         DONE (r9.x)
+; dp3_NrmPnt:         DONE (r9.y)
+; dp3_NrmLgt:         DONE (r9.z)
 ; vec4_posView:   OCCUPIED (r6)
 ; outPos:          WRITTEN
 ; outTcoord:     UNWRITTEN

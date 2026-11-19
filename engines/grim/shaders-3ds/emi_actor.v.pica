@@ -97,7 +97,9 @@
 .alias        ONES	 myConst.yyyy
 .alias     NEGONES	-myConst.yyyy
 .alias    ZERO_ONE	 myConst.xyxy
-.alias    ONE_HALF	 myConst.wwww
+.constf myConst2(1 / 16777215.0, 16777215.0, 0.0, 0.0)
+.alias     EPSILON	 myConst2.xxxx
+.alias EPSILON_RCP	 myConst2.yyyy
 
 ; end index = 7, start index = 0, step = 1 (loops 8 times)
 .consti	loopParams(7, 0, 1, 0)
@@ -115,7 +117,8 @@
 .fvec  modelMatrix[4]		; mat4  modelMatrix
 .fvec   viewMatrix[4]		; mat4   viewMatrix
 .fvec   projMatrix[4]		; mat4   projMatrix
-																						;.fvec  extraMatrix[4]		; mat4  extraMatrix
+.fvec      projFix[4]
+												;.fvec  extraMatrix[4]		; mat4  extraMatrix
 .fvec normalMatrix[4]		; mat4 normalMatrix
 .fvec    cameraPos			; vec3    cameraPos
 .fvec uniformColor			; vec4 uniformColor
@@ -139,13 +142,15 @@
 ; Register Aliases
 .alias TMP_0			r0
 .alias TMP_1			r1
-.alias vec4_pos			r2
-.alias vec3_shPo		r3.xyz	;  vec3 shadowPoint, moved to temp register
-.alias vec3_shNo		r4.xyz	;  vec3 shadowNormal, moved to temp register
-.alias vec3_shLi		r5.xyz	;  vec3 shadowLight, moved to temp register
-.alias vec3_L			r6.xyz	;  vec3 l
-.alias flot_D			r6.w	; float d
-.alias tmpColor			r2		; Since each output register component must be written to EXACTLY ONCE,
+.alias TMP_2			r2
+.alias vec4_pos			r3		;  vec4 pos																		THIS IS KEPT, UNLIKE IN GRIM FANDANGO
+.alias vec3_shPnt		r4.xyz	;  vec3 shadowPoint, moved to temp register
+.alias vec3_shNrm		r5.xyz	;  vec3 shadowNormal, moved to temp register
+.alias vec3_shLgt		r6.xyz	;  vec3 shadowLight, moved to temp register
+.alias dp3_NrmPos		r7.x
+.alias dp3_NrmPnt		r7.y
+.alias dp3_NrmLgt		r7.z
+.alias tmpColor			r4		; Since each output register component must be written to EXACTLY ONCE,
 								;	modify the output color here before writing to outColor.
 
 
@@ -156,63 +161,105 @@
 	mov TMP_0.xyz,		inPos.xyz
 	mov TMP_0.w,		ONES
 
-	; vec4_pos = modelMatrix (mat4) * TMP_0 (vec4);
+	; vec4_pos = modelMatrix * TMP_0;
 	dp4 vec4_pos.x,		modelMatrix[0],		TMP_0
 	dp4 vec4_pos.y,		modelMatrix[1],		TMP_0
 	dp4 vec4_pos.z,		modelMatrix[2],		TMP_0
-	dp4 vec4_pos.w,		modelMatrix[3],		TMP_0										;	vec4_pos     occupied;	TMP_0        no longer needed
+	dp4 vec4_pos.w,		modelMatrix[3],		TMP_0
 
 ; TMP_0:     UNOCCUPIED
 ; TMP_1:     UNOCCUPIED
-; vec4_pos:    OCCUPIED (r2)
+; TMP_2:     UNOCCUPIED
+; vec4_pos:    OCCUPIED (r3)
 ; outPos:     UNWRITTEN
 ; outTcoord:  UNWRITTEN
 ; outColor:   UNWRITTEN
 
 	; if (shadowActive)
 	ifu shadowActive
-		rcp TMP_0,			vec4_pos.w													; TMP_0        = (1/vec4_pos.w x4)
-		mov vec3_shPo,		shadowPoint.xyz												; vec3_shPo    = shadowPoint(xyz)
-		mov vec3_shNo,		shadowNormal.xyz											; vec3_shNo    = shadowNormal(xyz)
-		mov vec3_shLi,		shadowLight.xyz												; vec3_shLi    = shadowLight(xyz)
-		mul vec4_pos,		vec4_pos,			 TMP_0									; vec4_pos    *= TMP_0 (1/vec4_pos.w x4)
-		add TMP_1.xyz,		vec3_shPo,			-vec3_shLi								; TMP_1.xyz    = vec3_shPo - vec3_shLi
-		add vec3_L,			vec4_pos.xyz,		-vec3_shLi								; vec3_L       = vec4_pos  - vec3_shLi
-		dp3 flot_D,			TMP_1.xyz,			 vec3_shNo								; flot_D       = dp3(TMP_1.xyz, vec3_shNo)
-		dp3 TMP_0.w,		vec3_L,				 vec3_shNo								; TMP_0.w      = dp3(vec3_L,    vec3_shNo)
-		rcp TMP_1.w,		TMP_0.w														; TMP_1.w      = 1 / TMP_0.w
-		mul flot_D,			flot_D,				 TMP_1.w								; flot_D      *= TMP_1.w
-		mov vec4_pos.w,		ONES														; vec4_pos.w   = 1.0
-		mad vec4_pos.xyz,	vec3_L,				 flot_D,			vec3_shLi			; vec4_pos.xyz = vec3_L * flot_D(www) + vec3_shLi
+		; The line-plane intersection implementation used in
+		;	the GLSL shader does not work here. It seems that
+		;	the position vector being divided by the w component
+		;	before doing shadow calculations causes the final
+		;	vector position to go wild. Eliminating the w division
+		;	fixed it, but the shadows were very choppy.
+		; Instead, we're taking the shadow projection function
+		;	used in the OpenGL renderer and implementing its
+		;	matrix calculations through shader operations. It
+		;	-would- be simpler to just create a shadow matrix
+		;	in software and pass it to the shader, but for some
+		;	reason doing that introduces crashes in various
+		;	locations.
+		mov vec3_shNrm,		shadowNormal.xyz									; vec3_shNrm   = shadowNormal(xyz)
+		mov vec3_shPnt,		shadowPoint.xyz										; vec3_shPnt   = shadowPoint(xyz)
+		mov vec3_shLgt,		shadowLight.xyz										; vec3_shLgt   = shadowLight(xyz)
+
+		dp3 dp3_NrmPnt,		vec3_shNrm,			vec3_shPnt						; dp3(vec3_shNrm, vec3_shPnt)
+		dp3 dp3_NrmLgt,		vec3_shNrm,			vec3_shLgt						; dp3(vec3_shNrm, vec3_shLgt)
+		dp3 dp3_NrmPos,		vec3_shNrm,			vec4_pos						; dp3(vec3_shNrm, VtxPos.xyz)
+
+		add TMP_0.y,		dp3_NrmPnt,			-dp3_NrmLgt						; dp3_NrmPnt - dp3_NrmLgt
+		mad TMP_0.x,		dp3_NrmPnt,			-vec4_pos.w,		dp3_NrmPos	; dp3_NrmPos - (dp3_NrmPnt * VtxPos.w)
+		mad TMP_0.z,		dp3_NrmLgt,			-vec4_pos.w,		dp3_NrmPos	; dp3_NrmPos - (dp3_NrmLgt * VtxPos.w)
+
+		mul TMP_1.xyz,		vec3_shLgt,			TMP_0.x							; vec3_shLgt * (dp3_NrmPos - (dp3_NrmPnt * VtxPos.w))
+		mul TMP_2.xyz,		vec4_pos.xyz,		TMP_0.y							; vec4_pos.xyz * (dp3_NrmPnt - dp3_NrmLgt)
+
+		mov vec4_pos.w,		TMP_0.z												; pos.w = dp3_NrmPos - (dp3_NrmLgt * VtxPos.w)
+		add vec4_pos.xyz,	TMP_1.xyz,			TMP_2.xyz						; pos.xyz = vec3_shLgt (dp3_NrmPos - (VtxPos.w * dp3_NrmPnt)) + VtxPos.xyz (dp3_NrmPnt - dp3_NrmLgt)
 	.end
 
-	; vec4_pos -= vec4(cameraPos * vec4_pos.w, 0.0);
+	; TMP_1 = vec4_pos - vec4(cameraPos * vec4_pos.w, 0.0);
 	mov TMP_0.w,		ZEROS
 	mul TMP_0.xyz,		cameraPos.xyz,		 vec4_pos.w
-	add vec4_pos,		vec4_pos,			-TMP_0
+	add TMP_1,			vec4_pos,			-TMP_0
 
-	; TMP_0 (vec4) = viewMatrix (mat4) * vec4_pos;
-	dp4 TMP_0.x,		viewMatrix[0],		vec4_pos
-	dp4 TMP_0.y,		viewMatrix[1],		vec4_pos
-	dp4 TMP_0.z,		viewMatrix[2],		vec4_pos
-	dp4 TMP_0.w,		viewMatrix[3],		vec4_pos									;	TMP_0        occupied;
+	; TMP_0 = viewMatrix * TMP_1;
+	dp4 TMP_0.x,		viewMatrix[0],		TMP_1
+	dp4 TMP_0.y,		viewMatrix[1],		TMP_1
+	dp4 TMP_0.z,		viewMatrix[2],		TMP_1
+	dp4 TMP_0.w,		viewMatrix[3],		TMP_1
 
 	; vec4_pos = TMP_0 / TMP_0.w;
 	rcp TMP_1,			TMP_0.w
-	mul vec4_pos,		TMP_0,				TMP_1										;							TMP_0        no longer needed
+	mul vec4_pos,		TMP_0,				TMP_1
 
 	; vec4_pos.z *= -1.0;
 	mul vec4_pos.z,		NEGONES,			vec4_pos.z
 
-	; outPos = projMatrix (mat4) * vec4_pos;
-	dp4 outPos.x,		projMatrix[0],		vec4_pos
-	dp4 outPos.y,		projMatrix[1],		vec4_pos
-	dp4 outPos.z,		projMatrix[2],		vec4_pos
-	dp4 outPos.w,		projMatrix[3],		vec4_pos									;	outPos        written;	vec4_pos         STILL NEEDED
+	; r10 = projMatrix * vec4_pos;
+	dp4 r10.x,			projMatrix[0],		vec4_pos
+	dp4 r10.y,			projMatrix[1],		vec4_pos
+	dp4 r10.z,			projMatrix[2],		vec4_pos
+	dp4 r10.w,			projMatrix[3],		vec4_pos
+
+	; Fix projection for 3DS depth range of [-1, 0], and flip Y coordinate.
+	dp4 r11.x,			projFix[0],			r10
+	dp4 r11.y,			projFix[1],			r10
+	dp4 r11.z,			projFix[2],			r10
+	dp4 r11.w,			projFix[3],			r10
+
+	; Before perspective division, compare value in r12.w to zero.
+	cmp ZEROS,			lt, gt,				r11.w
+	ifc cmp.x																	; If w component is positive...
+		rcp r12.w,			r11.w												; ...just get the reciprocal.
+	.else
+		ifc cmp.y																; If w component is negative...
+			rcp r12.w,			-r11.w											; ...get the negative of the reciprocal, to preserve xyz signage.
+		.else
+			mov r11.w,			EPSILON											; w is zero, change it to 1 / 0xffffff.
+			mov r12.w,			EPSILON_RCP										; get 16777215 (reciprocal of smallest non-zero 24-bit depth value).
+		.end
+	nop																			; .end can't be called consecutively - insert nop instruction between.
+	.end
+
+	; Perspective division.
+	mul outPos,			r11,				r12.w								; vec4_pos STILL NEEDED
 
 ; TMP_0:        UNOCCUPIED
 ; TMP_1:        UNOCCUPIED
-; vec4_pos:       OCCUPIED (r2)
+; TMP_2:        UNOCCUPIED
+; vec4_pos:       OCCUPIED (r3)
 ; outPos:          WRITTEN
 ; outTcoord:     UNWRITTEN
 ; outColor:      UNWRITTEN
@@ -226,7 +273,7 @@
 	.else
 		; tmpColor = (1.0, 1.0, 1.0, 1.0);
 		mov tmpColor,		ONES
-	.end																				;	tmpColor     occupied;
+	.end
 
 	; if (textured)
 	ifu textured
@@ -235,7 +282,7 @@
 	.else
 		; outTcoord = vec2(0.0, 0.0)
 		mov outTcoord,		ZEROS
-	.end																				;	outTcoord     written;
+	.end
 
 	; if (notVtxAlpha)
 	ifu notVtxAlpha
@@ -244,7 +291,7 @@
 	.end
 
 	; tmpColor *= uniformColor;
-	mul outColor,		uniformColor,		tmpColor									;	outColor      written;
+	mul outColor,		uniformColor,		tmpColor
 
 	end
 .end
