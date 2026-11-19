@@ -2559,15 +2559,15 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	//		offsetAddr = destBufferAddr + ((sourceWidth - destWidth) * (destHeight - 1) * bytesPerPixel)
 	// Cropping bit is at x << 2.
 	// 0 << 0 | 0 << 1 | 1 << 2 = 0b0100 = 4
-	if (useStored) {
-		GSPGPU_FlushDataCache(_storedDisplay.data, _storedDisplay.size);
-		C3D_SyncDisplayTransfer((u32 *)_storedDisplay.data, GX_BUFFER_DIM(_storedDisplay.width, _storedDisplay.height),
-		                        (u32 *)_linearScratchPad,   GX_BUFFER_DIM(src.w, src.h), 4);
-	} else {
-		GSPGPU_FlushDataCache(_gameScreenTex->data, _gameScreenTex->size);
-		C3D_SyncDisplayTransfer((u32 *)_gameScreenTex->data, GX_BUFFER_DIM(_gameScreenTex->width, _gameScreenTex->height),
-		                        (u32 *)_linearScratchPad,    GX_BUFFER_DIM(src.w, src.h), 4);
-	}
+
+	C3D_Tex *toCopy = useStored ? &_storedDisplay : _gameScreenTex;
+	GSPGPU_FlushDataCache(toCopy->data, toCopy->size);
+	// Don't copy the blank rows at the top of the texture, or else the screenshot will be offset.
+	int skipRows = _screenTexHeight - _screenHeight; // 512 - 480 = 32
+	int adjust = skipRows * _screenTexWidth;
+	// No fancy compensation for block order needed, since 32 * 1024 pixels = 3 * 128 blocks.
+	C3D_SyncDisplayTransfer((u32 *)toCopy->data + adjust, GX_BUFFER_DIM(toCopy->width, toCopy->height - skipRows),
+	                        (u32 *)_linearScratchPad,     GX_BUFFER_DIM(src.w, src.h), 4);
 	GSPGPU_InvalidateDataCache(_linearScratchPad, src.pitch * src.h);
 	// Since our data is already in the correct image orientation, do not flip it.
 	bmp = createScreenshotBitmap(&src, w, h, false);
