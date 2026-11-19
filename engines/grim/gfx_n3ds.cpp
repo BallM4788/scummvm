@@ -1194,6 +1194,8 @@ void GfxN3DS::drawShadowPlanes() {
 	glTo3DS_BindTexture(0, nullptr);
 	// Draw to the game screen, clearing the depth buffer.
 	drawStart(0, 0, 0, 640, 480, &envGRIMDefault);
+		// TODO: Figure out why adding this line fixes shadow rendering.
+		_manualClearShader->setUniform("depthClear", GPU_VERTEX_SHADER, 0.0f);
 		N3DS_3D::changeShader(_manualClearShader);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
