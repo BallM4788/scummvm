@@ -172,6 +172,7 @@ MODULE_OBJS += \
 	shaders-3ds/grim_sprite.shbin.o \
 	shaders-3ds/grim_text.shbin.o \
 	shaders-3ds/grim_primRect.shbin.o \
+	shaders-3ds/grim_emerg.shbin.o \
 	../../backends/platform/3ds/shaders/common_manualClear.shbin.o \
 	gfx_n3ds.o
 endif

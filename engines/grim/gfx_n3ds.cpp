@@ -73,6 +73,7 @@
 #include "engines/grim/shaders-3ds/grim_sprite_shbin.h"
 #include "engines/grim/shaders-3ds/grim_text_shbin.h"
 #include "engines/grim/shaders-3ds/grim_primRect_shbin.h"
+#include "engines/grim/shaders-3ds/grim_emerg_shbin.h"
 #include "backends/platform/3ds/shaders/common_manualClear_shbin.h"
 
 namespace Grim {
@@ -344,6 +345,14 @@ GfxN3DS::GfxN3DS() {
 	C3D_TexEnvOpRgb(&envIris, GPU_TEVOP_RGB_SRC_COLOR);
 	C3D_TexEnvOpAlpha(&envIris, GPU_TEVOP_A_SRC_ALPHA);
 
+	// Create texEnv for emerg text.
+	C3D_TexEnvInit(&envEmerg);
+	C3D_TexEnvFunc(&envEmerg, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvSrc(&envEmerg, C3D_RGB, GPU_PRIMARY_COLOR);
+	C3D_TexEnvSrc(&envEmerg, C3D_Alpha, GPU_TEXTURE0);
+	C3D_TexEnvOpRgb(&envEmerg, GPU_TEVOP_RGB_SRC_COLOR);
+	C3D_TexEnvOpAlpha(&envEmerg, GPU_TEVOP_A_SRC_ALPHA);
+
 
 	float div = 6.0f;
 	_overworldProjMatrix = makeFrustumMatrix(-1.f / div, 1.f / div, -0.75f / div, 0.75f / div, 1.0f / div, 3276.8f);
@@ -404,11 +413,13 @@ GfxN3DS::~GfxN3DS() {
 	//	after _irisShader has been deleted.
 	DECOMPOSE_SHADER(_primRect);
 	DECOMPOSE_SHADER(_shadowPlane);
+	DECOMPOSE_SHADER(_emerg);
 
 	DECOMPOSE_SHADER(_manualClear);
 
 	C3D_TexDelete(&_storedDisplay);
 	C3D_TexDelete(&_dimmedDisplay);
+	C3D_TexDelete(&_emergTexture);
 
 	custom3DS_FreeBuffer(_linearScratchPad);
 
@@ -454,6 +465,9 @@ void GfxN3DS::setupTexturedQuad() {
 	_smushShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
 	_smushShader->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);
 
+	_emergShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
+	_emergShader->addAttrLoader(1 /*texcoord*/, GPU_FLOAT, 2);
+	_emergShader->addBufInfo(_smushVBO, 4 * sizeof(float), 2, 0x10);
 
 	if (g_grim->getGameType() == GType_GRIM) {
 		_backgroundShader->addAttrLoader(0 /*position*/, GPU_FLOAT, 2);
@@ -533,6 +547,7 @@ void GfxN3DS::setupShaders() {
 
 	CONSTRUCT_SHADER(_smush, grim_smush, 0);
 	CONSTRUCT_SHADER(_text, grim_text, 0);
+	CONSTRUCT_SHADER(_emerg, grim_emerg, 0);
 
 	CONSTRUCT_SHADER(_shadowPlane, grim_shadowPlane, 0);
 	_shadowPlaneShader->addAttrLoader(0 /*texcoord*/, GPU_FLOAT, 3);
@@ -2107,9 +2122,66 @@ void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
 }
 
 void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgColor) {
+	if (!*text)
+		return;
+
+	glTo3DS_Enable(ENUM3DS_CAP_BLEND);
+	glTo3DS_Disable(ENUM3DS_CAP_DEPTH_TEST);
+	glTo3DS_BindTexture(0, &_emergTexture);
+	N3DS_3D::changeShader(_emergShader);
+	Math::Vector3d colors(float(fgColor.getRed()) / 255.0f,
+	                      float(fgColor.getGreen()) / 255.0f,
+	                      float(fgColor.getBlue()) / 255.0f);
+	_emergShader->setUniform("color", GPU_VERTEX_SHADER, colors);
+	_emergShader->setUniform("sizeTexScale", GPU_VERTEX_SHADER,
+	                          Math::Vector4d(float(8) / _gameWidth,
+	                                         float(16) / _gameHeight,
+	                                         float(8) / 128,
+	                                         float(16) / 128));
+
+	drawStart(0, 0, 0, 640, 480, &envEmerg);
+	for (; *text; ++text, x+=10) {
+		int blockcol = *text & 0xf;
+		int blockrow = *text / 16;
+		_emergShader->setUniform("offsetTexOffset", GPU_VERTEX_SHADER,
+		                          Math::Vector4d(float(x) / _gameWidth,
+		                                         float(y) / _gameHeight,
+		                                         float(blockcol * 8) / 128,
+		                                         float(blockrow * 16) / 128));
+		C3D_DrawArrays(GPU_TRIANGLE_FAN, 0, 4);
+	}
+	drawEnd(0);
 }
 
 void GfxN3DS::loadEmergFont() {
+	uint8 *atlas = new uint8[128 * 128]();
+
+	for (int c = 32; c < 128; ++c) {
+		int blockrow = c / 16;
+		int blockcol = c & 0xf;
+		for (int row = 0; row < 13; ++row) {
+			int base = 128 * (16 * blockrow + row) + 8 * blockcol;
+			uint8 val = BitmapFont::emerFont[c - 32][row];
+			atlas[base + 0] = (val & 0x80) ? 255 : 0;
+			atlas[base + 1] = (val & 0x40) ? 255 : 0;
+			atlas[base + 2] = (val & 0x20) ? 255 : 0;
+			atlas[base + 3] = (val & 0x10) ? 255 : 0;
+			atlas[base + 4] = (val & 0x08) ? 255 : 0;
+			atlas[base + 5] = (val & 0x04) ? 255 : 0;
+			atlas[base + 6] = (val & 0x02) ? 255 : 0;
+			atlas[base + 7] = (val & 0x01) ? 255 : 0;
+		}
+	}
+
+	C3D_TexInit(&_emergTexture, 128, 128, GPU_A8);
+	C3D_TexSetFilter(&_emergTexture, GPU_LINEAR, GPU_LINEAR);
+	C3D_TexSetWrap(&_emergTexture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+	custom3DS_DataToBlockTex((u32 *)atlas,              0, 0, 128, 128,
+	                         (u32 *)_emergTexture.data, 0, 0, 128, 128,
+	                         128, 128, GPU_A8, false);
+	GSPGPU_FlushDataCache(_emergTexture.data, 128 * 128);
+
+	delete[] atlas;
 }
 
 void GfxN3DS::drawGenericPrimitive(const float *vertices, uint32 numVertices, const PrimitiveObject *primitive) {
