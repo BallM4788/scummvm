@@ -90,10 +90,12 @@ void GfxN3DS::drawStart(u8 flags, u32 x, u32 y, u32 w, u32 h, C3D_TexEnv *texenv
 		// Due to the way Citro3D works, we must set the viewport ourselves for every draw session.
 		C3D_SetViewport(x, y, w, h);
 		C3D_SetScissor(GPU_SCISSOR_NORMAL, x, y, x + w, y + h);
-		if (texenv0) C3D_SetTexEnv(0, texenv0);
-		if (texenv1) C3D_SetTexEnv(1, texenv1);
 		_inFrame = true;
 	}
+	C3D_TexEnv *resetenv1 = C3D_GetTexEnv(1);
+	C3D_TexEnvInit(resetenv1);
+	if (texenv0) C3D_SetTexEnv(0, texenv0);
+	if (texenv1) C3D_SetTexEnv(1, texenv1);
 }
 
 void GfxN3DS::drawEnd(u8 flags) {
@@ -725,7 +727,6 @@ void GfxN3DS::clearScreen() {
 		N3DS_3D::changeShader(_manualClearShader);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 	// Switch back to the original context, reapplying its settings.
 	N3DS_3D::setContext(_grimContext);
 	// Destroy temporary context.
@@ -765,7 +766,6 @@ void GfxN3DS::clearDepthBuffer() {
 		N3DS_3D::changeShader(_manualClearShader);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 	// Switch back to the original context, reapplying its settings.
 	N3DS_3D::setContext(_grimContext);
 	// Destroy temporary context.
@@ -784,6 +784,8 @@ void GfxN3DS::flipBuffer(bool opportunistic) {
 //		}
 //	}
 
+	// End frame.
+	drawEnd(0);
 	// Unbind any textures.
 	glTo3DS_BindTexture(0, NULL);
 	// Do backend rendering.
@@ -952,7 +954,6 @@ void GfxN3DS::startActorDraw(const Actor *actor) {
 }
 
 void GfxN3DS::finishActorDraw() {
-	drawEnd(0);
 	_currentActor = nullptr;
 //	glTo3DS_Disable(ENUM3DS_CAP_POLYGON_OFFSET);
 	if (g_grim->getGameType() == GType_MONKEY4) {
@@ -1002,7 +1003,6 @@ void GfxN3DS::drawShadowPlanes() {
 		N3DS_3D::changeShader(_manualClearShader);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 	// Switch back to the original context, reapplying its settings.
 	N3DS_3D::setContext(_grimContext);
 	// Destroy temporary context.
@@ -1061,7 +1061,6 @@ void GfxN3DS::drawShadowPlanes() {
 		N3DS_3D::changeShader(_shadowPlaneShader);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 3 * sud->_numTriangles, C3D_UNSIGNED_SHORT, (void *)sud->_indicesVBO);
-	drawEnd(0);
 
 	glTo3DS_ColorMask(true, true, true, true);
 
@@ -1255,7 +1254,6 @@ void GfxN3DS::drawSprite(const Sprite *sprite) {
 
 	drawStart(0, 0, 0, 640, 480, &envActorTex);
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
 	glTo3DS_DepthMask(true);
 	glTo3DS_BlendFunc(GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA);
@@ -1600,6 +1598,13 @@ void GfxN3DS::createBitmap(BitmapData *bitmap) {
 				                         (u32 *)c3dTex->data, 0, 0, actualWidth, actualHeight,
 				                         bitmap->_width, bitmap->_height, format, false);
 			} else {
+				// If Citro3D is not in the middle of a frame, C3D_SyncDisplayTransfer immediately processes a
+				//	GX_DisplayTransfer request. If Citro3D -IS- in a frame, however, C3D_SyncDisplayTransfer adds
+				//	the GX request to its internal GX command queue, which will only be run once the frame has ended.
+				// Since the memory pointed to by bmpData is only guaranteed to have the correct data during this
+				//	loop cycle, we must force Citro3D to process the GX request immediately.
+				// To do so, we'll call drawEnd() to end the frame (if we are in one).
+				drawEnd(0);
 				GSPGPU_FlushDataCache(bmpData, bytes * actualWidth * actualHeight);
 				// GX_TRANSFER_FMT_RGBA8 is already 0.
 				// Transfer data to the texture in a tiled order.
@@ -1658,7 +1663,6 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 				N3DS_3D::getActiveContext()->applyContextState();
 				C3D_DrawElements(GPU_TRIANGLES, numVertices, C3D_UNSIGNED_SHORT, (void *)((u16 *)_quadEBO + startVertex));
 			}
-		drawEnd(0);
 		return;
 	}
 
@@ -1691,7 +1695,6 @@ void GfxN3DS::drawBitmap(const Bitmap *bitmap, int dx, int dy, uint32 layer) {
 		drawStart(0, 0, 0, 640, 480, &envBG_Smush);
 			N3DS_3D::getActiveContext()->applyContextState();
 			C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-		drawEnd(0);
 
 		glTo3DS_Disable(ENUM3DS_CAP_BLEND);
 		glTo3DS_DepthMask(true);
@@ -1735,6 +1738,8 @@ void GfxN3DS::drawDepthBitmap(int bitmapId, int x, int y, int w, int h, char *da
 }
 
 void GfxN3DS::sendBitmapDepthVals() {
+	// End frame before DMA request; otherwise, GPU indefinitely hangs.
+	drawEnd(0);
 	// Ensure all _zBuffer changes have been committed to main memory. Without this, the DMA request
 	//	can occur before _zBuffer has been completely written to.
 	GSPGPU_FlushDataCache(_zBuffer, nextHigher2(_gameWidth) * nextHigher2(_gameHeight) * 4);
@@ -1973,7 +1978,6 @@ void GfxN3DS::drawTextObject(const TextObject *text) {
 	// Draw the text.
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, (int)td->characters * 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 
 	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
 }
@@ -1998,6 +2002,8 @@ void GfxN3DS::storeDisplay() {
 	u32 *dstWriteStart = (u32 *)_storedDisplay.data + ((_screenTexHeight - _screenHeight) * _screenTexWidth);
 	u32 srcBytesSkip = (_screenTexWidth - _screenWidth) * 8 * 4;
 	u32 dstBytesSkip = srcBytesSkip;
+	// End frame so all queued draws are rendered to _gameScreenTex.
+	drawEnd(0);
 	C3D_SyncTextureCopy(
 		srcCopyStart, GX_BUFFER_DIM((_screenWidth * 8 * 4) >> 4, srcBytesSkip >> 4),
 		dstWriteStart, GX_BUFFER_DIM((_screenWidth * 8 * 4) >> 4, dstBytesSkip >> 4),
@@ -2012,6 +2018,8 @@ void GfxN3DS::storeDisplay() {
 void GfxN3DS::copyStoredToDisplay() {
 	C3D_Tex src = _storedDimmed ? _dimmedDisplay : _storedDisplay;
 
+	// End frame so all queued draws are rendered to _gameScreenTex.
+	drawEnd(0);
 	// In C3D_SyncTextureCopy ONLY, for the macro GX_BUFFER_DIM(w, h):
 	//	w = number of 16-byte blocks to copy from/write to per row
 	//	h = number of 16-byte blocks to skip between copied/written segments
@@ -2073,7 +2081,6 @@ void GfxN3DS::dimRegion(int xin, int yReal, int w, int h, float level) {
 	drawStart(0, 0, 0, 640, 480, &envGrimDim);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawArrays(GPU_TRIANGLES, 0, 6);
-	drawEnd(0);
 
 	glTo3DS_Disable(ENUM3DS_CAP_BLEND);
 	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
@@ -2115,7 +2122,6 @@ void GfxN3DS::irisAroundRegion(int x1, int y1, int x2, int y2) {
 	drawStart(0, 0, 0, 640, 480, &envIris);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawArrays(GPU_TRIANGLE_STRIP, 0, 10);
-	drawEnd(0);
 
 	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
 	glTo3DS_DepthMask(true);
@@ -2150,7 +2156,6 @@ void GfxN3DS::drawEmergString(int x, int y, const char *text, const Color &fgCol
 		                                         float(blockrow * 16) / 128));
 		C3D_DrawArrays(GPU_TRIANGLE_FAN, 0, 4);
 	}
-	drawEnd(0);
 }
 
 void GfxN3DS::loadEmergFont() {
@@ -2269,7 +2274,6 @@ void GfxN3DS::drawMovieFrame(int offsetX, int offsetY) {
 	drawStart(0, 0, 0, 640, 480, &envBG_Smush);
 		N3DS_3D::getActiveContext()->applyContextState();
 		C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, (void *)_quadEBO);
-	drawEnd(0);
 
 	// EBOs aren't bound, so they don't need to be unbound.
 	glTo3DS_Enable(ENUM3DS_CAP_DEPTH_TEST);
@@ -2412,6 +2416,14 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	src.pitch = src.w * src.format.bytesPerPixel;
 	Bitmap *bmp;
 
+	C3D_Tex *toCopy = useStored ? &_storedDisplay : _gameScreenTex;
+	// End frame so all queued draws are rendered to _gameScreenTex.
+	drawEnd(0);
+	GSPGPU_FlushDataCache(toCopy->data, toCopy->size);
+	// Don't copy the blank rows at the top of the texture, or else the screenshot will be offset.
+	int skipRows = _screenTexHeight - _screenHeight; // 512 - 480 = 32
+	int adjust = skipRows * _screenTexWidth;
+	// No fancy compensation for block order needed, since 32 * 1024 pixels = 3 * 128 blocks.
 	// Leaving GX_TRANSFER_OUT_TILED at 0 instructs the GPU to ~UN~tile the data copied from the source buffer
 	//	before sending it to the destination buffer.
 	// Do NOT reflip with GX_TRANSFER_FLIP_VERT(1) - we want to keep the upper-left corner of the display image
@@ -2421,13 +2433,6 @@ Bitmap *GfxN3DS::getScreenshot(int w, int h, bool useStored) {
 	//		offsetAddr = destBufferAddr + ((sourceWidth - destWidth) * (destHeight - 1) * bytesPerPixel)
 	// Cropping bit is at x << 2.
 	// 0 << 0 | 0 << 1 | 1 << 2 = 0b0100 = 4
-
-	C3D_Tex *toCopy = useStored ? &_storedDisplay : _gameScreenTex;
-	GSPGPU_FlushDataCache(toCopy->data, toCopy->size);
-	// Don't copy the blank rows at the top of the texture, or else the screenshot will be offset.
-	int skipRows = _screenTexHeight - _screenHeight; // 512 - 480 = 32
-	int adjust = skipRows * _screenTexWidth;
-	// No fancy compensation for block order needed, since 32 * 1024 pixels = 3 * 128 blocks.
 	C3D_SyncDisplayTransfer((u32 *)toCopy->data + adjust, GX_BUFFER_DIM(toCopy->width, toCopy->height - skipRows),
 	                        (u32 *)_linearScratchPad,     GX_BUFFER_DIM(src.w, src.h), 4);
 	GSPGPU_InvalidateDataCache(_linearScratchPad, src.pitch * src.h);
